@@ -306,19 +306,21 @@ export async function uploadAvatar(formData: FormData) {
   const path = `${user.id}/avatar.${ext}`;
 
   const { error: uploadError } = await supabase.storage
-    .from("avatars")
+    .from("avatar")
     .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) return { success: false, error: uploadError.message };
 
-  const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+  const { data: urlData } = supabase.storage.from("avatar").getPublicUrl(path);
 
   const avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
 
   const { error } = await supabase
     .from("profiles")
-    .update({ avatar_url, updated_at: new Date().toISOString() })
-    .eq("id", user.id);
+    .upsert(
+      { id: user.id, avatar_url, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
 
   if (error) return { success: false, error: error.message };
   revalidatePath("/dashboard/settings");
@@ -336,8 +338,10 @@ export async function updateProfile(formData: FormData) {
   const name = formData.get("name") as string;
   const { error } = await supabase
     .from("profiles")
-    .update({ name, updated_at: new Date().toISOString() })
-    .eq("id", user.id);
+    .upsert(
+      { id: user.id, name, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
 
   if (error) return { success: false, error: error.message };
   revalidatePath("/dashboard/settings");

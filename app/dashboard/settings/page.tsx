@@ -15,15 +15,12 @@ import {
   Moon,
   Clock,
   Check,
-  Camera,
-  X,
 } from "lucide-react";
 import {
   getProfile,
   updateProfile,
   deleteAccount,
   signOut,
-  uploadAvatar,
 } from "@/app/dashboard/actions";
 import {
   usePrefs,
@@ -32,6 +29,11 @@ import {
   Language,
   DateFormat,
 } from "@/store/prefs";
+import {
+  UserAvatar,
+  AVATAR_COLORS,
+  AVATAR_ICONS,
+} from "@/components/user-avatar";
 import { useI18n } from "@/hooks/useI18n";
 import {
   enableAutoTheme,
@@ -122,23 +124,17 @@ export default function SettingsPage() {
   const router = useRouter();
   const { t } = useI18n();
   const {
-    currency,
-    language,
-    dateFormat,
     setCurrency,
     setLanguage,
     setDateFormat,
+    setAvatarColor,
+    setAvatarIcon,
   } = usePrefs();
 
   const [mounted, setMounted] = useState(false);
   const [isAuto, setIsAuto] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarSuccess, setAvatarSuccess] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const setStoreAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const [savedPrefs, setSavedPrefs] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -146,52 +142,39 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
 
+  // Pending (unsaved) prefs — initialized from store (already hydrated on client)
+  const [pendingCurrency, setPendingCurrency] = useState<Currency>(
+    () => usePrefs.getState().currency,
+  );
+  const [pendingLanguage, setPendingLanguage] = useState<Language>(
+    () => usePrefs.getState().language,
+  );
+  const [pendingDateFormat, setPendingDateFormat] = useState<DateFormat>(
+    () => usePrefs.getState().dateFormat,
+  );
+  const [pendingColor, setPendingColor] = useState(
+    () => usePrefs.getState().avatarColor,
+  );
+  const [pendingIcon, setPendingIcon] = useState(
+    () => usePrefs.getState().avatarIcon,
+  );
+
   useEffect(() => {
     getProfile().then((p) => {
       if (p) {
         setProfile(p as Profile);
         setName(p.name ?? "");
-        const url = (p as Profile).avatar_url;
-        setAvatarUrl(url);
-        setStoreAvatarUrl(url);
+        setStoreAvatarUrl(null);
       }
       setMounted(true);
       setIsAuto(isAutoThemeEnabled());
     });
   }, [setStoreAvatarUrl]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleAvatarUpload = async () => {
-    if (!fileInputRef.current?.files?.[0]) return;
-    setAvatarUploading(true);
-    const fd = new FormData();
-    fd.append("avatar", fileInputRef.current.files[0]);
-    const result = await uploadAvatar(fd);
-    if (result.success && result.avatar_url) {
-      setAvatarUrl(result.avatar_url);
-      setStoreAvatarUrl(result.avatar_url);
-      setAvatarPreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setAvatarSuccess(true);
-      setTimeout(() => setAvatarSuccess(false), 1500);
-    }
-    setAvatarUploading(false);
-  };
-
-  const cancelAvatarPreview = () => {
-    setAvatarPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    setAvatarColor(pendingColor);
+    setAvatarIcon(pendingIcon);
     startTransition(async () => {
       const fd = new FormData();
       fd.append("name", name);
@@ -204,6 +187,9 @@ export default function SettingsPage() {
   };
 
   const handleSavePrefs = () => {
+    setCurrency(pendingCurrency);
+    setLanguage(pendingLanguage);
+    setDateFormat(pendingDateFormat);
     setSavedPrefs(true);
     setTimeout(() => setSavedPrefs(false), 2000);
   };
@@ -241,106 +227,70 @@ export default function SettingsPage() {
       {/* ── Profile ── */}
       <Section icon={User} title={t("profile")} description={t("personalInfo")}>
         <div className="space-y-5">
-          {/* Avatar */}
-          <div className="flex items-center gap-5">
-            <div className="relative shrink-0 group">
-              <div
-                className={`w-16 h-16 rounded-full overflow-hidden border-2 transition-colors ${avatarSuccess ? "border-emerald-500" : "border-slate-200 dark:border-slate-700"} bg-slate-100 dark:bg-slate-800`}
-              >
-                {avatarPreview || avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarPreview ?? avatarUrl ?? ""}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-red-500 text-white text-xl font-bold">
-                    {profile?.name?.trim()
-                      ? profile.name
-                          .trim()
-                          .split(" ")
-                          .map((p) => p[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()
-                      : (profile?.email?.[0]?.toUpperCase() ?? "U")}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  !avatarUploading && fileInputRef.current?.click()
-                }
-                disabled={avatarUploading}
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
-              >
-                <Camera className="w-5 h-5 text-white" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                className="hidden"
-                onChange={handleAvatarChange}
+          {/* Avatar picker */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <UserAvatar
+                color={pendingColor}
+                iconKey={pendingIcon}
+                size="lg"
               />
+              <div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  Profile avatar
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Choose a color and icon
+                </p>
+              </div>
             </div>
-
-            <div className="flex-1 min-w-0">
-              {avatarSuccess ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-                  </span>
-                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    {t("photoSaved")}
-                  </p>
-                </div>
-              ) : avatarPreview ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {t("newPhotoSelected")}
-                  </p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                    {t("looksGoodSave")}
-                  </p>
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleAvatarUpload}
-                      disabled={avatarUploading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
-                    >
-                      {avatarUploading ? (
-                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Check className="w-3 h-3" />
-                      )}
-                      {avatarUploading
-                        ? t("uploadingEllipsis")
-                        : t("savePhoto")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelAvatarPreview}
-                      disabled={avatarUploading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
-                    >
-                      <X className="w-3 h-3" /> {t("cancel")}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {t("profilePhoto")}
-                  </p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
-                    {t("profilePhotoHint")}
-                  </p>
-                </div>
-              )}
+            {/* Color swatches */}
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                Color
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {AVATAR_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setPendingColor(c)}
+                    className="w-7 h-7 rounded-full transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: c,
+                      outline: pendingColor === c ? `3px solid ${c}` : "none",
+                      outlineOffset: "2px",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* Icon grid */}
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                Icon
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {AVATAR_ICONS.map(({ key, icon: Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPendingIcon(key)}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                      pendingIcon === key
+                        ? "text-white"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                    style={
+                      pendingIcon === key
+                        ? { backgroundColor: pendingColor }
+                        : {}
+                    }
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -392,8 +342,8 @@ export default function SettingsPage() {
           <Field label={t("currency")}>
             <select
               className={selectCls}
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
+              value={pendingCurrency}
+              onChange={(e) => setPendingCurrency(e.target.value as Currency)}
             >
               {CURRENCIES.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -405,8 +355,8 @@ export default function SettingsPage() {
           <Field label={t("language")}>
             <select
               className={selectCls}
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
+              value={pendingLanguage}
+              onChange={(e) => setPendingLanguage(e.target.value as Language)}
             >
               {LANGUAGES.map((l) => (
                 <option key={l.value} value={l.value}>
@@ -418,8 +368,10 @@ export default function SettingsPage() {
           <Field label={t("dateFormat")}>
             <select
               className={selectCls}
-              value={dateFormat}
-              onChange={(e) => setDateFormat(e.target.value as DateFormat)}
+              value={pendingDateFormat}
+              onChange={(e) =>
+                setPendingDateFormat(e.target.value as DateFormat)
+              }
             >
               {DATE_FORMATS.map((d) => (
                 <option key={d.value} value={d.value}>

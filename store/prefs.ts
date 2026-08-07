@@ -110,9 +110,13 @@ interface PrefsState {
   currency: Currency;
   language: Language;
   dateFormat: DateFormat;
+  avatarColor: string;
+  avatarIcon: string;
   setCurrency: (c: Currency) => void;
   setLanguage: (l: Language) => void;
   setDateFormat: (d: DateFormat) => void;
+  setAvatarColor: (c: string) => void;
+  setAvatarIcon: (i: string) => void;
 }
 
 export const usePrefs = create<PrefsState>()(
@@ -121,10 +125,14 @@ export const usePrefs = create<PrefsState>()(
       currency: "USD",
       language: "en",
       dateFormat: "MMM D, YYYY",
+      avatarColor: "#EF4444",
+      avatarIcon: "User",
       setCurrency: (currency) => set({ currency }),
       setLanguage: (language) => set({ language }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
+      setAvatarColor: (avatarColor) => set({ avatarColor }),
+      setAvatarIcon: (avatarIcon) => set({ avatarIcon }),
     }),
-    { name: "lumium_prefs", skipHydration: true },
+    { name: "lumium_prefs" },
   ),
 );

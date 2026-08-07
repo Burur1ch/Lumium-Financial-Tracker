@@ -21,7 +21,13 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, getProfile } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
-import { useProfileStore, useNotifStore, NotifIconType } from "@/store/prefs";
+import {
+  useProfileStore,
+  useNotifStore,
+  NotifIconType,
+  usePrefs,
+} from "@/store/prefs";
+import { UserAvatar } from "@/components/user-avatar";
 import {
   AlertTriangle,
   TrendingDown,
@@ -73,6 +79,7 @@ const menuItemDefs = [
 // Sample notifications — in a real app these would come from the DB
 // (moved to useNotifStore in store/prefs.ts)
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getInitials(name: string, email: string): string {
   if (name?.trim()) {
     const parts = name.trim().split(" ");
@@ -90,14 +97,12 @@ interface SidebarProps {
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { avatarColor, avatarIcon } = usePrefs();
   const [profile, setProfile] = useState<{
     name: string | null;
     email: string;
-    avatar_url?: string | null;
   } | null>(null);
-  const storeAvatarUrl = useProfileStore((s) => s.avatarUrl);
   const setStoreAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
-  const avatarUrl = storeAvatarUrl ?? profile?.avatar_url ?? null;
   const [showNotifs, setShowNotifs] = useState(false);
   const { notifications, markRead, markAllRead, dismiss } = useNotifStore();
   const notifRef = useRef<HTMLDivElement>(null);
@@ -107,16 +112,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   useEffect(() => {
     getProfile().then((p) => {
       if (p) {
-        setProfile({
-          name: p.name,
-          email: p.email,
-          avatar_url: (p as { avatar_url?: string | null }).avatar_url,
-        });
-        if ((p as { avatar_url?: string | null }).avatar_url) {
-          setStoreAvatarUrl(
-            (p as { avatar_url?: string | null }).avatar_url ?? null,
-          );
-        }
+        setProfile({ name: p.name, email: p.email });
+        setStoreAvatarUrl(null);
       }
     });
   }, [setStoreAvatarUrl]);
@@ -135,7 +132,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   const displayName =
     profile?.name?.trim() || profile?.email?.split("@")[0] || "User";
-  const initials = getInitials(profile?.name ?? "", profile?.email ?? "");
 
   return (
     <aside className="w-64 h-screen border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col justify-between p-4 select-none transition-colors duration-200">
@@ -303,17 +299,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <div className="flex items-center gap-2.5 p-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           {/* Avatar */}
           <Link href="/dashboard/settings" className="shrink-0">
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-red-500 flex items-center justify-center text-xs font-bold text-white hover:opacity-80 transition-opacity">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                initials
-              )}
+            <div className="hover:opacity-80 transition-opacity">
+              <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
             </div>
           </Link>
 
