@@ -84,7 +84,9 @@ export default function MetricCard({
         className={`mt-2 sm:mt-3 text-base sm:text-3xl font-bold tracking-tight tabular-nums truncate ${
           type === "net"
             ? "text-orange-500"
-            : "text-slate-900 dark:text-slate-50"
+            : type === "income"
+              ? "text-emerald-500"
+              : "text-red-500"
         }`}
       >
         {fmt(amount)}

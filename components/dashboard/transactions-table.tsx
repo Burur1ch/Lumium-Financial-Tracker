@@ -1,12 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 
 interface CategorySummary {
@@ -46,12 +41,11 @@ export default function TransactionsTable({
       </div>
 
       <div className="overflow-x-auto w-full -mx-4 px-4 sm:mx-0 sm:px-0">
-        <table className="w-full text-left border-collapse min-w-[500px]">
+        <table className="w-full text-left border-collapse min-w-125">
           <thead>
             <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               <th className="pb-3 pl-2">{t("description")}</th>
               <th className="pb-3">{t("category")}</th>
-              <th className="pb-3">{t("status")}</th>
               <th className="pb-3 text-right pr-2">{t("amount")}</th>
             </tr>
           </thead>
@@ -59,7 +53,7 @@ export default function TransactionsTable({
             {transactions.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={3}
                   className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs"
                 >
                   {t("noTransactions")}
@@ -68,7 +62,9 @@ export default function TransactionsTable({
             ) : (
               transactions.map((tx) => {
                 const isExpense = tx.type === "expense";
-                const isCompleted = tx.status === "completed";
+                const cat = Array.isArray(tx.categories)
+                  ? tx.categories[0]
+                  : tx.categories;
                 const formattedDate = new Date(tx.date).toLocaleDateString(
                   "en-US",
                   { month: "short", day: "numeric" },
@@ -104,39 +100,22 @@ export default function TransactionsTable({
                     </td>
 
                     <td className="py-3.5">
-                      {tx.categories && tx.categories.length > 0 ? (
+                      {cat ? (
                         <span
                           className="text-xs px-2.5 py-1 rounded-lg border font-semibold inline-flex items-center"
                           style={{
-                            backgroundColor: `${tx.categories[0].color}15`,
-                            borderColor: `${tx.categories[0].color}35`,
-                            color: tx.categories[0].color,
+                            backgroundColor: `${cat.color}15`,
+                            borderColor: `${cat.color}35`,
+                            color: cat.color,
                           }}
                         >
-                          {tx.categories[0].name}
+                          {cat.name}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">
                           {t("uncategorized")}
                         </span>
                       )}
-                    </td>
-
-                    <td className="py-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-xl ${
-                          isCompleted
-                            ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-transparent"
-                            : "bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-transparent"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <CheckCircle2 className="w-3 h-3" />
-                        ) : (
-                          <Clock className="w-3 h-3" />
-                        )}
-                        {isCompleted ? t("completed") : t("pending")}
-                      </span>
                     </td>
 
                     <td

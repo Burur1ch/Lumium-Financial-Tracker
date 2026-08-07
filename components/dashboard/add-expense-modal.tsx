@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createTransaction, createCategory } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/store/prefs";
 
 interface Category {
   id: string;
@@ -74,6 +75,16 @@ export default function AddExpenseModal({
   );
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const { t } = useI18n();
+  const { currency } = usePrefs();
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: "$",
+    EUR: "€",
+    RUB: "₽",
+    GBP: "£",
+    JPY: "¥",
+    CNY: "¥",
+  };
+  const currencySymbol = CURRENCY_SYMBOLS[currency] ?? currency;
   const [catOpen, setCatOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const catRef = useRef<HTMLDivElement>(null);
@@ -289,7 +300,7 @@ export default function AddExpenseModal({
                     <FieldLabel icon={DollarSign} label={t("amount")} />
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-bold pointer-events-none">
-                        $
+                        {currencySymbol}
                       </span>
                       <input
                         type="number"
