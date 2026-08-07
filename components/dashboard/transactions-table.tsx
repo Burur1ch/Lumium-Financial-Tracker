@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 
+interface CategorySummary {
+  name: string;
+  color: string;
+}
+
 interface Transaction {
   id: string;
   description: string;
@@ -16,7 +21,7 @@ interface Transaction {
   type: "income" | "expense";
   status: "completed" | "pending";
   date: string;
-  categories?: { name: string; color: string } | null;
+  categories?: CategorySummary[] | null;
 }
 
 interface TransactionsTableProps {
@@ -99,16 +104,16 @@ export default function TransactionsTable({
                     </td>
 
                     <td className="py-3.5">
-                      {tx.categories ? (
+                      {tx.categories && tx.categories.length > 0 ? (
                         <span
                           className="text-xs px-2.5 py-1 rounded-lg border font-semibold inline-flex items-center"
                           style={{
-                            backgroundColor: `${tx.categories.color}15`,
-                            borderColor: `${tx.categories.color}35`,
-                            color: tx.categories.color,
+                            backgroundColor: `${tx.categories[0].color}15`,
+                            borderColor: `${tx.categories[0].color}35`,
+                            color: tx.categories[0].color,
                           }}
                         >
-                          {tx.categories.name}
+                          {tx.categories[0].name}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">
