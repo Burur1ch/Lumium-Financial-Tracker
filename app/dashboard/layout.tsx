@@ -30,8 +30,8 @@ export default function DashboardLayout({
             className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-slate-950 p-4">
-            <Sidebar />
+          <div className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-slate-950">
+            <Sidebar onNavigate={() => setIsMobileMenuOpen(false)} />
           </div>
         </div>
       )}

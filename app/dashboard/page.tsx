@@ -195,7 +195,7 @@ export default async function DashboardPage({
         )
         .eq("user_id", user.id)
         .order("date", { ascending: false })
-        .limit(5),
+        .limit(20),
     ]);
 
     if (prevRes.data) {

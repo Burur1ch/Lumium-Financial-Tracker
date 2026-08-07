@@ -23,10 +23,16 @@ interface TransactionsTableProps {
   transactions: Transaction[];
 }
 
+const INITIAL_COUNT = 10;
+const PAGE_SIZE = 10;
+
 export default function TransactionsTable({
   transactions,
 }: TransactionsTableProps) {
   const { fmt, t } = useI18n();
+  const [visibleCount, setVisibleCount] = React.useState(INITIAL_COUNT);
+  const visible = transactions.slice(0, visibleCount);
+  const hasMore = visibleCount < transactions.length;
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
       <div className="flex items-center justify-between mb-6">
@@ -40,7 +46,80 @@ export default function TransactionsTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+      {/* Mobile: card list */}
+      <div className="sm:hidden flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+        {transactions.length === 0 ? (
+          <p className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+            {t("noTransactions")}
+          </p>
+        ) : (
+          visible.map((tx) => {
+            const isExpense = tx.type === "expense";
+            const cat = Array.isArray(tx.categories)
+              ? tx.categories[0]
+              : tx.categories;
+            const formattedDate = new Date(tx.date).toLocaleDateString(
+              "en-US",
+              { month: "short", day: "numeric" },
+            );
+            return (
+              <div key={tx.id} className="flex items-center gap-3 py-3">
+                <div
+                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border dark:border-transparent ${
+                    isExpense
+                      ? "bg-red-50 dark:bg-red-950/20 text-red-500"
+                      : "bg-green-50 dark:bg-green-950/20 text-green-500"
+                  }`}
+                >
+                  {isExpense ? (
+                    <ArrowDownRight className="w-4 h-4" />
+                  ) : (
+                    <ArrowUpRight className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                    {tx.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                      {formattedDate}
+                    </span>
+                    {cat ? (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                        style={{
+                          backgroundColor: `${cat.color}18`,
+                          color: cat.color,
+                        }}
+                      >
+                        {cat.name}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {t("uncategorized")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className={`shrink-0 text-sm font-bold tabular-nums ${
+                    isExpense
+                      ? "text-slate-800 dark:text-slate-200"
+                      : "text-green-600 dark:text-green-400"
+                  }`}
+                >
+                  {isExpense ? "-" : "+"}
+                  {fmt(Number(tx.amount))}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-125">
           <thead>
             <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
@@ -60,7 +139,7 @@ export default function TransactionsTable({
                 </td>
               </tr>
             ) : (
-              transactions.map((tx) => {
+              visible.map((tx) => {
                 const isExpense = tx.type === "expense";
                 const cat = Array.isArray(tx.categories)
                   ? tx.categories[0]
@@ -69,7 +148,6 @@ export default function TransactionsTable({
                   "en-US",
                   { month: "short", day: "numeric" },
                 );
-
                 return (
                   <tr
                     key={tx.id}
@@ -98,7 +176,6 @@ export default function TransactionsTable({
                         </span>
                       </div>
                     </td>
-
                     <td className="py-3.5">
                       {cat ? (
                         <span
@@ -117,7 +194,6 @@ export default function TransactionsTable({
                         </span>
                       )}
                     </td>
-
                     <td
                       className={`py-3.5 text-right pr-2 font-bold ${isExpense ? "text-slate-800 dark:text-slate-200" : "text-green-600 dark:text-green-400"}`}
                     >
@@ -131,6 +207,16 @@ export default function TransactionsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Show more button */}
+      {hasMore && (
+        <button
+          onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+        >
+          Show more ({transactions.length - visibleCount} left)
+        </button>
+      )}
     </div>
   );
 }

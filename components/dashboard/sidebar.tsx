@@ -83,7 +83,11 @@ function getInitials(name: string, email: string): string {
   return email ? email[0].toUpperCase() : "U";
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n();
   const [profile, setProfile] = useState<{
@@ -159,6 +163,7 @@ export default function Sidebar() {
               <Link
                 key={item.key}
                 href={item.href}
+                onClick={onNavigate}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-red-50 dark:bg-red-950/30 text-red-500"
