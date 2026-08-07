@@ -1,26 +1,151 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── View Transition: circular reveal ───────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Theme transition ────────────────────────────────── */
+body,
+div,
+aside,
+main,
+header,
+table,
+tr,
+td,
+th,
+button,
+a,
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 350ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ─── Base ────────────────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-slate-100 text-slate-800 dark:bg-[#0b0f1a] dark:text-slate-200;
+}
+
+/* ─── LIGHT THEME ─────────────────────────────────────── */
+
+/* Dot-grid background texture */
+html:not(.dark) body {
+  background-image: radial-gradient(circle, #c8d3de 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+}
+
+/* Cards elevated with real shadows */
+html:not(.dark) .shadow-sm {
+  box-shadow:
+    0 1px 3px 0 rgb(15 23 42 / 0.07),
+    0 1px 2px -1px rgb(15 23 42 / 0.05);
+}
+html:not(.dark) .shadow {
+  box-shadow:
+    0 2px 8px 0 rgb(15 23 42 / 0.08),
+    0 1px 3px -1px rgb(15 23 42 / 0.06);
+}
+html:not(.dark) .shadow-md {
+  box-shadow:
+    0 4px 16px 0 rgb(15 23 42 / 0.1),
+    0 2px 6px -2px rgb(15 23 42 / 0.07);
+}
+html:not(.dark) .hover\:shadow-md:hover {
+  box-shadow:
+    0 6px 20px 0 rgb(15 23 42 / 0.12),
+    0 3px 8px -2px rgb(15 23 42 / 0.08);
+}
+
+/* Crisper borders in light */
+html:not(.dark) .border-slate-100 {
+  border-color: #dde3ea;
+}
+html:not(.dark) .border-slate-200 {
+  border-color: #c8d3de;
+}
+
+/* ─── DARK THEME ──────────────────────────────────────── */
+
+/* Rich dark background — slightly blue-tinted, not pure black */
+html.dark body {
+  background-color: #0b0f1a;
+}
+
+/* Subtle noise texture overlay in dark mode */
+html.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Dark cards: deep slate with slight blue tint */
+html.dark .bg-slate-900 {
+  background-color: #111827;
+}
+html.dark .bg-slate-950 {
+  background-color: #0d1117;
+}
+
+/* Dark borders: more visible but not harsh */
+html.dark .border-slate-800 {
+  border-color: #1e2736;
+}
+html.dark .border-slate-100 {
+  border-color: #1e2736;
+}
+
+/* Dark shadows: glow-style instead of flat */
+html.dark .shadow-sm {
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.4),
+    0 0 0 1px rgb(255 255 255 / 0.03);
+}
+html.dark .shadow {
+  box-shadow:
+    0 2px 8px 0 rgb(0 0 0 / 0.5),
+    0 0 0 1px rgb(255 255 255 / 0.04);
+}
+html.dark .shadow-md {
+  box-shadow:
+    0 4px 20px 0 rgb(0 0 0 / 0.6),
+    0 0 0 1px rgb(255 255 255 / 0.04);
+}
+html.dark .hover\:shadow-md:hover {
+  box-shadow:
+    0 6px 24px 0 rgb(0 0 0 / 0.7),
+    0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+/* Dark sidebar: slightly lighter than body */
+html.dark aside {
+  background-color: #0f1624;
+  border-right-color: #1a2233;
+}
+
+/* Input/select in dark: cleaner */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color-scheme: dark;
 }
