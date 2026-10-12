@@ -6,7 +6,8 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 
 const authSecret = process.env.BETTER_AUTH_SECRET;
-if (process.env.NODE_ENV === "production" && !authSecret) {
+const isProductionBuild = process.env.NEXT_PHASE === "phase-production-build";
+if (process.env.NODE_ENV === "production" && !authSecret && !isProductionBuild) {
   throw new Error("BETTER_AUTH_SECRET must be configured in production");
 }
 
@@ -22,7 +23,9 @@ export const auth = betterAuth({
       verification: schema.verifications,
     },
   }),
-  secret: authSecret ?? "lumium-local-development-secret-only-32chars",
+  // The build-only value permits Next.js page-data collection; the production
+  // runtime guard above requires a real secret before serving auth requests.
+  secret: authSecret ?? "lumium-build-only-secret-do-not-use-at-runtime",
   baseURL:
     process.env.BETTER_AUTH_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
