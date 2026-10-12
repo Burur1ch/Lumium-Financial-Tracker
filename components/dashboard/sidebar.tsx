@@ -12,6 +12,7 @@ import {
   Wallet,
   Settings,
   HelpCircle,
+  CreditCard,
   Bell,
   LogOut,
   X,
@@ -19,14 +20,21 @@ import {
   BellOff, // eslint-disable-line @typescript-eslint/no-unused-vars
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { signOut, getProfile } from "@/app/dashboard/actions";
+import {
+  signOut,
+  getProfile,
+  getBudgetsWithProgress,
+} from "@/app/dashboard/actions";
+import { PaywallModal } from "@/components/dashboard/paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
 import {
   useProfileStore,
   useNotifStore,
   NotifIconType,
   usePrefs,
+  Notification,
 } from "@/store/prefs";
+import { canAccessAdvancedReports } from "@/utils/monetization/limits";
 import { UserAvatar } from "@/components/user-avatar";
 import {
   AlertTriangle,
@@ -72,6 +80,7 @@ const menuItemDefs = [
   { key: "users" as const, href: "/dashboard/users", icon: Users },
   { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
+  { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
 ] as const;
@@ -94,17 +103,127 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+interface BudgetForNotif {
+  id: string;
+  monthly_limit: number;
+  current_spent: number;
+  categories?: { name: string; color?: string }[] | { name: string } | null;
+}
+
+function makeNumericId(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getCategoryName(budget: BudgetForNotif): string {
+  const category = Array.isArray(budget.categories)
+    ? budget.categories[0]
+    : budget.categories;
+  return category?.name ?? "Category";
+}
+
+function buildDynamicNotifications(
+  budgets: BudgetForNotif[],
+  today: Date,
+): Notification[] {
+  const daysInMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0,
+  ).getDate();
+  const day = today.getDate();
+  const daysLeft = Math.max(daysInMonth - day, 0);
+
+  const scored: Array<{ severity: number; notif: Notification }> = [];
+
+  for (const b of budgets) {
+    const limit = Number(b.monthly_limit ?? 0);
+    const spent = Number(b.current_spent ?? 0);
+    if (limit <= 0) continue;
+
+    const categoryName = getCategoryName(b);
+    const usagePct = (spent / limit) * 100;
+    const remaining = limit - spent;
+
+    if (remaining < 0) {
+      scored.push({
+        severity: 100,
+        notif: {
+          id: makeNumericId(`over-${b.id}`),
+          iconType: "over-limit",
+          title: "Over limit",
+          desc: `${categoryName} exceeded limit by ${Math.abs(remaining).toFixed(0)}`,
+          time: "Today",
+          unread: true,
+        },
+      });
+      continue;
+    }
+
+    if (usagePct >= 80) {
+      scored.push({
+        severity: 80,
+        notif: {
+          id: makeNumericId(`warn-${b.id}`),
+          iconType: "warning",
+          title: "Budget warning",
+          desc: `${categoryName} is at ${Math.round(usagePct)}% of limit`,
+          time: "Today",
+          unread: true,
+        },
+      });
+    }
+
+    if (daysLeft <= 7 && remaining > 0) {
+      const perDaySafe = remaining / Math.max(daysLeft, 1);
+      scored.push({
+        severity: 60,
+        notif: {
+          id: makeNumericId(`left-${b.id}`),
+          iconType: "on-track",
+          title: "Month ending soon",
+          desc: `${categoryName}: ${remaining.toFixed(0)} left, ~${perDaySafe.toFixed(0)}/day for ${daysLeft}d`,
+          time: "Today",
+          unread: false,
+        },
+      });
+    }
+  }
+
+  scored.push({
+    severity: 30,
+    notif: {
+      id: makeNumericId(`date-${today.toISOString().slice(0, 10)}`),
+      iconType: "income",
+      title: "Today",
+      desc: `${day}/${daysInMonth} day of month, ${daysLeft} day(s) left`,
+      time: "Today",
+      unread: false,
+    },
+  });
+
+  return scored
+    .sort((a, b) => b.severity - a.severity)
+    .slice(0, 6)
+    .map((item) => item.notif);
+}
+
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const { avatarColor, avatarIcon } = usePrefs();
+  const { avatarColor, avatarIcon, plan, setPlan } = usePrefs();
   const [profile, setProfile] = useState<{
     name: string | null;
     email: string;
   } | null>(null);
   const setStoreAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const [showNotifs, setShowNotifs] = useState(false);
-  const { notifications, markRead, markAllRead, dismiss } = useNotifStore();
+  const [showReportsPaywall, setShowReportsPaywall] = useState(false);
+  const { notifications, setNotifications, markRead, markAllRead, dismiss } =
+    useNotifStore();
   const notifRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
@@ -113,10 +232,21 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     getProfile().then((p) => {
       if (p) {
         setProfile({ name: p.name, email: p.email });
+        setPlan(p.plan);
         setStoreAvatarUrl(null);
       }
     });
-  }, [setStoreAvatarUrl]);
+  }, [setPlan, setStoreAvatarUrl]);
+
+  useEffect(() => {
+    getBudgetsWithProgress().then((budgets) => {
+      const dynamic = buildDynamicNotifications(
+        budgets as BudgetForNotif[],
+        new Date(),
+      );
+      setNotifications(dynamic);
+    });
+  }, [setNotifications]);
 
   // Close on outside click
   useEffect(() => {
@@ -155,6 +285,24 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {menuItemDefs.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
+            const isLocked =
+              item.key === "reports" && !canAccessAdvancedReports(plan);
+
+            if (isLocked) {
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setShowReportsPaywall(true)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-red-500 transition-colors"
+                >
+                  <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                  {t(item.key)}
+                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />
+                </button>
+              );
+            }
+
             return (
               <Link
                 key={item.key}
@@ -174,10 +322,43 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             );
           })}
         </nav>
+
+        {showReportsPaywall && (
+          <PaywallModal
+            isOpen={showReportsPaywall}
+            onClose={() => setShowReportsPaywall(false)}
+            title={t("reportsProOnly")}
+            description={t("reportsProOnlyDesc")}
+            featureLabel={t("unlockAdvancedReports")}
+          />
+        )}
       </div>
 
       {/* Bottom */}
       <div className="flex flex-col gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+        <Link
+          href="/dashboard/pricing"
+          onClick={onNavigate}
+          className="rounded-2xl border border-red-100 dark:border-red-900/40 bg-linear-to-br from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 p-4 shadow-sm hover:shadow-md transition-all"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500">
+                {t("currentPlan")}
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100 capitalize">
+                {plan}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                {plan === "free" ? t("upgradeToPro") : t("managePlan")}
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0">
+              <CreditCard className="w-4 h-4 text-red-500" />
+            </div>
+          </div>
+        </Link>
+
         {/* Notifications button + popover */}
         <div className="relative" ref={notifRef}>
           <button

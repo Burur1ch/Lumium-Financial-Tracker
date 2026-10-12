@@ -10,6 +10,7 @@ export const translations = {
     help: "Help & Support",
     users: "Users",
     notifications: "Notifications",
+    pricing: "Pricing",
 
     // Dashboard
     welcomeBack: "Hello, welcome back to Lumium!",
@@ -27,6 +28,7 @@ export const translations = {
     type: "Type",
     status: "Status",
     date: "Date",
+    history: "History",
     uncategorized: "Uncategorized",
     expense: "Expense",
     income: "Income",
@@ -112,6 +114,76 @@ export const translations = {
     searchPlaceholder: "Search by description...",
     activeSession: "Active Session",
     expenses: "Expenses",
+    pricingSubtitle: "Choose a plan for deeper insights and automation",
+    currentPlan: "Current plan",
+    upgradeToPro: "Upgrade to Pro",
+    managePlan: "Manage plan",
+    downgradeToFree: "Switch to Free",
+    monthlyBilling: "Monthly",
+    yearlyBilling: "Yearly",
+    saveYearly: "Save with yearly billing",
+    popular: "Most Popular",
+    startFreePlan: "Start Free",
+    startTrial: "Start trial",
+    choosePlan: "Choose plan",
+    includedFeatures: "Included features",
+    usageLimits: "Usage limits",
+    fullHistory: "Full history",
+    csvImport: "CSV import",
+    exportCsv: "Export CSV",
+    exportExcel: "Export Excel",
+    exportingEllipsis: "Exporting…",
+    aiInsights: "AI insights",
+    sharedWorkspace: "Shared workspace",
+    rolePermissions: "Role permissions",
+    budgetsCount: "budgets",
+    categoriesCount: "categories",
+    membersCount: "members",
+    pricingFootnote:
+      "Subscriptions are managed through Stripe checkout and billing portal.",
+    pricingStripeFlowHint:
+      "Upgrade starts Stripe Checkout. Existing paid plans are managed in Billing Portal.",
+    checkoutSuccessMessage:
+      "Payment completed. Your plan will update automatically in a few seconds.",
+    checkoutCanceledMessage: "Checkout was canceled. No changes were made.",
+    paymentModeCheckout: "Mode: Stripe hosted checkout",
+    paymentModeEmbedded: "Mode: Embedded card form",
+    paymentFormTitle: "Secure payment form",
+    paymentFormDescription:
+      "Enter your payment details directly here to start the selected subscription.",
+    paymentFormApplePayHint:
+      "Apple Pay appears automatically on supported devices and verified domains.",
+    payAndSubscribe: "Pay and subscribe",
+    processingPayment: "Processing payment...",
+    paymentFormInitError:
+      "Payment form is still initializing. Please wait a moment.",
+    paymentFormFailed: "Payment failed. Please check details and try again.",
+    paymentFormMissingKey:
+      "Payment form mode is enabled but NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is missing.",
+    historyLimitedNotice: "Free plan shows transaction history for the last",
+    reportsProOnly: "Advanced reports are available on Pro and Family.",
+    reportsProOnlyDesc:
+      "Unlock trend analysis, category breakdowns, larger reporting windows, and deeper financial insight.",
+    unlockAdvancedReports: "Unlock advanced reports",
+    planLimitReached: "Plan limit reached",
+    categoryPlanLimitHint: "Your current plan limits custom categories.",
+    budgetPlanLimitHint: "Your current plan limits active monthly budgets.",
+    periodLockedTitle: "Longer reporting periods need Pro.",
+    periodLockedDesc:
+      "Upgrade to unlock 3-month, yearly, and all-time views across your dashboard and reports.",
+    unlockLongerPeriods: "Unlock longer periods",
+    categoryLockedTitle: "More categories need Pro.",
+    categoryLockedDesc:
+      "Free includes up to 10 custom categories. Upgrade to keep creating and organizing more spending groups.",
+    budgetLockedTitle: "More budgets need Pro.",
+    budgetLockedDesc:
+      "Free includes up to 5 active monthly budgets. Upgrade to manage more category limits.",
+    exportLockedTitle: "Excel export is available on Pro and Family.",
+    exportLockedDesc:
+      "Export your filtered transactions into an Excel workbook for spreadsheets, bookkeeping, or deeper analysis.",
+    reportExportLockedDesc:
+      "Export the selected reporting period into an Excel workbook with summary, categories, and transaction rows.",
+    proAccess: "Pro Access",
 
     // Help & Support
     helpTitle: "Help & Support",
@@ -187,6 +259,7 @@ export const translations = {
     help: "Помощь",
     users: "Пользователи",
     notifications: "Уведомления",
+    pricing: "Тарифы",
 
     welcomeBack: "Привет, добро пожаловать в Lumium!",
     totalExpenses: "Расходы",
@@ -202,6 +275,7 @@ export const translations = {
     type: "Тип",
     status: "Статус",
     date: "Дата",
+    history: "История",
     uncategorized: "Без категории",
     expense: "Расход",
     income: "Доход",
@@ -281,6 +355,79 @@ export const translations = {
     searchPlaceholder: "Поиск по описанию...",
     activeSession: "Активная сессия",
     expenses: "Расходы",
+    pricingSubtitle: "Выберите тариф для глубокой аналитики и автоматизации",
+    currentPlan: "Текущий тариф",
+    upgradeToPro: "Перейти на Pro",
+    managePlan: "Управление тарифом",
+    downgradeToFree: "Переключить на Free",
+    monthlyBilling: "Ежемесячно",
+    yearlyBilling: "Ежегодно",
+    saveYearly: "Экономия при годовой оплате",
+    popular: "Самый популярный",
+    startFreePlan: "Начать с Free",
+    startTrial: "Начать trial",
+    choosePlan: "Выбрать тариф",
+    includedFeatures: "Что входит",
+    usageLimits: "Лимиты",
+    fullHistory: "Полная история",
+    csvImport: "Импорт CSV",
+    exportCsv: "Экспорт CSV",
+    exportExcel: "Экспорт Excel",
+    exportingEllipsis: "Экспорт…",
+    aiInsights: "AI-инсайты",
+    sharedWorkspace: "Общее рабочее пространство",
+    rolePermissions: "Роли и права",
+    budgetsCount: "бюджетов",
+    categoriesCount: "категорий",
+    membersCount: "участников",
+    pricingFootnote:
+      "Подписки управляются через Stripe Checkout и billing portal.",
+    pricingStripeFlowHint:
+      "Переход на платный тариф запускает Stripe Checkout. Управление активной подпиской доступно в Billing Portal.",
+    checkoutSuccessMessage:
+      "Оплата завершена. Тариф обновится автоматически через несколько секунд.",
+    checkoutCanceledMessage: "Оплата отменена. Изменения не применены.",
+    paymentModeCheckout: "Режим: Stripe hosted checkout",
+    paymentModeEmbedded: "Режим: встроенная форма карты",
+    paymentFormTitle: "Безопасная форма оплаты",
+    paymentFormDescription:
+      "Введите платежные данные прямо здесь, чтобы запустить выбранную подписку.",
+    paymentFormApplePayHint:
+      "Apple Pay появляется автоматически на поддерживаемых устройствах и подтвержденных доменах.",
+    payAndSubscribe: "Оплатить и подписаться",
+    processingPayment: "Обрабатываем платеж...",
+    paymentFormInitError:
+      "Форма оплаты еще инициализируется. Подождите немного.",
+    paymentFormFailed: "Платеж не прошел. Проверьте данные и попробуйте снова.",
+    paymentFormMissingKey:
+      "Включен режим формы оплаты, но отсутствует NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.",
+    historyLimitedNotice:
+      "На Free доступна история транзакций только за последние",
+    reportsProOnly: "Расширенные отчёты доступны на Pro и Family.",
+    reportsProOnlyDesc:
+      "Откройте анализ трендов, разбор категорий, большие окна отчётности и более глубокую финансовую аналитику.",
+    unlockAdvancedReports: "Открыть расширенные отчёты",
+    planLimitReached: "Лимит тарифа достигнут",
+    categoryPlanLimitHint:
+      "Текущий тариф ограничивает число пользовательских категорий.",
+    budgetPlanLimitHint:
+      "Текущий тариф ограничивает число активных месячных бюджетов.",
+    periodLockedTitle: "Длинные периоды доступны только в Pro.",
+    periodLockedDesc:
+      "Перейдите на Pro, чтобы открыть периоды 3 месяца, год и всё время в дашборде и отчётах.",
+    unlockLongerPeriods: "Открыть длинные периоды",
+    categoryLockedTitle: "Больше категорий доступно в Pro.",
+    categoryLockedDesc:
+      "Free включает до 10 пользовательских категорий. Перейдите на Pro, чтобы создавать и структурировать больше категорий расходов.",
+    budgetLockedTitle: "Больше бюджетов доступно в Pro.",
+    budgetLockedDesc:
+      "Free включает до 5 активных месячных бюджетов. Перейдите на Pro, чтобы управлять большим числом лимитов.",
+    exportLockedTitle: "Excel-экспорт доступен на Pro и Family.",
+    exportLockedDesc:
+      "Экспортируйте отфильтрованные транзакции в Excel-книгу для таблиц, учета или более глубокой аналитики.",
+    reportExportLockedDesc:
+      "Экспортируйте выбранный период отчёта в Excel-книгу со сводкой, категориями и строками транзакций.",
+    proAccess: "Доступ Pro",
 
     helpTitle: "Помощь и поддержка",
     helpSubtitle: "Всё чтобы начать работу и найти ответы",
@@ -354,6 +501,7 @@ export const translations = {
     help: "Hilfe",
     users: "Benutzer",
     notifications: "Benachrichtigungen",
+    pricing: "Preise",
 
     welcomeBack: "Hallo, willkommen zurück bei Lumium!",
     totalExpenses: "Gesamtausgaben",
@@ -369,6 +517,7 @@ export const translations = {
     type: "Typ",
     status: "Status",
     date: "Datum",
+    history: "Verlauf",
     uncategorized: "Unkategorisiert",
     expense: "Ausgabe",
     income: "Einnahme",
@@ -448,6 +597,81 @@ export const translations = {
     searchPlaceholder: "Nach Beschreibung suchen...",
     activeSession: "Aktive Sitzung",
     expenses: "Ausgaben",
+    pricingSubtitle:
+      "Wählen Sie einen Plan für tiefere Einblicke und Automatisierung",
+    currentPlan: "Aktueller Plan",
+    upgradeToPro: "Auf Pro upgraden",
+    managePlan: "Plan verwalten",
+    downgradeToFree: "Zu Free wechseln",
+    monthlyBilling: "Monatlich",
+    yearlyBilling: "Jährlich",
+    saveYearly: "Mit Jahresabo sparen",
+    popular: "Am beliebtesten",
+    startFreePlan: "Mit Free starten",
+    startTrial: "Testversion starten",
+    choosePlan: "Plan wählen",
+    includedFeatures: "Enthaltene Funktionen",
+    usageLimits: "Nutzungslimits",
+    fullHistory: "Vollständige Historie",
+    csvImport: "CSV-Import",
+    exportCsv: "CSV exportieren",
+    exportExcel: "Excel exportieren",
+    exportingEllipsis: "Export läuft…",
+    aiInsights: "AI-Einblicke",
+    sharedWorkspace: "Geteilter Workspace",
+    rolePermissions: "Rollen und Rechte",
+    budgetsCount: "Budgets",
+    categoriesCount: "Kategorien",
+    membersCount: "Mitglieder",
+    pricingFootnote:
+      "Abonnements werden über Stripe Checkout und das Billing-Portal verwaltet.",
+    pricingStripeFlowHint:
+      "Upgrades starten Stripe Checkout. Bereits aktive bezahlte Tarife verwalten Sie im Billing-Portal.",
+    checkoutSuccessMessage:
+      "Zahlung abgeschlossen. Ihr Tarif wird in wenigen Sekunden automatisch aktualisiert.",
+    checkoutCanceledMessage:
+      "Checkout wurde abgebrochen. Es wurden keine Änderungen vorgenommen.",
+    paymentModeCheckout: "Modus: gehosteter Stripe-Checkout",
+    paymentModeEmbedded: "Modus: eingebettetes Kartenformular",
+    paymentFormTitle: "Sicheres Zahlungsformular",
+    paymentFormDescription:
+      "Geben Sie Ihre Zahlungsdaten direkt hier ein, um das gewählte Abo zu starten.",
+    paymentFormApplePayHint:
+      "Apple Pay erscheint automatisch auf unterstützten Geräten und verifizierten Domains.",
+    payAndSubscribe: "Jetzt zahlen und abonnieren",
+    processingPayment: "Zahlung wird verarbeitet...",
+    paymentFormInitError:
+      "Das Zahlungsformular wird noch initialisiert. Bitte kurz warten.",
+    paymentFormFailed:
+      "Zahlung fehlgeschlagen. Bitte prüfen Sie die Angaben und versuchen Sie es erneut.",
+    paymentFormMissingKey:
+      "Der Formularmodus ist aktiv, aber NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY fehlt.",
+    historyLimitedNotice:
+      "Im Free-Plan ist der Transaktionsverlauf nur für die letzten",
+    reportsProOnly: "Erweiterte Berichte sind nur in Pro und Family verfügbar.",
+    reportsProOnlyDesc:
+      "Schalten Sie Trendanalysen, Kategorieübersichten, größere Berichtszeiträume und tiefere Finanz-Einblicke frei.",
+    unlockAdvancedReports: "Erweiterte Berichte freischalten",
+    planLimitReached: "Planlimit erreicht",
+    categoryPlanLimitHint:
+      "Ihr aktueller Plan begrenzt benutzerdefinierte Kategorien.",
+    budgetPlanLimitHint: "Ihr aktueller Plan begrenzt aktive Monatsbudgets.",
+    periodLockedTitle: "Längere Zeiträume benötigen Pro.",
+    periodLockedDesc:
+      "Upgraden Sie auf Pro, um 3 Monate, Jahr und Gesamtzeit im Dashboard und in Berichten freizuschalten.",
+    unlockLongerPeriods: "Längere Zeiträume freischalten",
+    categoryLockedTitle: "Mehr Kategorien benötigen Pro.",
+    categoryLockedDesc:
+      "Free enthält bis zu 10 benutzerdefinierte Kategorien. Wechseln Sie zu Pro, um mehr Ausgabengruppen zu erstellen und zu organisieren.",
+    budgetLockedTitle: "Mehr Budgets benötigen Pro.",
+    budgetLockedDesc:
+      "Free enthält bis zu 5 aktive Monatsbudgets. Wechseln Sie zu Pro, um mehr Limits zu verwalten.",
+    exportLockedTitle: "Excel-Export ist in Pro und Family verfügbar.",
+    exportLockedDesc:
+      "Exportieren Sie Ihre gefilterten Transaktionen als Excel-Arbeitsmappe für Tabellen, Buchhaltung oder tiefere Analysen.",
+    reportExportLockedDesc:
+      "Exportieren Sie den ausgewählten Berichtszeitraum als Excel-Arbeitsmappe mit Übersicht, Kategorien und Transaktionszeilen.",
+    proAccess: "Pro-Zugang",
 
     helpTitle: "Hilfe & Support",
     helpSubtitle:
@@ -521,6 +745,7 @@ export const translations = {
     help: "Aide",
     users: "Utilisateurs",
     notifications: "Notifications",
+    pricing: "Tarifs",
 
     welcomeBack: "Bonjour, bienvenue sur Lumium !",
     totalExpenses: "Dépenses totales",
@@ -536,6 +761,7 @@ export const translations = {
     type: "Type",
     status: "Statut",
     date: "Date",
+    history: "Historique",
     uncategorized: "Non catégorisé",
     expense: "Dépense",
     income: "Revenu",
@@ -615,6 +841,82 @@ export const translations = {
     searchPlaceholder: "Rechercher par description...",
     activeSession: "Session active",
     expenses: "Dépenses",
+    pricingSubtitle:
+      "Choisissez un plan pour plus d'insights et d'automatisation",
+    currentPlan: "Plan actuel",
+    upgradeToPro: "Passer à Pro",
+    managePlan: "Gérer le plan",
+    downgradeToFree: "Revenir à Free",
+    monthlyBilling: "Mensuel",
+    yearlyBilling: "Annuel",
+    saveYearly: "Économisez avec l'abonnement annuel",
+    popular: "Le plus populaire",
+    startFreePlan: "Commencer avec Free",
+    startTrial: "Démarrer l'essai",
+    choosePlan: "Choisir le plan",
+    includedFeatures: "Fonctionnalités incluses",
+    usageLimits: "Limites d'usage",
+    fullHistory: "Historique complet",
+    csvImport: "Import CSV",
+    exportCsv: "Exporter CSV",
+    exportExcel: "Exporter Excel",
+    exportingEllipsis: "Export…",
+    aiInsights: "Insights IA",
+    sharedWorkspace: "Espace partagé",
+    rolePermissions: "Rôles et permissions",
+    budgetsCount: "budgets",
+    categoriesCount: "catégories",
+    membersCount: "membres",
+    pricingFootnote:
+      "Les abonnements sont gérés via Stripe Checkout et le portail de facturation.",
+    pricingStripeFlowHint:
+      "Le passage à un plan payant lance Stripe Checkout. Les plans actifs se gèrent dans le portail de facturation.",
+    checkoutSuccessMessage:
+      "Paiement terminé. Votre plan sera mis à jour automatiquement dans quelques secondes.",
+    checkoutCanceledMessage:
+      "Le checkout a été annulé. Aucune modification n'a été appliquée.",
+    paymentModeCheckout: "Mode : checkout Stripe hébergé",
+    paymentModeEmbedded: "Mode : formulaire carte intégré",
+    paymentFormTitle: "Formulaire de paiement sécurisé",
+    paymentFormDescription:
+      "Saisissez vos informations de paiement directement ici pour démarrer l'abonnement sélectionné.",
+    paymentFormApplePayHint:
+      "Apple Pay apparaît automatiquement sur les appareils compatibles et les domaines vérifiés.",
+    payAndSubscribe: "Payer et s'abonner",
+    processingPayment: "Traitement du paiement...",
+    paymentFormInitError:
+      "Le formulaire de paiement est en cours d'initialisation. Veuillez patienter.",
+    paymentFormFailed:
+      "Le paiement a échoué. Vérifiez les informations et réessayez.",
+    paymentFormMissingKey:
+      "Le mode formulaire est activé, mais NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY est manquant.",
+    historyLimitedNotice:
+      "Le plan Free n'affiche l'historique des transactions que sur les",
+    reportsProOnly: "Les rapports avancés sont disponibles avec Pro et Family.",
+    reportsProOnlyDesc:
+      "Débloquez l'analyse de tendances, la répartition par catégorie, des fenêtres de reporting plus larges et des insights financiers plus profonds.",
+    unlockAdvancedReports: "Débloquer les rapports avancés",
+    planLimitReached: "Limite du plan atteinte",
+    categoryPlanLimitHint:
+      "Votre plan actuel limite le nombre de catégories personnalisées.",
+    budgetPlanLimitHint:
+      "Votre plan actuel limite le nombre de budgets mensuels actifs.",
+    periodLockedTitle: "Les périodes plus longues nécessitent Pro.",
+    periodLockedDesc:
+      "Passez à Pro pour débloquer les vues 3 mois, annuelle et tout l'historique dans le tableau de bord et les rapports.",
+    unlockLongerPeriods: "Débloquer les longues périodes",
+    categoryLockedTitle: "Plus de catégories nécessitent Pro.",
+    categoryLockedDesc:
+      "Free inclut jusqu'à 10 catégories personnalisées. Passez à Pro pour en créer et organiser davantage.",
+    budgetLockedTitle: "Plus de budgets nécessitent Pro.",
+    budgetLockedDesc:
+      "Free inclut jusqu'à 5 budgets mensuels actifs. Passez à Pro pour gérer davantage de limites.",
+    exportLockedTitle: "L'export Excel est disponible avec Pro et Family.",
+    exportLockedDesc:
+      "Exportez vos transactions filtrées dans un classeur Excel pour les tableurs, la comptabilité ou une analyse plus poussée.",
+    reportExportLockedDesc:
+      "Exportez la période de rapport sélectionnée dans un classeur Excel avec résumé, catégories et lignes de transactions.",
+    proAccess: "Accès Pro",
 
     helpTitle: "Aide & Support",
     helpSubtitle:

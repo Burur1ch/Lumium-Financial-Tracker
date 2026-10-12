@@ -1,9 +1,16 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { getCategories, createCategory, deleteCategory } from "../actions";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationKey } from "@/store/translations";
+import { usePrefs } from "@/store/prefs";
+import { PaywallModal } from "@/components/dashboard/paywall-modal";
+import {
+  getPlanCategoryLimit,
+  isLimitReached,
+} from "@/utils/monetization/limits";
 import {
   Tag,
   Plus,
@@ -209,6 +216,8 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { plan } = usePrefs();
 
   useEffect(() => {
     getCategories().then((data) => setCategories(data as Category[]));
@@ -216,10 +225,20 @@ export default function CategoriesPage() {
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const incomeCategories = categories.filter((c) => c.type === "income");
+  const categoryLimit = getPlanCategoryLimit(plan);
+  const hasReachedCategoryLimit = isLimitReached(
+    categoryLimit,
+    categories.length,
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    if (hasReachedCategoryLimit) {
+      setError(t("categoryPlanLimitHint"));
+      setShowPaywall(true);
+      return;
+    }
     setError(null);
 
     startTransition(async () => {
@@ -265,9 +284,24 @@ export default function CategoriesPage() {
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
           <Shapes className="w-4 h-4" />
-          {categories.length} total
+          {categories.length}
+          {categoryLimit !== null ? ` / ${categoryLimit}` : ""}
         </div>
       </div>
+
+      {categoryLimit !== null && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {t("categoryPlanLimitHint")} {categories.length}/{categoryLimit}
+          </p>
+          <Link
+            href="/dashboard/pricing"
+            className="font-bold text-red-500 hover:text-red-600 transition-colors"
+          >
+            {t("upgradeToPro")}
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Create form */}
@@ -399,7 +433,11 @@ export default function CategoriesPage() {
             <button
               type="submit"
               disabled={isPending || !name.trim()}
-              className="w-full rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+                hasReachedCategoryLimit
+                  ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
+                  : "bg-red-500 hover:bg-red-600"
+              }`}
             >
               {isPending ? (
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -429,6 +467,16 @@ export default function CategoriesPage() {
           />
         </div>
       </div>
+
+      {showPaywall && (
+        <PaywallModal
+          isOpen={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          title={t("categoryLockedTitle")}
+          description={t("categoryLockedDesc")}
+          featureLabel={t("category")}
+        />
+      )}
     </div>
   );
 }

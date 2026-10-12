@@ -10,6 +10,8 @@ import {
 import SetBudgetModal from "@/components/dashboard/set-budget-modal";
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/store/prefs";
+import { getPlanBudgetLimit } from "@/utils/monetization/limits";
 
 interface Category {
   id: string;
@@ -38,8 +40,10 @@ export default function BudgetContent({
   budgets: BudgetItem[];
 }) {
   const { t } = useI18n();
+  const { plan } = usePrefs();
 
   const b = budgets as BudgetItem[];
+  const budgetLimit = getPlanBudgetLimit(plan);
   const totalLimit = b.reduce((s, i) => s + Number(i.monthly_limit ?? 0), 0);
   const totalSpent = b.reduce((s, i) => s + Number(i.current_spent ?? 0), 0);
   const overBudgetCount = b.filter(
@@ -60,8 +64,13 @@ export default function BudgetContent({
           <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
             {t("monthlySpendingLimits")}
           </p>
+          {budgetLimit !== null && (
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
+              {t("budgetPlanLimitHint")} {b.length}/{budgetLimit}
+            </p>
+          )}
         </div>
-        <SetBudgetModal categories={categories} />
+        <SetBudgetModal categories={categories} currentBudgetCount={b.length} />
       </div>
 
       {/* Summary row */}

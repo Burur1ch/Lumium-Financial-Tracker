@@ -8,10 +8,13 @@ import {
   PiggyBank,
   Activity,
   Receipt,
+  Sparkles,
 } from "lucide-react";
 import PeriodSelector from "@/components/dashboard/period-selector";
 import ReportCharts from "@/components/dashboard/report-charts";
+import { ExportReportButton } from "@/components/dashboard/export-report-button";
 import { useI18n } from "@/hooks/useI18n";
+import { PaywallModal } from "@/components/dashboard/paywall-modal";
 
 interface LargestTx {
   id: string;
@@ -113,9 +116,11 @@ function StatCard({
 export default function ReportContent({
   data,
   period,
+  hasReportsAccess,
 }: {
   data: ReportData | null;
   period: string;
+  hasReportsAccess: boolean;
 }) {
   const { t, fmt, fmtDate } = useI18n();
 
@@ -141,14 +146,50 @@ export default function ReportContent({
             {t("transactions").toLowerCase()}
           </p>
         </div>
-        <Suspense>
-          <PeriodSelector />
-        </Suspense>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <ExportReportButton period={period} />
+          <Suspense>
+            <PeriodSelector />
+          </Suspense>
+        </div>
       </div>
 
       {!data ? (
         <div className="text-center py-24 text-slate-400 dark:text-slate-500 text-sm">
           {t("noData")}
+        </div>
+      ) : !hasReportsAccess ? (
+        <div className="rounded-[28px] border border-red-100 dark:border-red-900/40 bg-linear-to-br from-white to-red-50 dark:from-slate-900 dark:to-red-950/10 p-8 md:p-10 shadow-sm">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 dark:bg-red-950/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-red-500">
+              <Sparkles className="w-3.5 h-3.5" />
+              Pro
+            </div>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              {t("reportsProOnly")}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              {t("reportsProOnlyDesc")}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <PaywallModal
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-colors"
+                  >
+                    {t("upgradeToPro")}
+                  </button>
+                }
+                title={t("reportsProOnly")}
+                description={t("reportsProOnlyDesc")}
+                featureLabel={t("unlockAdvancedReports")}
+              />
+              <span className="inline-flex items-center rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                {t("unlockAdvancedReports")}
+              </span>
+            </div>
+          </div>
         </div>
       ) : (
         <>

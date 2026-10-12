@@ -1,9 +1,16 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upsertBudget } from "@/app/dashboard/actions";
+import { PaywallModal } from "@/components/dashboard/paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/store/prefs";
+import {
+  getPlanBudgetLimit,
+  isLimitReached,
+} from "@/utils/monetization/limits";
 import { Plus, X } from "lucide-react";
 
 interface Category {
@@ -14,18 +21,28 @@ interface Category {
 
 export default function SetBudgetModal({
   categories,
+  currentBudgetCount,
 }: {
   categories: Category[];
+  currentBudgetCount: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [categoryId, setCategoryId] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
+  const [showPaywall, setShowPaywall] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { t } = useI18n();
+  const { plan } = usePrefs();
+  const budgetLimit = getPlanBudgetLimit(plan);
+  const hasReachedLimit = isLimitReached(budgetLimit, currentBudgetCount);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasReachedLimit) {
+      setShowPaywall(true);
+      return;
+    }
     if (!categoryId || !limitAmount) return;
 
     startTransition(async () => {
@@ -47,12 +64,44 @@ export default function SetBudgetModal({
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
-        className="w-full sm:w-auto px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium text-sm rounded-xl inline-flex items-center justify-center gap-2 transition-all shadow-sm shadow-red-500/10 active:scale-98"
+        onClick={() => {
+          if (hasReachedLimit) {
+            setShowPaywall(true);
+            return;
+          }
+          setIsOpen(true);
+        }}
+        className={`w-full sm:w-auto px-4 py-2.5 text-white font-medium text-sm rounded-xl inline-flex items-center justify-center gap-2 transition-all shadow-sm shadow-red-500/10 active:scale-98 ${
+          hasReachedLimit
+            ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
+            : "bg-red-500 hover:bg-red-600"
+        }`}
       >
         <Plus className="w-4 h-4" />
-        {t("setCategoryLimit")}
+        {hasReachedLimit ? t("planLimitReached") : t("setCategoryLimit")}
       </button>
+
+      {hasReachedLimit && budgetLimit !== null && (
+        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          {t("budgetPlanLimitHint")} {budgetLimit}.{" "}
+          <Link
+            href="/dashboard/pricing"
+            className="font-bold text-red-500 hover:text-red-600"
+          >
+            {t("upgradeToPro")}
+          </Link>
+        </div>
+      )}
+
+      {showPaywall && (
+        <PaywallModal
+          isOpen={showPaywall}
+          onClose={() => setShowPaywall(false)}
+          title={t("budgetLockedTitle")}
+          description={t("budgetLockedDesc")}
+          featureLabel={t("budgetsLimits")}
+        />
+      )}
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { PlanKey } from "@/utils/monetization/plans";
 
 // ── Notifications store (persisted to localStorage) ─────────────────────────
 // Icons are NOT stored — they are mapped by iconType at render time.
@@ -14,43 +15,11 @@ export interface Notification {
   unread: boolean;
 }
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 1,
-    iconType: "warning",
-    title: "Budget warning",
-    desc: "Food & Dining is at 82% of limit",
-    time: "2h ago",
-    unread: true,
-  },
-  {
-    id: 2,
-    iconType: "over-limit",
-    title: "Over limit",
-    desc: "Entertainment exceeded monthly limit",
-    time: "5h ago",
-    unread: true,
-  },
-  {
-    id: 3,
-    iconType: "income",
-    title: "Income received",
-    desc: "Salary +$3,200 added",
-    time: "1d ago",
-    unread: false,
-  },
-  {
-    id: 4,
-    iconType: "on-track",
-    title: "Budget on track",
-    desc: "Transport is within limits this month",
-    time: "2d ago",
-    unread: false,
-  },
-];
+const INITIAL_NOTIFICATIONS: Notification[] = [];
 
 interface NotifState {
   notifications: Notification[];
+  setNotifications: (items: Notification[]) => void;
   markRead: (id: number) => void;
   markAllRead: () => void;
   dismiss: (id: number) => void;
@@ -60,6 +29,18 @@ export const useNotifStore = create<NotifState>()(
   persist(
     (set) => ({
       notifications: INITIAL_NOTIFICATIONS,
+      setNotifications: (items) =>
+        set((s) => {
+          const unreadById = new Map(
+            s.notifications.map((n) => [n.id, n.unread]),
+          );
+          return {
+            notifications: items.map((n) => ({
+              ...n,
+              unread: unreadById.get(n.id) ?? n.unread,
+            })),
+          };
+        }),
       markRead: (id) =>
         set((s) => ({
           notifications: s.notifications.map((n) =>
@@ -107,11 +88,13 @@ export const RATES: Record<Currency, number> = {
 };
 
 interface PrefsState {
+  plan: PlanKey;
   currency: Currency;
   language: Language;
   dateFormat: DateFormat;
   avatarColor: string;
   avatarIcon: string;
+  setPlan: (p: PlanKey) => void;
   setCurrency: (c: Currency) => void;
   setLanguage: (l: Language) => void;
   setDateFormat: (d: DateFormat) => void;
@@ -122,11 +105,13 @@ interface PrefsState {
 export const usePrefs = create<PrefsState>()(
   persist(
     (set) => ({
+      plan: "free",
       currency: "USD",
       language: "en",
       dateFormat: "MMM D, YYYY",
       avatarColor: "#EF4444",
       avatarIcon: "User",
+      setPlan: (plan) => set({ plan }),
       setCurrency: (currency) => set({ currency }),
       setLanguage: (language) => set({ language }),
       setDateFormat: (dateFormat) => set({ dateFormat }),

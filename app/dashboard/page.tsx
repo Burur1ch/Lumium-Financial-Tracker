@@ -1,5 +1,10 @@
 import React from "react";
-import { createClient } from "@/utils/supabase/server";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { categories, transactions } from "@/db/schema";
+import { auth } from "@/utils/auth/server";
 import { getCategories } from "./actions";
 import MetricCard from "@/components/dashboard/metric-card";
 import ExpenseChart from "@/components/dashboard/expense-chart";
@@ -141,10 +146,9 @@ export default async function DashboardPage({
   const periodKey = getPeriodKey(period);
   const changeLabelKey = getChangeLabelKey(period);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await auth.api.getSession({ headers: await headers() });
+  const user = session?.user;
+  if (!user) redirect("/login");
 
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -169,47 +173,30 @@ export default async function DashboardPage({
   const prevRange = getPrevPeriodRange(period);
 
   if (user) {
-    let txQuery = supabase
-      .from("transactions")
-      .select("amount, type, date, categories(name, color)")
-      .eq("user_id", user.id);
-    if (periodStart) txQuery = txQuery.gte("date", periodStart);
-
-    let prevQuery = supabase
-      .from("transactions")
-      .select("amount, type")
-      .eq("user_id", user.id);
-    if (prevRange) {
-      prevQuery = prevQuery
-        .gte("date", prevRange.start)
-        .lt("date", prevRange.end);
-    }
-
-    const [txAllRes, prevRes, recentRes] = await Promise.all([
-      txQuery,
-      prevRange ? prevQuery : Promise.resolve({ data: [] }),
-      supabase
-        .from("transactions")
-        .select(
-          "id, description, amount, type, status, date, categories(name, color)",
-        )
-        .eq("user_id", user.id)
-        .order("date", { ascending: false })
-        .limit(20),
+    const owner = eq(transactions.user_id, user.id);
+    const [txAll, prevData, recentData] = await Promise.all([
+      db.select({ amount: transactions.amount, type: transactions.type, date: transactions.date, categories: { name: categories.name, color: categories.color } })
+        .from(transactions).leftJoin(categories, eq(transactions.category_id, categories.id))
+        .where(periodStart ? and(owner, gte(transactions.date, new Date(periodStart))) : owner),
+      prevRange ? db.select({ amount: transactions.amount, type: transactions.type }).from(transactions)
+        .where(and(owner, gte(transactions.date, new Date(prevRange.start)), lt(transactions.date, new Date(prevRange.end)))) : Promise.resolve([]),
+      db.select({ id: transactions.id, description: transactions.description, amount: transactions.amount, type: transactions.type, status: transactions.status, date: transactions.date, categories: { name: categories.name, color: categories.color } })
+        .from(transactions).leftJoin(categories, eq(transactions.category_id, categories.id))
+        .where(owner).orderBy(desc(transactions.date)).limit(20),
     ]);
 
-    if (prevRes.data) {
-      prevRes.data.forEach((tx: { amount: number; type: string }) => {
+    if (prevData) {
+      prevData.forEach((tx) => {
         const amount = Number(tx.amount);
         if (tx.type === "income") prevIncome += amount;
         else if (tx.type === "expense") prevExpenses += amount;
       });
     }
 
-    if (txAllRes.data) {
-      txAllRes.data.forEach((tx, idx) => {
+    if (txAll) {
+      txAll.forEach((tx, idx) => {
         const amount = Number(tx.amount);
-        const groupKey = getGroupLabel(tx.date, period);
+        const groupKey = getGroupLabel(tx.date.toISOString(), period);
 
         if (!chartDataMap[groupKey])
           chartDataMap[groupKey] = { income: 0, expense: 0 };
@@ -221,9 +208,7 @@ export default async function DashboardPage({
           totalExpenses += amount;
           chartDataMap[groupKey].expense += amount;
 
-          const cat = Array.isArray(tx.categories)
-            ? tx.categories[0]
-            : tx.categories;
+          const cat = tx.categories;
           const categoryName = cat?.name || "Other";
           const categoryColor = cat?.color || COLORS[idx % COLORS.length];
           if (!categoryDataMap[categoryName]) {
@@ -234,7 +219,7 @@ export default async function DashboardPage({
       });
     }
 
-    if (recentRes.data) recentTransactions = recentRes.data;
+    recentTransactions = recentData.map((tx) => ({ ...tx, amount: Number(tx.amount), date: tx.date.toISOString() }));
   }
 
   const expenseChartData = Object.entries(chartDataMap)

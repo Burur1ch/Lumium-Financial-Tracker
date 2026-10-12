@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lumium - Financial Tracker",
-  description: "Financial dashboard built with Next.js and Supabase",
+  description: "Financial dashboard built with Next.js and PostgreSQL",
 };
 
 export default function RootLayout({

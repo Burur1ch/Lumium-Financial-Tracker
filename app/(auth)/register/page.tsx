@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { authClient } from "@/utils/auth/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -12,26 +12,21 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { error: signUpError } = await authClient.signUp.email({
       email,
       password,
-      options: {
-        // Передаем full_name в метаданные, чтобы наш триггер в БД подхватил его
-        data: {
-          full_name: fullName,
-        },
-      },
+      name: fullName,
+      callbackURL: "/dashboard",
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(signUpError.message ?? "Не удалось создать аккаунт");
       setLoading(false);
     } else {
       // Перенаправляем на дашборд после успешной регистрации

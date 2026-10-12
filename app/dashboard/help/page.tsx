@@ -55,7 +55,7 @@ const FAQ_EN = [
   },
   {
     q: "Is my financial data secure?",
-    a: "Yes. Lumium uses Supabase with Row Level Security (RLS), meaning your data is isolated and only accessible by your authenticated account. All connections are encrypted with TLS.",
+    a: "Yes. Lumium stores financial data in PostgreSQL and checks your authenticated account on the server for protected operations. Production database connections use TLS.",
   },
 ];
 
@@ -90,7 +90,7 @@ const FAQ_RU = [
   },
   {
     q: "Насколько защищены мои данные?",
-    a: "Lumium использует Supabase с Row Level Security (RLS) — ваши данные изолированы и доступны только вашему аккаунту. Все соединения зашифрованы TLS.",
+    a: "Lumium хранит финансовые данные в PostgreSQL и проверяет вашу учетную запись на сервере для защищенных операций. Подключения к production-базе используют TLS.",
   },
 ];
 
@@ -125,7 +125,7 @@ const FAQ_DE = [
   },
   {
     q: "Sind meine Finanzdaten sicher?",
-    a: "Ja. Lumium verwendet Supabase mit Row Level Security (RLS). Alle Verbindungen sind TLS-verschlüsselt.",
+    a: "Ja. Lumium speichert Finanzdaten in PostgreSQL und prüft den angemeldeten Benutzer serverseitig. Produktionsverbindungen zur Datenbank verwenden TLS.",
   },
 ];
 
@@ -160,7 +160,7 @@ const FAQ_FR = [
   },
   {
     q: "Mes données sont-elles sécurisées ?",
-    a: "Oui. Lumium utilise Supabase avec Row Level Security (RLS). Toutes les connexions sont chiffrées TLS.",
+    a: "Oui. Lumium stocke les données financières dans PostgreSQL et vérifie côté serveur le compte authentifié. Les connexions à la base en production utilisent TLS.",
   },
 ];
 

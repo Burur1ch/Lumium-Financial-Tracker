@@ -3,6 +3,7 @@ import { getCategories, getFilteredTransactions } from "../actions";
 import TransactionsTable from "@/components/dashboard/transactions-table";
 import TransactionsFilters from "@/components/dashboard/transactions-filters";
 import AddExpenseModal from "@/components/dashboard/add-expense-modal";
+import { ExportTransactionsButton } from "@/components/dashboard/export-transactions-button";
 
 interface SearchParams {
   search?: string;
@@ -28,7 +29,7 @@ export default async function TransactionsPage({
     categoryId: resolvedParams.categoryId,
   };
 
-  // Получаем отфильтрованный массив транзакций из Supabase
+  // Получаем отфильтрованный массив транзакций из PostgreSQL
   const transactions = await getFilteredTransactions(filters);
 
   return (
@@ -43,7 +44,8 @@ export default async function TransactionsPage({
             View, search, and audit all your financial logs
           </p>
         </div>
-        <div className="w-full sm:w-auto">
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+          <ExportTransactionsButton filters={filters} />
           <AddExpenseModal categories={categories} />
         </div>
       </div>

@@ -1,8 +1,14 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/store/prefs";
+import {
+  getPlanHistoryDays,
+  isWithinHistoryLimit,
+} from "@/utils/monetization/limits";
 
 interface CategorySummary {
   name: string;
@@ -30,9 +36,17 @@ export default function TransactionsTable({
   transactions,
 }: TransactionsTableProps) {
   const { fmt, t } = useI18n();
+  const { plan } = usePrefs();
+  const historyDays = getPlanHistoryDays(plan);
+  const limitedTransactions = React.useMemo(
+    () =>
+      transactions.filter((tx) => isWithinHistoryLimit(tx.date, historyDays)),
+    [historyDays, transactions],
+  );
+  const hiddenCount = transactions.length - limitedTransactions.length;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_COUNT);
-  const visible = transactions.slice(0, visibleCount);
-  const hasMore = visibleCount < transactions.length;
+  const visible = limitedTransactions.slice(0, visibleCount);
+  const hasMore = visibleCount < limitedTransactions.length;
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
       <div className="flex items-center justify-between mb-6">
@@ -46,9 +60,23 @@ export default function TransactionsTable({
         </div>
       </div>
 
+      {hiddenCount > 0 && historyDays !== null && (
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/80 dark:bg-amber-950/20 px-4 py-3 text-xs text-amber-700 dark:text-amber-300 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {t("historyLimitedNotice")} {historyDays}d.
+          </p>
+          <Link
+            href="/dashboard/pricing"
+            className="font-bold text-red-500 hover:text-red-600 transition-colors"
+          >
+            {t("upgradeToPro")}
+          </Link>
+        </div>
+      )}
+
       {/* Mobile: card list */}
       <div className="sm:hidden flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-        {transactions.length === 0 ? (
+        {limitedTransactions.length === 0 ? (
           <p className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
             {t("noTransactions")}
           </p>
@@ -129,7 +157,7 @@ export default function TransactionsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60 text-sm font-medium text-slate-700 dark:text-slate-300">
-            {transactions.length === 0 ? (
+            {limitedTransactions.length === 0 ? (
               <tr>
                 <td
                   colSpan={3}
@@ -214,7 +242,7 @@ export default function TransactionsTable({
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
           className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         >
-          Show more ({transactions.length - visibleCount} left)
+          Show more ({limitedTransactions.length - visibleCount} left)
         </button>
       )}
     </div>

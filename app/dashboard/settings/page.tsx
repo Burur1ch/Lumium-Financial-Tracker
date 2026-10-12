@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +16,8 @@ import {
   Moon,
   Clock,
   Check,
+  CreditCard,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   getProfile,
@@ -40,12 +43,14 @@ import {
   disableAutoTheme,
   isAutoThemeEnabled,
 } from "@/components/scheduled-theme";
+import { getPlan } from "@/utils/monetization/plans";
 
 interface Profile {
   id: string;
   name: string | null;
   email: string;
   avatar_url: string | null;
+  plan: "free" | "pro" | "family";
 }
 
 const CURRENCIES: { value: Currency; label: string }[] = [
@@ -124,6 +129,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { t } = useI18n();
   const {
+    plan,
+    setPlan,
     setCurrency,
     setLanguage,
     setDateFormat,
@@ -158,18 +165,20 @@ export default function SettingsPage() {
   const [pendingIcon, setPendingIcon] = useState(
     () => usePrefs.getState().avatarIcon,
   );
+  const activePlan = getPlan(plan);
 
   useEffect(() => {
     getProfile().then((p) => {
       if (p) {
         setProfile(p as Profile);
         setName(p.name ?? "");
+        setPlan(p.plan ?? "free");
         setStoreAvatarUrl(null);
       }
       setMounted(true);
       setIsAuto(isAutoThemeEnabled());
     });
-  }, [setStoreAvatarUrl]);
+  }, [setPlan, setStoreAvatarUrl]);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,6 +232,37 @@ export default function SettingsPage() {
           {t("manageAccountDesc")}
         </p>
       </div>
+
+      <Section
+        icon={CreditCard}
+        title={t("pricing")}
+        description={t("pricingSubtitle")}
+      >
+        <div className="rounded-2xl border border-red-100 dark:border-red-900/40 bg-linear-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">
+                {t("currentPlan")}
+              </p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
+                {activePlan.name}
+              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {activePlan.tagline}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/dashboard/pricing"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-xs font-bold text-white transition-colors"
+              >
+                {plan === "free" ? t("upgradeToPro") : t("managePlan")}
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </Section>
 
       {/* ── Profile ── */}
       <Section icon={User} title={t("profile")} description={t("personalInfo")}>
