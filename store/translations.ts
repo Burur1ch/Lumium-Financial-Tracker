@@ -108,7 +108,7 @@ export const translations = {
     vsPrevYear: "vs prev year",
 
     // Misc
-    currencyNote: "Display format only — no conversion applied",
+    currencyNote: "Amounts are converted from USD using approximate rates",
     allTypes: "All Types",
     allCategories: "All Categories",
     searchPlaceholder: "Search by description...",
@@ -349,7 +349,7 @@ export const translations = {
     vsPrev3m: "против пред. 3 месяцев",
     vsPrevYear: "против пред. года",
 
-    currencyNote: "Только формат отображения — конвертация не применяется",
+    currencyNote: "Суммы пересчитываются из USD по примерному курсу",
     allTypes: "Все типы",
     allCategories: "Все категории",
     searchPlaceholder: "Поиск по описанию...",
@@ -591,7 +591,7 @@ export const translations = {
     vsPrev3m: "vs. vorh. 3 Monate",
     vsPrevYear: "vs. vorh. Jahr",
 
-    currencyNote: "Nur Anzeigeformat — keine Umrechnung",
+    currencyNote: "Beträge werden anhand ungefährer Kurse aus USD umgerechnet",
     allTypes: "Alle Typen",
     allCategories: "Alle Kategorien",
     searchPlaceholder: "Nach Beschreibung suchen...",
@@ -835,7 +835,8 @@ export const translations = {
     vsPrev3m: "vs 3 mois préc.",
     vsPrevYear: "vs année préc.",
 
-    currencyNote: "Format d'affichage uniquement — aucune conversion",
+    currencyNote:
+      "Les montants sont convertis depuis USD selon des taux approximatifs",
     allTypes: "Tous les types",
     allCategories: "Toutes les catégories",
     searchPlaceholder: "Rechercher par description...",

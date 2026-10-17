@@ -90,15 +90,28 @@ export default function ReportCharts({
 }: ReportChartsProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { fmt, t } = useI18n();
+  const { fmt, t, language } = useI18n();
   const gridColor = isDark ? "#1e293b" : "#f1f5f9";
   const tickColor = isDark ? "#475569" : "#94a3b8";
 
   // Use daily for short periods, monthly otherwise
   const trendData =
     period === "7d" || period === "30d" ? dailyTrend : monthlyTrend;
+  const locale =
+    { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language] ?? "en-US";
+  const formatTrendLabel = (label: string) =>
+    label.length === 7
+      ? new Date(`${label}-01T12:00:00`).toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        })
+      : new Date(`${label}T12:00:00`).toLocaleDateString(locale, {
+          day: "numeric",
+          month: "short",
+        });
   const trendWithAlias = trendData.map((d) => ({
     ...d,
+    label: formatTrendLabel(d.label),
     expenseTrend: d.expense,
   }));
 
@@ -114,7 +127,7 @@ export default function ReportCharts({
   }));
 
   const netData = trendData.map((d) => ({
-    label: d.label,
+    label: formatTrendLabel(d.label),
     net: d.income - d.expense,
   }));
 

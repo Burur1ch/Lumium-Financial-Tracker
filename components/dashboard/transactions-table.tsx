@@ -35,7 +35,7 @@ const PAGE_SIZE = 10;
 export default function TransactionsTable({
   transactions,
 }: TransactionsTableProps) {
-  const { fmt, t } = useI18n();
+  const { fmt, fmtDate, t } = useI18n();
   const { plan } = usePrefs();
   const historyDays = getPlanHistoryDays(plan);
   const limitedTransactions = React.useMemo(
@@ -86,10 +86,7 @@ export default function TransactionsTable({
             const cat = Array.isArray(tx.categories)
               ? tx.categories[0]
               : tx.categories;
-            const formattedDate = new Date(tx.date).toLocaleDateString(
-              "en-US",
-              { month: "short", day: "numeric" },
-            );
+            const formattedDate = fmtDate(tx.date);
             return (
               <div key={tx.id} className="flex items-center gap-3 py-3">
                 <div
@@ -172,10 +169,7 @@ export default function TransactionsTable({
                 const cat = Array.isArray(tx.categories)
                   ? tx.categories[0]
                   : tx.categories;
-                const formattedDate = new Date(tx.date).toLocaleDateString(
-                  "en-US",
-                  { month: "short", day: "numeric" },
-                );
+                const formattedDate = fmtDate(tx.date);
                 return (
                   <tr
                     key={tx.id}

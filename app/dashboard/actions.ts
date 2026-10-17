@@ -21,6 +21,7 @@ import {
   isLimitReached,
 } from "@/utils/monetization/limits";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
+import { isCurrency, RATES } from "@/utils/currency";
 import { revalidatePath } from "next/cache";
 import {
   getAppBaseUrl,
@@ -70,11 +71,13 @@ function slugifyFilePart(value: string) {
   );
 }
 
-async function getCurrentPlanForUser(
-  user: { id: string },
-): Promise<PlanKey> {
+async function getCurrentPlanForUser(user: { id: string }): Promise<PlanKey> {
   const [data] = await db
-    .select({ plan: subscriptions.plan, status: subscriptions.status, currentPeriodEnd: subscriptions.current_period_end })
+    .select({
+      plan: subscriptions.plan,
+      status: subscriptions.status,
+      currentPeriodEnd: subscriptions.current_period_end,
+    })
     .from(subscriptions)
     .where(eq(subscriptions.user_id, user.id))
     .limit(1);
@@ -191,17 +194,27 @@ export async function setCurrentPlan(plan: PlanKey) {
     return { success: false, error: "Unauthorized" };
   }
 
-  await db.insert(subscriptions).values({
-    user_id: user.id,
-    plan: "free",
-    status: "inactive",
-    billing_interval: null,
-    current_period_end: null,
-    cancel_at_period_end: false,
-  }).onConflictDoUpdate({
-    target: subscriptions.user_id,
-    set: { plan: "free", status: "inactive", billing_interval: null, current_period_end: null, cancel_at_period_end: false, updated_at: new Date() },
-  });
+  await db
+    .insert(subscriptions)
+    .values({
+      user_id: user.id,
+      plan: "free",
+      status: "inactive",
+      billing_interval: null,
+      current_period_end: null,
+      cancel_at_period_end: false,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.user_id,
+      set: {
+        plan: "free",
+        status: "inactive",
+        billing_interval: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        updated_at: new Date(),
+      },
+    });
 
   revalidatePath("/dashboard", "layout");
   return { success: true };
@@ -238,7 +251,10 @@ export async function createCheckoutSession(input: {
     !!currentSubscription?.stripe_subscription_id &&
     normalizePlanKey(currentSubscription?.plan) !== "free" &&
     !!existingStatus &&
-    isStripePlanActive(existingStatus, currentSubscription.current_period_end?.toISOString() ?? null);
+    isStripePlanActive(
+      existingStatus,
+      currentSubscription.current_period_end?.toISOString() ?? null,
+    );
 
   if (hasActivePaidSubscription) {
     return {
@@ -281,15 +297,22 @@ export async function createCheckoutSession(input: {
     },
   });
 
-  await db.insert(subscriptions).values({
-    user_id: user.id,
-    stripe_customer_id: customerId,
-    plan: "free",
-    status: "incomplete",
-  }).onConflictDoUpdate({
-    target: subscriptions.user_id,
-    set: { stripe_customer_id: customerId, status: "incomplete", updated_at: new Date() },
-  });
+  await db
+    .insert(subscriptions)
+    .values({
+      user_id: user.id,
+      stripe_customer_id: customerId,
+      plan: "free",
+      status: "incomplete",
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.user_id,
+      set: {
+        stripe_customer_id: customerId,
+        status: "incomplete",
+        updated_at: new Date(),
+      },
+    });
 
   if (!checkoutSession.url) {
     return { success: false, error: "Stripe checkout URL is missing" };
@@ -367,7 +390,10 @@ export async function createPaymentElementSession(input: {
     !!currentSubscription?.stripe_subscription_id &&
     normalizePlanKey(currentSubscription?.plan) !== "free" &&
     !!existingStatus &&
-    isStripePlanActive(existingStatus, currentSubscription.current_period_end?.toISOString() ?? null);
+    isStripePlanActive(
+      existingStatus,
+      currentSubscription.current_period_end?.toISOString() ?? null,
+    );
 
   if (hasActivePaidSubscription) {
     return {
@@ -413,18 +439,28 @@ export async function createPaymentElementSession(input: {
     };
   }
 
-  await db.insert(subscriptions).values({
-    user_id: user.id,
-    stripe_customer_id: customerId,
-    stripe_subscription_id: subscription.id,
-    plan: "free",
-    status: "incomplete",
-    billing_interval: input.interval,
-    cancel_at_period_end: false,
-  }).onConflictDoUpdate({
-    target: subscriptions.user_id,
-    set: { stripe_customer_id: customerId, stripe_subscription_id: subscription.id, status: "incomplete", billing_interval: input.interval, cancel_at_period_end: false, updated_at: new Date() },
-  });
+  await db
+    .insert(subscriptions)
+    .values({
+      user_id: user.id,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscription.id,
+      plan: "free",
+      status: "incomplete",
+      billing_interval: input.interval,
+      cancel_at_period_end: false,
+    })
+    .onConflictDoUpdate({
+      target: subscriptions.user_id,
+      set: {
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscription.id,
+        status: "incomplete",
+        billing_interval: input.interval,
+        cancel_at_period_end: false,
+        updated_at: new Date(),
+      },
+    });
 
   return {
     success: true,
@@ -440,24 +476,41 @@ export async function createTransaction(formData: FormData) {
   }
 
   // 2. Считываем данные из полей формы
-  const description = formData.get("description") as string;
-  const amount = parseFloat(formData.get("amount") as string);
-  const type = formData.get("type") as "expense" | "income";
-  const status = (formData.get("status") as "completed" | "pending" | null) ?? "completed";
+  const description = formData.get("description");
+  const amountInput = formData.get("amount");
+  const currencyInput = formData.get("currency");
+  const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
+  const type = formData.get("type");
+  const status = formData.get("status") ?? "completed";
 
   // В реальном приложении здесь будет ID выбранной категории.
   // Пока передаем null или дефолтную категорию, если таблица пустая.
   const category_id = (formData.get("category_id") as string) || null;
 
-  if (!description || isNaN(amount)) {
+  if (
+    typeof description !== "string" ||
+    !description.trim() ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    typeof type !== "string" ||
+    (type !== "expense" && type !== "income") ||
+    typeof status !== "string" ||
+    (status !== "completed" && status !== "pending") ||
+    typeof currencyInput !== "string" ||
+    !isCurrency(currencyInput)
+  ) {
     return { success: false, error: "Заполните все обязательные поля" };
   }
+
+  const amountInUsd = amount / RATES[currencyInput];
 
   if (category_id) {
     const [ownedCategory] = await db
       .select({ id: categories.id })
       .from(categories)
-      .where(and(eq(categories.id, category_id), eq(categories.user_id, user.id)))
+      .where(
+        and(eq(categories.id, category_id), eq(categories.user_id, user.id)),
+      )
       .limit(1);
     if (!ownedCategory) return { success: false, error: "Invalid category" };
   }
@@ -466,8 +519,8 @@ export async function createTransaction(formData: FormData) {
   await db.insert(transactions).values({
     user_id: user.id,
     category_id,
-    description,
-    amount: String(amount),
+    description: description.trim(),
+    amount: amountInUsd.toFixed(2),
     type,
     status,
     date: new Date(),
@@ -491,10 +544,15 @@ export async function getCategories() {
 
   if (!user) return [];
 
-  const rows = await db.select().from(categories)
+  const rows = await db
+    .select()
+    .from(categories)
     .where(eq(categories.user_id, user.id))
     .orderBy(desc(categories.created_at));
-  return rows.map((row) => ({ ...row, type: row.type as "expense" | "income" }));
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as "expense" | "income",
+  }));
 }
 
 // Создать новую кастомную категорию
@@ -515,7 +573,10 @@ export async function createCategory(formData: FormData) {
   const plan = await getCurrentPlanForUser(user);
   const categoryLimit = getPlanCategoryLimit(plan);
   if (categoryLimit !== null) {
-    const [result] = await db.select({ count: count() }).from(categories).where(eq(categories.user_id, user.id));
+    const [result] = await db
+      .select({ count: count() })
+      .from(categories)
+      .where(eq(categories.user_id, user.id));
     if (isLimitReached(categoryLimit, result.count)) {
       return { success: false, error: "Plan limit reached for categories" };
     }
@@ -539,7 +600,9 @@ export async function deleteCategory(id: string) {
 
   if (!user) return { success: false, error: "Неавторизован" };
 
-  await db.delete(categories).where(and(eq(categories.id, id), eq(categories.user_id, user.id)));
+  await db
+    .delete(categories)
+    .where(and(eq(categories.id, id), eq(categories.user_id, user.id)));
 
   revalidatePath("/dashboard/categories");
   return { success: true };
@@ -573,7 +636,8 @@ export async function getFilteredTransactions(filters: {
 
   // Фильтр по типу (expense / income)
   if (filters.type && filters.type !== "all") {
-    if (filters.type === "expense" || filters.type === "income") conditions.push(eq(transactions.type, filters.type));
+    if (filters.type === "expense" || filters.type === "income")
+      conditions.push(eq(transactions.type, filters.type));
   }
 
   // Фильтр по конкретной категории
@@ -582,16 +646,18 @@ export async function getFilteredTransactions(filters: {
   }
 
   // Сортируем: сначала самые новые
-  const rows = await db.select({
-    id: transactions.id,
-    description: transactions.description,
-    amount: transactions.amount,
-    type: transactions.type,
-    status: transactions.status,
-    date: transactions.date,
-    category_id: transactions.category_id,
-    categories: { name: categories.name, color: categories.color },
-  }).from(transactions)
+  const rows = await db
+    .select({
+      id: transactions.id,
+      description: transactions.description,
+      amount: transactions.amount,
+      type: transactions.type,
+      status: transactions.status,
+      date: transactions.date,
+      category_id: transactions.category_id,
+      categories: { name: categories.name, color: categories.color },
+    })
+    .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(desc(transactions.date));
@@ -627,21 +693,24 @@ export async function exportTransactionsWorkbook(filters: {
   }
 
   if (filters.type && filters.type !== "all") {
-    if (filters.type === "expense" || filters.type === "income") conditions.push(eq(transactions.type, filters.type));
+    if (filters.type === "expense" || filters.type === "income")
+      conditions.push(eq(transactions.type, filters.type));
   }
 
   if (filters.categoryId && filters.categoryId !== "all") {
     conditions.push(eq(transactions.category_id, filters.categoryId));
   }
 
-  const data = await db.select({
-    description: transactions.description,
-    amount: transactions.amount,
-    type: transactions.type,
-    status: transactions.status,
-    date: transactions.date,
-    categories: { name: categories.name, color: categories.color },
-  }).from(transactions)
+  const data = await db
+    .select({
+      description: transactions.description,
+      amount: transactions.amount,
+      type: transactions.type,
+      status: transactions.status,
+      date: transactions.date,
+      categories: { name: categories.name, color: categories.color },
+    })
+    .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(desc(transactions.date));
@@ -683,21 +752,26 @@ export async function exportReportWorkbook(period: string = "30d") {
   }
 
   const periodStart = getPeriodStartDate(period);
-  const conditions = [eq(transactions.user_id, user.id)];
+  const conditions = [
+    eq(transactions.user_id, user.id),
+    eq(transactions.status, "completed"),
+  ];
 
   if (periodStart) {
     conditions.push(gte(transactions.date, periodStart));
   }
 
-  const transactionRowsData = await db.select({
-    description: transactions.description,
-    amount: transactions.amount,
-    type: transactions.type,
-    status: transactions.status,
-    date: transactions.date,
-    category_id: transactions.category_id,
-    categories: { name: categories.name, color: categories.color },
-  }).from(transactions)
+  const transactionRowsData = await db
+    .select({
+      description: transactions.description,
+      amount: transactions.amount,
+      type: transactions.type,
+      status: transactions.status,
+      date: transactions.date,
+      category_id: transactions.category_id,
+      categories: { name: categories.name, color: categories.color },
+    })
+    .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(desc(transactions.date));
@@ -788,29 +862,48 @@ export async function getBudgetsWithProgress() {
     .toISOString()
     .split("T")[0];
 
-  const budgetsData = await db.select({
-    id: budgets.id,
-    monthly_limit: budgets.monthly_limit,
-    category_id: budgets.category_id,
-    categories: { name: categories.name, color: categories.color },
-  }).from(budgets)
+  const budgetsData = await db
+    .select({
+      id: budgets.id,
+      monthly_limit: budgets.monthly_limit,
+      category_id: budgets.category_id,
+      categories: { name: categories.name, color: categories.color },
+    })
+    .from(budgets)
     .leftJoin(categories, eq(budgets.category_id, categories.id))
-    .where(and(eq(budgets.user_id, user.id), eq(budgets.month_year, currentMonthYear)));
+    .where(
+      and(
+        eq(budgets.user_id, user.id),
+        eq(budgets.month_year, currentMonthYear),
+      ),
+    );
 
   // 2. Получаем расходы за текущий месяц для расчета прогресса
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const spending = await db.select({ amount: transactions.amount, category_id: transactions.category_id })
+  const spending = await db
+    .select({
+      amount: transactions.amount,
+      category_id: transactions.category_id,
+    })
     .from(transactions)
-    .where(and(eq(transactions.user_id, user.id), eq(transactions.type, "expense"), gte(transactions.date, startOfMonth)));
+    .where(
+      and(
+        eq(transactions.user_id, user.id),
+        eq(transactions.type, "expense"),
+        eq(transactions.status, "completed"),
+        gte(transactions.date, startOfMonth),
+      ),
+    );
 
   // Считаем сумму расходов по каждой категории
   const spentMap: Record<string, number> = {};
   spending.forEach((tx) => {
     if (!tx.category_id) return;
-    spentMap[tx.category_id] = (spentMap[tx.category_id] || 0) + Number(tx.amount);
+    spentMap[tx.category_id] =
+      (spentMap[tx.category_id] || 0) + Number(tx.amount);
   });
 
   // Объединяем лимиты с реальными расходами
@@ -825,14 +918,28 @@ export async function getBudgetsWithProgress() {
 export async function upsertBudget(formData: {
   categoryId: string;
   limitAmount: number;
+  currency: string;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
+  if (
+    !Number.isFinite(formData.limitAmount) ||
+    formData.limitAmount <= 0 ||
+    !isCurrency(formData.currency)
+  ) {
+    throw new Error("Invalid budget amount");
+  }
+  const limitInUsd = formData.limitAmount / RATES[formData.currency];
   const plan = await getCurrentPlanForUser(user);
   const [ownedCategory] = await db
     .select({ id: categories.id })
     .from(categories)
-    .where(and(eq(categories.id, formData.categoryId), eq(categories.user_id, user.id)))
+    .where(
+      and(
+        eq(categories.id, formData.categoryId),
+        eq(categories.user_id, user.id),
+      ),
+    )
     .limit(1);
   if (!ownedCategory) throw new Error("Invalid category");
 
@@ -844,27 +951,42 @@ export async function upsertBudget(formData: {
 
   const budgetLimit = getPlanBudgetLimit(plan);
   if (budgetLimit !== null) {
-    const [existingBudget] = await db.select({ id: budgets.id }).from(budgets)
-      .where(and(eq(budgets.user_id, user.id), eq(budgets.category_id, formData.categoryId), eq(budgets.month_year, monthYear)))
+    const [existingBudget] = await db
+      .select({ id: budgets.id })
+      .from(budgets)
+      .where(
+        and(
+          eq(budgets.user_id, user.id),
+          eq(budgets.category_id, formData.categoryId),
+          eq(budgets.month_year, monthYear),
+        ),
+      )
       .limit(1);
 
     if (!existingBudget) {
-      const [result] = await db.select({ count: count() }).from(budgets)
-        .where(and(eq(budgets.user_id, user.id), eq(budgets.month_year, monthYear)));
+      const [result] = await db
+        .select({ count: count() })
+        .from(budgets)
+        .where(
+          and(eq(budgets.user_id, user.id), eq(budgets.month_year, monthYear)),
+        );
       if (isLimitReached(budgetLimit, result.count)) {
         throw new Error("Plan limit reached for budgets");
       }
     }
   }
 
-  await db.insert(budgets).values({
+  await db
+    .insert(budgets)
+    .values({
       user_id: user.id,
       category_id: formData.categoryId,
-      monthly_limit: String(formData.limitAmount),
+      monthly_limit: limitInUsd.toFixed(2),
       month_year: monthYear,
-    }).onConflictDoUpdate({
+    })
+    .onConflictDoUpdate({
       target: [budgets.user_id, budgets.category_id, budgets.month_year],
-      set: { monthly_limit: String(formData.limitAmount) },
+      set: { monthly_limit: limitInUsd.toFixed(2) },
     });
 }
 
@@ -873,7 +995,11 @@ export async function getProfile() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [data] = await db.select().from(profiles).where(eq(profiles.id, user.id)).limit(1);
+  const [data] = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+    .limit(1);
 
   return {
     id: data?.id ?? user.id,
@@ -896,8 +1022,13 @@ export async function updateProfile(formData: FormData) {
   if (!user) return { success: false, error: "Unauthorized" };
 
   const name = formData.get("name") as string;
-  await db.insert(profiles).values({ id: user.id, email: user.email, name, updated_at: new Date() })
-    .onConflictDoUpdate({ target: profiles.id, set: { name, updated_at: new Date() } });
+  await db
+    .insert(profiles)
+    .values({ id: user.id, email: user.email, name, updated_at: new Date() })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: { name, updated_at: new Date() },
+    });
   revalidatePath("/dashboard/settings");
   return { success: true };
 }
@@ -943,16 +1074,21 @@ export async function getReportData(period: string = "30d") {
       break;
   }
 
-  const conditions = [eq(transactions.user_id, user.id)];
+  const conditions = [
+    eq(transactions.user_id, user.id),
+    eq(transactions.status, "completed"),
+  ];
   if (periodStart) conditions.push(gte(transactions.date, periodStart));
-  const reportTransactions = await db.select({
-    id: transactions.id,
-    amount: transactions.amount,
-    type: transactions.type,
-    date: transactions.date,
-    category_id: transactions.category_id,
-    categories: { name: categories.name, color: categories.color },
-  }).from(transactions)
+  const reportTransactions = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      type: transactions.type,
+      date: transactions.date,
+      category_id: transactions.category_id,
+      categories: { name: categories.name, color: categories.color },
+    })
+    .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(transactions.date);
@@ -970,14 +1106,8 @@ export async function getReportData(period: string = "30d") {
   reportTransactions.forEach((tx) => {
     const amount = Number(tx.amount);
     const date = new Date(tx.date);
-    const monthKey = date.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
-    const dayKey = date.toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-    });
+    const monthKey = date.toISOString().slice(0, 7);
+    const dayKey = date.toISOString().slice(0, 10);
     const cat = tx.categories;
     const catName = cat?.name || "Uncategorized";
     const catColor = cat?.color || "#94a3b8";
@@ -1048,11 +1178,23 @@ export async function getReportData(period: string = "30d") {
     totalIncome > 0
       ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100)
       : 0;
-  const avgDailyExpense =
-    reportTransactions.filter((t) => t.type === "expense").length > 0
-      ? totalExpense /
-        Math.max(1, dailyTrend.filter((d) => d.expense > 0).length)
-      : 0;
+  const dayInMilliseconds = 24 * 60 * 60 * 1000;
+  const periodDays = periodStart
+    ? Math.max(
+        1,
+        Math.ceil((now.getTime() - periodStart.getTime()) / dayInMilliseconds),
+      )
+    : reportTransactions.length > 0
+      ? Math.max(
+          1,
+          Math.floor(
+            (new Date(now.toDateString()).getTime() -
+              new Date(reportTransactions[0].date.toDateString()).getTime()) /
+              dayInMilliseconds,
+          ) + 1,
+        )
+      : 1;
+  const avgDailyExpense = totalExpense / periodDays;
 
   return {
     totalIncome,

@@ -33,7 +33,7 @@ export default function SetBudgetModal({
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { t } = useI18n();
-  const { plan } = usePrefs();
+  const { plan, currency } = usePrefs();
   const budgetLimit = getPlanBudgetLimit(plan);
   const hasReachedLimit = isLimitReached(budgetLimit, currentBudgetCount);
 
@@ -50,6 +50,7 @@ export default function SetBudgetModal({
         await upsertBudget({
           categoryId,
           limitAmount: parseFloat(limitAmount),
+          currency,
         });
         setIsOpen(false);
         setCategoryId("");
@@ -149,7 +150,7 @@ export default function SetBudgetModal({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-                  {t("monthlyLimitLabel")}
+                  {t("monthlyLimitLabel")} ({currency})
                 </label>
                 <input
                   type="number"
@@ -158,7 +159,8 @@ export default function SetBudgetModal({
                   onChange={(e) => setLimitAmount(e.target.value)}
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-red-500 focus:outline-none text-sm text-slate-800 dark:text-slate-200"
                   required
-                  min="1"
+                  min="0.01"
+                  step="0.01"
                 />
               </div>
 

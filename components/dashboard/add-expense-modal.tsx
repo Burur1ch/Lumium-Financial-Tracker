@@ -258,6 +258,7 @@ export default function AddExpenseModal({
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  <input type="hidden" name="currency" value={currency} />
                   {error && (
                     <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-2 text-xs font-semibold text-red-500">
                       {error}

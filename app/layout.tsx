@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ScheduledTheme } from "@/components/scheduled-theme";
@@ -16,7 +16,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lumium - Financial Tracker",
-  description: "Financial dashboard built with Next.js and PostgreSQL",
+  description: "Personal finance tracking, budgets, and reports.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#153f3b",
 };
 
 export default function RootLayout({

@@ -119,16 +119,16 @@ function calcChange(current: number, prev: number): number | null {
 function getGroupLabel(dateStr: string, period: Period): string {
   const date = new Date(dateStr);
   if (period === "7d" || period === "30d") {
-    return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+    return date.toISOString().slice(0, 10);
   }
   if (period === "3m") {
     // ISO week start (Monday)
     const d = new Date(date);
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+    return d.toISOString().slice(0, 10);
   }
   // 1y / all → month
-  return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  return `${date.toISOString().slice(0, 7)}-01`;
 }
 
 export default async function DashboardPage({
@@ -175,14 +175,52 @@ export default async function DashboardPage({
   if (user) {
     const owner = eq(transactions.user_id, user.id);
     const [txAll, prevData, recentData] = await Promise.all([
-      db.select({ amount: transactions.amount, type: transactions.type, date: transactions.date, categories: { name: categories.name, color: categories.color } })
-        .from(transactions).leftJoin(categories, eq(transactions.category_id, categories.id))
-        .where(periodStart ? and(owner, gte(transactions.date, new Date(periodStart))) : owner),
-      prevRange ? db.select({ amount: transactions.amount, type: transactions.type }).from(transactions)
-        .where(and(owner, gte(transactions.date, new Date(prevRange.start)), lt(transactions.date, new Date(prevRange.end)))) : Promise.resolve([]),
-      db.select({ id: transactions.id, description: transactions.description, amount: transactions.amount, type: transactions.type, status: transactions.status, date: transactions.date, categories: { name: categories.name, color: categories.color } })
-        .from(transactions).leftJoin(categories, eq(transactions.category_id, categories.id))
-        .where(owner).orderBy(desc(transactions.date)).limit(20),
+      db
+        .select({
+          amount: transactions.amount,
+          type: transactions.type,
+          date: transactions.date,
+          categories: { name: categories.name, color: categories.color },
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.category_id, categories.id))
+        .where(
+          periodStart
+            ? and(
+                owner,
+                eq(transactions.status, "completed"),
+                gte(transactions.date, new Date(periodStart)),
+              )
+            : and(owner, eq(transactions.status, "completed")),
+        ),
+      prevRange
+        ? db
+            .select({ amount: transactions.amount, type: transactions.type })
+            .from(transactions)
+            .where(
+              and(
+                owner,
+                eq(transactions.status, "completed"),
+                gte(transactions.date, new Date(prevRange.start)),
+                lt(transactions.date, new Date(prevRange.end)),
+              ),
+            )
+        : Promise.resolve([]),
+      db
+        .select({
+          id: transactions.id,
+          description: transactions.description,
+          amount: transactions.amount,
+          type: transactions.type,
+          status: transactions.status,
+          date: transactions.date,
+          categories: { name: categories.name, color: categories.color },
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.category_id, categories.id))
+        .where(owner)
+        .orderBy(desc(transactions.date))
+        .limit(20),
     ]);
 
     if (prevData) {
@@ -219,7 +257,11 @@ export default async function DashboardPage({
       });
     }
 
-    recentTransactions = recentData.map((tx) => ({ ...tx, amount: Number(tx.amount), date: tx.date.toISOString() }));
+    recentTransactions = recentData.map((tx) => ({
+      ...tx,
+      amount: Number(tx.amount),
+      date: tx.date.toISOString(),
+    }));
   }
 
   const expenseChartData = Object.entries(chartDataMap)

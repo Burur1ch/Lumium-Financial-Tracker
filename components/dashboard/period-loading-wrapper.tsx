@@ -11,25 +11,18 @@ export function PeriodLoadingWrapper({
 }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [loading, setLoading] = useState(false);
-  const [prevKey, setPrevKey] = useState(() => `${pathname}?${searchParams}`);
+  const [navStartKey, setNavStartKey] = useState<string | null>(null);
+  const currentKey = `${pathname}?${searchParams}`;
 
   // Show skeleton on nav-start event
   useEffect(() => {
-    const handler = () => setLoading(true);
+    const handler = () => {
+      setNavStartKey(currentKey);
+    };
     window.addEventListener("lumium:nav-start", handler);
     return () => window.removeEventListener("lumium:nav-start", handler);
-  }, []);
+  }, [currentKey]);
 
-  // Hide skeleton once URL actually changes (server response arrived)
-  useEffect(() => {
-    const current = `${pathname}?${searchParams}`;
-    if (current !== prevKey) {
-      setPrevKey(current);
-      setLoading(false);
-    }
-  }, [pathname, searchParams, prevKey]);
-
-  if (loading) return <DashboardLoading />;
+  if (navStartKey === currentKey) return <DashboardLoading />;
   return <>{children}</>;
 }

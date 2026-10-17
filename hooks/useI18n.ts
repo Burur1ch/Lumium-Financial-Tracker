@@ -1,4 +1,5 @@
-import { usePrefs, RATES } from "@/store/prefs";
+import { usePrefs } from "@/store/prefs";
+import { RATES } from "@/utils/currency";
 import { translations, TranslationKey } from "@/store/translations";
 
 const CURRENCY_LOCALES: Record<string, string> = {
@@ -8,6 +9,13 @@ const CURRENCY_LOCALES: Record<string, string> = {
   GBP: "en-GB",
   JPY: "ja-JP",
   CNY: "zh-CN",
+};
+
+const LANGUAGE_LOCALES: Record<string, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  de: "de-DE",
+  fr: "fr-FR",
 };
 
 export function useI18n() {
@@ -37,16 +45,17 @@ export function useI18n() {
 
   const fmtDate = (dateStr: string): string => {
     const date = new Date(dateStr);
+    const locale = LANGUAGE_LOCALES[language] ?? "en-US";
     switch (dateFormat) {
       case "DD.MM.YYYY":
-        return date.toLocaleDateString("ru-RU");
+        return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
       case "MM/DD/YYYY":
-        return date.toLocaleDateString("en-US");
+        return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
       case "YYYY-MM-DD":
         return date.toISOString().split("T")[0];
       case "MMM D, YYYY":
       default:
-        return date.toLocaleDateString("en-US", {
+        return date.toLocaleDateString(locale, {
           month: "short",
           day: "numeric",
           year: "numeric",

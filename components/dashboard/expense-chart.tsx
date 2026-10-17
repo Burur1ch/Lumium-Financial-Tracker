@@ -86,14 +86,25 @@ const CustomTooltip = ({ active, payload, label, isDark, fmt, t }: any) => {
 export default function ExpenseChart({ data, periodKey }: ExpenseChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { fmt, t } = useI18n();
+  const { fmt, t, language } = useI18n();
   const periodLabel = t(periodKey);
+  const locale =
+    { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language] ?? "en-US";
+  const chartData = data.map((point) => ({
+    ...point,
+    label: new Date(`${point.label}T12:00:00`).toLocaleDateString(
+      locale,
+      periodKey === "lastYear" || periodKey === "allTime"
+        ? { month: "short", year: "2-digit" }
+        : { day: "numeric", month: "short" },
+    ),
+  }));
 
   const gridColor = isDark ? "#1e293b" : "#f1f5f9";
   const tickColor = isDark ? "#475569" : "#94a3b8";
 
-  const totalIncome = data.reduce((s, d) => s + d.income, 0);
-  const totalExpense = data.reduce((s, d) => s + d.expense, 0);
+  const totalIncome = chartData.reduce((s, d) => s + d.income, 0);
+  const totalExpense = chartData.reduce((s, d) => s + d.expense, 0);
   const net = totalIncome - totalExpense;
   const NetIcon = net > 0 ? TrendingUp : net < 0 ? TrendingDown : Minus;
   const netColor = net >= 0 ? "text-emerald-500" : "text-red-500";
@@ -146,14 +157,14 @@ export default function ExpenseChart({ data, periodKey }: ExpenseChartProps) {
 
       {/* Chart */}
       <div className="flex-1 min-h-0">
-        {data.length === 0 ? (
+        {chartData.length === 0 ? (
           <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">
             {t("noDataPeriod")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={data}
+              data={chartData}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             >
               <defs>

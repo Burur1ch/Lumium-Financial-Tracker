@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PlanKey } from "@/utils/monetization/plans";
+import type { Currency } from "@/utils/currency";
+
+export { RATES } from "@/utils/currency";
+export type { Currency } from "@/utils/currency";
 
 // ── Notifications store (persisted to localStorage) ─────────────────────────
 // Icons are NOT stored — they are mapped by iconType at render time.
@@ -69,23 +73,12 @@ export const useProfileStore = create<ProfileState>()((set) => ({
   setAvatarUrl: (avatarUrl) => set({ avatarUrl }),
 }));
 
-export type Currency = "USD" | "EUR" | "RUB" | "GBP" | "JPY" | "CNY";
 export type Language = "en" | "ru" | "de" | "fr";
 export type DateFormat =
   | "MMM D, YYYY"
   | "DD.MM.YYYY"
   | "MM/DD/YYYY"
   | "YYYY-MM-DD";
-
-// Approximate exchange rates relative to USD (base currency of stored data)
-export const RATES: Record<Currency, number> = {
-  USD: 1,
-  EUR: 0.92,
-  GBP: 0.79,
-  RUB: 92.5,
-  JPY: 155,
-  CNY: 7.25,
-};
 
 interface PrefsState {
   plan: PlanKey;
