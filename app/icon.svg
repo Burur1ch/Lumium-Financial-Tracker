@@ -1,6 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#153f3b" />
-  <path d="M132 344h66V224h-66zm91 0h66V168h-66zm91 0h66V112h-66z" fill="#e8f2ec" />
-  <path d="m132 190 112-58 95 24 81-54" fill="none" stroke="#e7bd68" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" />
-  <circle cx="420" cy="102" r="19" fill="#e7bd68" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lumium">
+  <defs>
+    <linearGradient id="surface" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111824" />
+      <stop offset="1" stop-color="#090D14" />
+    </linearGradient>
+    <linearGradient id="paper" x1="160" y1="144" x2="376" y2="384" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" />
+      <stop offset="1" stop-color="#F1F5F9" />
+    </linearGradient>
+    <linearGradient id="accent" x1="244" y1="312" x2="390" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF474A" />
+      <stop offset="1" stop-color="#EF4444" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#surface)" />
+
+  <path
+    d="M361 164 194 184c-30 4-51 29-51 59v88c0 30 24 54 54 54h140c30 0 54-24 54-54v-20"
+    fill="none"
+    stroke="url(#paper)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="42"
+  />
+  <path
+    d="M178 220h194"
+    fill="none"
+    stroke="url(#paper)"
+    stroke-linecap="round"
+    stroke-width="42"
+  />
+
+  <path
+    d="m246 311 43-41 44 42 55-55"
+    fill="none"
+    stroke="url(#accent)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="40"
+  />
 </svg>
