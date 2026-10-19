@@ -1,11 +1,16 @@
 {
-  "generated_at": "2026-10-19T10:28:16.484331+00:00",
+  "generated_at": "2026-10-19T10:36:13.837421+00:00",
   "nodes": {
     "app_dashboard_actions_createtransaction": {
       "code_fingerprint": "92422dbcfe6f3b4633e88022ed4b4c01f1ff0ca4b20befcbf79cbfff34450c13",
       "label": "createTransaction()",
-      "last": "2026-10-19T10:24:18.552204+00:00",
+      "last": "2026-10-19T10:32:01.184857+00:00",
       "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
         {
           "date": "2026-10-19T10:24:18.552204+00:00",
           "outcome": "useful",
@@ -27,16 +32,21 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 3.997661046,
+      "score": 4.997083205,
       "source_file": "app/dashboard/actions.ts",
       "status": "preferred",
-      "uses": 4
+      "uses": 5
     },
     "app_dashboard_actions_upsertbudget": {
       "code_fingerprint": "92422dbcfe6f3b4633e88022ed4b4c01f1ff0ca4b20befcbf79cbfff34450c13",
       "label": "upsertBudget()",
-      "last": "2026-10-19T10:24:18.552204+00:00",
+      "last": "2026-10-19T10:32:01.184857+00:00",
       "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
         {
           "date": "2026-10-19T10:24:18.552204+00:00",
           "outcome": "useful",
@@ -53,16 +63,21 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 2.9983634,
+      "score": 3.997913113,
       "source_file": "app/dashboard/actions.ts",
       "status": "preferred",
-      "uses": 3
+      "uses": 4
     },
     "app_dashboard_page_dashboardpage": {
       "code_fingerprint": "8a2db676034d74143a16ddf7112afae7a53f6428e5ca7ab3ab7aa2c4069191e4",
       "label": "DashboardPage()",
-      "last": "2026-10-19T10:24:18.552204+00:00",
+      "last": "2026-10-19T10:32:01.184857+00:00",
       "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
         {
           "date": "2026-10-19T10:24:18.552204+00:00",
           "outcome": "useful",
@@ -79,10 +94,10 @@
           "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
         }
       ],
-      "score": 2.998615365,
+      "score": 3.998165046,
       "source_file": "app/dashboard/page.tsx",
       "status": "preferred",
-      "uses": 3
+      "uses": 4
     },
     "app_dashboard_transactions_page_transactionspage": {
       "code_fingerprint": "0ad9ed8a26b22e27b7c3fcfe0ef439b56f3f5ee57fe4593204aa641b79af38e1",
@@ -95,7 +110,7 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 0.999045682,
+      "score": 0.998918159,
       "source_file": "app/dashboard/transactions/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -116,7 +131,7 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 1.998343328,
+      "score": 1.99808825,
       "source_file": "components/dashboard/add-expense-modal.tsx",
       "status": "preferred",
       "uses": 2
@@ -142,7 +157,7 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 2.9983634,
+      "score": 2.997980675,
       "source_file": "components/dashboard/sidebar.tsx",
       "status": "preferred",
       "uses": 3
@@ -158,7 +173,7 @@
           "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
         }
       ],
-      "score": 0.999381344,
+      "score": 0.999253778,
       "source_file": "components/dashboard/transactions-filters.tsx",
       "status": "tentative",
       "uses": 1
@@ -166,8 +181,13 @@
     "components_dashboard_transactions_table_transactionstable": {
       "code_fingerprint": "b156b2cb8026dc488fbffc0b174338034682b2caea45d59e302902635eb20798",
       "label": "TransactionsTable()",
-      "last": "2026-10-19T10:24:18.552204+00:00",
+      "last": "2026-10-19T10:32:01.184857+00:00",
       "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
         {
           "date": "2026-10-19T10:24:18.552204+00:00",
           "outcome": "useful",
@@ -189,10 +209,10 @@
           "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
         }
       ],
-      "score": 3.997661046,
+      "score": 4.997083205,
       "source_file": "components/dashboard/transactions-table.tsx",
       "status": "preferred",
-      "uses": 4
+      "uses": 5
     }
   },
   "version": 1

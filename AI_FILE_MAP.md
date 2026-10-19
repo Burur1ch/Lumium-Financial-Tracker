@@ -1,10 +1,12 @@
 # Lumium File Map For AI Agents
 
 ## Root
+- .env.example: documented local environment variables with safe placeholder values.
+- compose.yaml: local PostgreSQL 17 service used by the default `DATABASE_URL`.
 - proxy.ts: optimistic auth-page/dashboard redirects using Better Auth session cookie.
 - db/index.ts: server-only PostgreSQL connection and Drizzle instance.
-- db/schema.ts: Better Auth and application PostgreSQL schema.
-- db/migrations/: generated Drizzle migrations shared by local and Railway databases.
+- db/schema.ts: Better Auth and application PostgreSQL schema, including transactions, presets, splits, recurring schedules, rules, budgets, and savings goals.
+- db/migrations/: generated Drizzle migrations shared by local and Railway databases; `0001` adds quick presets/idempotency and `0002` adds planning, splits, review state, goals, and richer budgets.
 - utils/auth/server.ts: Better Auth server configuration and cookie plugin.
 - utils/auth/client.ts: Better Auth browser client.
 - app/api/auth/[...all]/route.ts: Better Auth API route.
@@ -27,7 +29,7 @@
 - app/(auth)/register/page.tsx: Better Auth email/password registration.
 
 ### Dashboard shell
-- app/dashboard/layout.tsx: sidebar layout, mobile drawer, navigation progress wrapper.
+- app/dashboard/layout.tsx: sidebar layout, mobile drawer, navigation progress wrapper, and recurring transaction processor.
 - app/dashboard/loading.tsx: dashboard skeleton loader.
 
 ### Dashboard pages
@@ -36,12 +38,13 @@
 - app/dashboard/transactions/loading.tsx: transactions skeleton.
 - app/dashboard/categories/page.tsx: category management UI.
 - app/dashboard/budget/page.tsx: budget page loader + content wiring.
+- app/dashboard/planning/page.tsx: recurring transactions, automation rules, and savings-goal data wiring.
 - app/dashboard/reports/page.tsx: reports page data wiring.
 - app/dashboard/settings/page.tsx: profile/preferences/theme/danger-zone UI.
 - app/dashboard/help/page.tsx: FAQ, docs, support contact UI.
 - app/dashboard/help/actions.ts: support email server action.
-- app/dashboard/users/page.tsx: placeholder for future team/family mode.
-- app/dashboard/actions.ts: central server actions for domain logic.
+- app/dashboard/users/page.tsx: non-functional placeholder for future budget-by-ID and family-wallet access.
+- app/dashboard/actions.ts: central authenticated domain logic for transactions, presets, splits, review state, planning, budgets, goals, reports, profile, and billing.
 
 ## Core reusable components
 - components/money.tsx: currency-aware money renderer.
@@ -54,17 +57,24 @@
 
 ## Dashboard components
 - components/dashboard/sidebar.tsx: primary navigation, notifications popover, sign-out shortcut.
+- components/dashboard/mobile-app-chrome.tsx: mobile bottom navigation and overflow menu.
 - components/dashboard/dashboard-header.tsx: title/subtitle header.
+- components/dashboard/dashboard-page-title.tsx: responsive dashboard title treatment.
 - components/dashboard/period-selector.tsx: period state in URL + localStorage.
 - components/dashboard/period-loading-wrapper.tsx: period change skeleton behavior.
-- components/dashboard/add-expense-modal.tsx: create transaction modal with inline category creation.
-- components/dashboard/transactions-filters.tsx: URL-driven search/type/category filters.
-- components/dashboard/transactions-table.tsx: responsive transaction list/table.
+- components/dashboard/add-transaction-button.tsx: shared trigger for opening transaction creation.
+- components/dashboard/add-expense-modal.tsx: create transaction modal with note support and inline category creation.
+- components/dashboard/quick-actions.tsx: create, edit, delete, and execute one-tap transaction presets.
+- components/dashboard/transactions-filters.tsx: URL-driven search/type/category/review filters.
+- components/dashboard/transactions-table.tsx: responsive transaction list/table and detail-sheet trigger.
+- components/dashboard/transaction-detail-sheet.tsx: view, edit, duplicate, delete, split, and review a transaction.
 - components/dashboard/metric-card.tsx: summary KPI card.
 - components/dashboard/expense-chart.tsx: income vs expense chart.
 - components/dashboard/category-chart.tsx: expense category donut chart.
-- components/dashboard/budget-content.tsx: budget summaries and progress cards.
-- components/dashboard/set-budget-modal.tsx: set category budget modal.
+- components/dashboard/budget-content.tsx: budget progress, rollover, historical average, and forecast cards.
+- components/dashboard/set-budget-modal.tsx: category limit, alert threshold, and rollover controls.
+- components/dashboard/planning-content.tsx: recurring transaction, rule, and savings-goal forms/lists.
+- components/dashboard/recurring-processor.tsx: visit-driven processing of due automatic recurring transactions.
 - components/dashboard/report-content.tsx: report page layout and section rendering.
 - components/dashboard/report-charts.tsx: report charts composition.
 
@@ -79,3 +89,5 @@ When adding features, prefer existing patterns:
 - UI text through translation keys.
 - Monetary/date display through useI18n.
 - Keep route-level data fetching in route files and UI behavior in components.
+- Keep recurring writes idempotent and preserve `user_id` ownership checks on every operation.
+- Treat shared finances as a placeholder until invitations, membership roles, and explicit authorization are implemented.
