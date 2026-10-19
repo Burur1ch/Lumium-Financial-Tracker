@@ -28,22 +28,24 @@ textarea {
 
 /* ─── Base ────────────────────────────────────────────── */
 :root {
-  --app-canvas: #f4f6f8;
+  --app-canvas: #f4f7fa;
   --app-surface: #ffffff;
-  --app-text: #0f172a;
-  --app-muted: #64748b;
-  --app-border: #e2e8f0;
+  --app-panel: #f9fbfd;
+  --app-text: #111827;
+  --app-muted: #687385;
+  --app-border: #dfe5ec;
   --app-accent: #ef4444;
-  --app-shadow: 0 8px 28px rgb(15 23 42 / 0.07);
+  --app-shadow: 0 8px 24px rgb(15 23 42 / 0.055);
 }
 
 .dark {
-  --app-canvas: #0b0f1a;
-  --app-surface: #111827;
+  --app-canvas: #090d14;
+  --app-surface: #0d151f;
+  --app-panel: #111b27;
   --app-text: #f1f5f9;
-  --app-muted: #94a3b8;
-  --app-border: #263244;
-  --app-shadow: 0 14px 36px rgb(0 0 0 / 0.3);
+  --app-muted: #8d9aad;
+  --app-border: #1d2a38;
+  --app-shadow: 0 14px 36px rgb(0 0 0 / 0.28);
 }
 
 html {
@@ -102,7 +104,7 @@ html:not(.dark) .border-slate-200 {
 
 /* Rich dark background — slightly blue-tinted, not pure black */
 html.dark body {
-  background-color: #0b0f1a;
+  background-color: #090d14;
 }
 
 /* Subtle noise texture overlay in dark mode */
@@ -123,12 +125,11 @@ html.dark body::before {
   display: flex;
   min-height: calc(3.75rem + env(safe-area-inset-top));
   flex-shrink: 0;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--app-border);
-  background: var(--app-surface);
-  padding: env(safe-area-inset-top) 0.75rem 0 1rem;
+  background: var(--app-canvas);
+  padding: max(env(safe-area-inset-top), 0.35rem) 1rem 0;
 }
 
 .mobile-bottom-nav {
@@ -141,10 +142,11 @@ html.dark body::before {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   min-height: calc(4.5rem + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--app-border);
-  background: var(--app-surface);
+  border-top: 1px solid color-mix(in srgb, var(--app-border) 76%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   padding: 0.45rem 0.35rem env(safe-area-inset-bottom);
-  box-shadow: 0 -10px 32px rgb(15 23 42 / 0.06);
+  box-shadow: 0 -10px 32px rgb(15 23 42 / 0.05);
+  backdrop-filter: blur(18px);
 }
 
 .mobile-nav-item {
@@ -169,7 +171,20 @@ html.dark body::before {
   white-space: nowrap;
 }
 
-.mobile-nav-item.is-active { color: var(--app-accent); }
+.mobile-nav-item.is-active {
+  position: relative;
+  color: var(--app-accent);
+}
+
+.mobile-nav-item.is-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0.08rem;
+  width: 1.6rem;
+  height: 0.18rem;
+  border-radius: 999px;
+  background: var(--app-accent);
+}
 
 .mobile-add-button {
   display: flex;
@@ -180,7 +195,7 @@ html.dark body::before {
   transform: translateY(-0.8rem);
   align-items: center;
   justify-content: center;
-  border: 4px solid var(--app-surface);
+  border: 4px solid color-mix(in srgb, var(--app-surface) 96%, transparent);
   border-radius: 999px;
   background: var(--app-accent);
   color: white;
@@ -192,6 +207,26 @@ html.dark body::before {
 .dashboard-main {
   padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
   scrollbar-gutter: stable;
+}
+
+.finance-panel {
+  border: 1px solid var(--app-border);
+  border-radius: 1rem;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
+.mobile-finance-page {
+  color: var(--app-text);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .mobile-sheet-layer {

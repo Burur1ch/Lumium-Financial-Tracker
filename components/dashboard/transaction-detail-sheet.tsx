@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   Check,
   Copy,
+  FileText,
   Loader2,
+  MoreHorizontal,
   Pencil,
   Scissors,
+  Tag,
   Trash2,
+  WalletCards,
   X,
 } from "lucide-react";
 import {
@@ -51,6 +55,7 @@ export function TransactionDetailSheet({
   const rate = RATES[currency] ?? 1;
   const [mode, setMode] = useState<"details" | "edit" | "split">("details");
   const [pending, setPending] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState(transaction.type);
   const localAmount = Number((transaction.amount * rate).toFixed(2));
@@ -147,6 +152,10 @@ export function TransactionDetailSheet({
   const filteredCategories = categories.filter(
     (category) => category.type === selectedType,
   );
+  const transactionCategory = Array.isArray(transaction.categories)
+    ? transaction.categories[0]
+    : transaction.categories;
+  const categoryColor = transactionCategory?.color ?? (transaction.type === "income" ? "#10b981" : "#ef4444");
 
   return (
     <div
@@ -157,11 +166,11 @@ export function TransactionDetailSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="transaction-detail-title"
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-lg sm:rounded-2xl"
+        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-[1.75rem] border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-700/70 dark:bg-[#111b27] sm:max-w-lg sm:rounded-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />
-        <header className="flex min-h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
+        <header className="hidden min-h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800 sm:flex">
           <div>
             <h2 id="transaction-detail-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
               {mode === "edit"
@@ -188,7 +197,49 @@ export function TransactionDetailSheet({
 
           {mode === "details" && (
             <>
-              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950">
+              <div className="sm:hidden">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white" style={{ backgroundColor: categoryColor }}>
+                    {transaction.description.trim().charAt(0).toUpperCase() || (transaction.type === "income" ? "+" : "−")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 id="transaction-detail-title" className="truncate text-base font-bold text-slate-950 dark:text-white">{transaction.description}</h2>
+                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{transactionCategory?.name ?? t("uncategorized")}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xl font-extrabold tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-white"}`}>
+                      {transaction.type === "income" ? "+" : "−"}<Money amount={transaction.amount} decimals />
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">{fmtDate(transaction.date)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-4 gap-2">
+                  <MobileAction icon={Pencil} label={t("edit")} onClick={() => setMode("edit")} />
+                  <MobileAction icon={Copy} label={t("duplicate")} disabled={pending} onClick={() => void run(() => duplicateTransaction(transaction.id))} />
+                  <MobileAction icon={Scissors} label={t("split")} onClick={() => setMode("split")} />
+                  <MobileAction icon={MoreHorizontal} label={t("more")} onClick={() => setMoreOpen((open) => !open)} />
+                </div>
+
+                {moreOpen && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-slate-200 p-2 dark:border-slate-700">
+                    <button type="button" disabled={pending} onClick={() => void run(() => setTransactionReviewStatus(transaction.id, transaction.review_status === "needs_review" ? "reviewed" : "needs_review"))} className="min-h-11 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {transaction.review_status === "needs_review" ? t("markReviewed") : t("markForReview")}
+                    </button>
+                    <button type="button" disabled={pending} onClick={() => { if (window.confirm(t("deleteTransactionConfirm"))) void run(() => deleteTransaction(transaction.id)); }} className="min-h-11 rounded-lg text-xs font-semibold text-red-500">
+                      {t("deleteTransaction")}
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/[0.06]">
+                  <DetailRow icon={Tag} label={t("category")} value={transactionCategory?.name ?? t("uncategorized")} />
+                  <DetailRow icon={WalletCards} label={t("account")} value={t("mainAccount")} />
+                  <DetailRow icon={FileText} label={t("note")} value={transaction.note || t("addNote")} muted={!transaction.note} />
+                </div>
+              </div>
+
+              <div className="hidden rounded-2xl bg-slate-50 p-4 dark:bg-slate-950 sm:block">
                 <p className={`text-3xl font-black tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-slate-50"}`}>
                   {transaction.type === "income" ? "+" : "-"}
                   <Money amount={transaction.amount} decimals />
@@ -200,7 +251,7 @@ export function TransactionDetailSheet({
                   </div>
                   <div>
                     <span className="block text-slate-400">{t("category")}</span>
-                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">{transaction.categories?.[0]?.name ?? t("uncategorized")}</strong>
+                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">{transactionCategory?.name ?? t("uncategorized")}</strong>
                   </div>
                 </div>
                 {transaction.note && (
@@ -213,7 +264,7 @@ export function TransactionDetailSheet({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="hidden grid-cols-2 gap-2 sm:grid">
                 <button type="button" onClick={() => setMode("edit")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200">
                   <Pencil className="h-4 w-4" /> {t("edit")}
                 </button>
@@ -235,7 +286,7 @@ export function TransactionDetailSheet({
                     void run(() => deleteTransaction(transaction.id));
                   }
                 }}
-                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30"
+                className="hidden min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30 sm:flex"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 {t("deleteTransaction")}
@@ -297,6 +348,46 @@ export function TransactionDetailSheet({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function MobileAction({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: typeof Pencil;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} className="flex min-h-[4.35rem] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 px-1 text-[10px] font-semibold text-slate-700 disabled:opacity-50 dark:border-white/[0.055] dark:bg-white/[0.045] dark:text-slate-200">
+      <Icon className="h-5 w-5" strokeWidth={1.9} />
+      <span className="max-w-full truncate">{label}</span>
+    </button>
+  );
+}
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+  muted,
+}: {
+  icon: typeof Tag;
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 border-b border-slate-200/80 px-3 last:border-b-0 dark:border-white/[0.06]">
+      <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" strokeWidth={1.8} />
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+      <span className={`ml-auto max-w-[55%] truncate text-right text-xs font-medium ${muted ? "text-slate-400 dark:text-slate-600" : "text-slate-800 dark:text-slate-100"}`}>{value}</span>
+      <span className="text-slate-400">›</span>
     </div>
   );
 }

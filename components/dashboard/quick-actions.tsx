@@ -261,16 +261,50 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     (category) => category.type === selectedType,
   );
   const currencySymbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  const renderPreset = (preset: QuickPreset, mobile = false) => {
+    const Icon = getIcon(preset.icon);
+    const pending = pendingPresetId === preset.id;
+    return (
+      <button
+        key={preset.id}
+        type="button"
+        disabled={Boolean(pendingPresetId)}
+        onClick={() => void handleQuickAdd(preset)}
+        className={`flex items-center gap-2.5 border text-left active:scale-[0.98] disabled:opacity-60 ${mobile ? "min-h-[4.15rem] min-w-0 rounded-xl border-slate-200/80 bg-white/80 px-2.5 dark:border-white/[0.055] dark:bg-white/[0.035]" : "min-h-16 min-w-36 rounded-2xl border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950"}`}
+      >
+        <span
+          className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
+          style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+        >
+          {pending ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Icon className="h-5 w-5" strokeWidth={2} />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className={`${mobile ? "text-xs" : "text-sm"} block truncate font-semibold text-slate-900 dark:text-slate-100`}>
+            {preset.name}
+          </span>
+          <span className={`mt-0.5 block text-xs font-bold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>
+            {preset.type === "income" ? "+" : ""}
+            <Money amount={preset.amount} decimals />
+          </span>
+        </span>
+      </button>
+    );
+  };
 
   return (
     <>
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+      <section className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm sm:dark:bg-slate-900">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
-              {t("quickActions")}
+              <span className="sm:hidden">{t("quick")}</span>
+              <span className="hidden sm:inline">{t("quickActions")}</span>
             </h2>
-            <p className="mt-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 hidden text-xs leading-5 text-slate-500 dark:text-slate-400 sm:block">
               {t("quickActionsSubtitle")}
             </p>
           </div>
@@ -281,61 +315,37 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                 setFormMode("list");
                 setManagerOpen(true);
               }}
-              className="flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              className="flex min-h-8 items-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-blue-500 hover:text-blue-600 sm:min-h-11 sm:px-3 sm:font-bold sm:text-slate-500 sm:hover:bg-slate-100 sm:hover:text-slate-900 dark:sm:text-slate-400 dark:sm:hover:bg-slate-800 dark:sm:hover:text-slate-100"
             >
-              <Settings2 className="h-4 w-4" />
+              <Settings2 className="hidden h-4 w-4 sm:block" />
+              <span className="sm:hidden">{t("edit")}</span>
               <span className="hidden sm:inline">{t("manageQuickActions")}</span>
             </button>
           )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {presets.map((preset) => {
-            const Icon = getIcon(preset.icon);
-            const pending = pendingPresetId === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                disabled={Boolean(pendingPresetId)}
-                onClick={() => void handleQuickAdd(preset)}
-                className="flex min-h-16 min-w-36 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-left active:scale-[0.98] disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950"
-              >
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                  style={{ backgroundColor: preset.category?.color || "#ef4444" }}
-                >
-                  {pending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Icon className="h-5 w-5" strokeWidth={1.9} />
-                  )}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {preset.name}
-                  </span>
-                  <span
-                    className={`mt-0.5 block text-xs font-semibold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}
-                  >
-                    {preset.type === "income" ? "+" : "−"}
-                    <Money amount={preset.amount} decimals />
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-
+        <div className="grid grid-cols-3 gap-2 sm:hidden">
+          {presets.slice(0, 5).map((preset) => renderPreset(preset, true))}
           {presets.length < 8 && (
             <button
               type="button"
               onClick={openCreate}
-              className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400"
+              className="flex min-h-[4.15rem] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-xs font-semibold text-slate-500 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-300"
             >
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-200">
+                <Plus className="h-5 w-5" />
+              </span>
+              <span className="hidden min-[375px]:inline">{t("addQuickAction")}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
+          {presets.map((preset) => renderPreset(preset))}
+          {presets.length < 8 && (
+            <button type="button" onClick={openCreate} className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400">
               <Plus className="h-4 w-4" />
-              {presets.length === 0
-                ? t("createQuickAction")
-                : t("addQuickAction")}
+              {presets.length === 0 ? t("createQuickAction") : t("addQuickAction")}
             </button>
           )}
         </div>
