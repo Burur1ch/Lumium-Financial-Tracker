@@ -2,7 +2,6 @@
 
 import { CarFront, Eye, House, TrendingDown, TrendingUp, Utensils } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
-import { RATES } from "@/store/prefs";
 
 interface BudgetCategory {
   name: string;
@@ -78,13 +77,13 @@ export function MobileDashboardOverview({
   trend,
   budget,
 }: MobileDashboardOverviewProps) {
-  const { fmt, t, language, currency } = useI18n();
+  const { fmt, t, language, currencyRate } = useI18n();
   const locale = LOCALES[language];
   const month = new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date());
   const budgetPercent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
   const greenWidth = Math.min(budgetPercent, 55);
   const amberWidth = Math.max(budgetPercent - greenWidth, 0);
-  const compactMax = Math.max(...trend.map((value) => Math.abs(value)), Math.abs(balance), 0) * (RATES[currency] ?? 1);
+  const compactMax = Math.max(...trend.map((value) => Math.abs(value)), Math.abs(balance), 0) * currencyRate;
   const compactValue = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 }).format(compactMax);
   const categoryIcons = [House, Utensils, CarFront];
 

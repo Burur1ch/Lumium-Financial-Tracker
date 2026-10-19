@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PlanKey } from "@/utils/monetization/plans";
-import type { Currency } from "@/utils/currency";
+import { RATES, type Currency } from "@/utils/currency";
 
 export { RATES } from "@/utils/currency";
 export type { Currency } from "@/utils/currency";
@@ -87,12 +87,20 @@ interface PrefsState {
   dateFormat: DateFormat;
   avatarColor: string;
   avatarIcon: string;
+  exchangeRates: Record<Currency, number>;
+  exchangeRateSource: "nbrb" | "fallback";
+  exchangeRateDate: string | null;
   setPlan: (p: PlanKey) => void;
   setCurrency: (c: Currency) => void;
   setLanguage: (l: Language) => void;
   setDateFormat: (d: DateFormat) => void;
   setAvatarColor: (c: string) => void;
   setAvatarIcon: (i: string) => void;
+  setExchangeRates: (
+    rates: Partial<Record<Currency, number>>,
+    source: "nbrb" | "fallback",
+    rateDate: string | null,
+  ) => void;
 }
 
 export const usePrefs = create<PrefsState>()(
@@ -104,12 +112,21 @@ export const usePrefs = create<PrefsState>()(
       dateFormat: "MMM D, YYYY",
       avatarColor: "#EF4444",
       avatarIcon: "User",
+      exchangeRates: { ...RATES },
+      exchangeRateSource: "fallback",
+      exchangeRateDate: null,
       setPlan: (plan) => set({ plan }),
       setCurrency: (currency) => set({ currency }),
       setLanguage: (language) => set({ language }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setAvatarColor: (avatarColor) => set({ avatarColor }),
       setAvatarIcon: (avatarIcon) => set({ avatarIcon }),
+      setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>
+        set({
+          exchangeRates: { ...RATES, ...rates },
+          exchangeRateSource,
+          exchangeRateDate,
+        }),
     }),
     { name: "lumium_prefs" },
   ),

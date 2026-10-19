@@ -9,6 +9,7 @@ import { StoreHydration } from "@/components/store-hydration";
 import { MobileAppChrome } from "@/components/dashboard/mobile-app-chrome";
 import AddExpenseModal from "@/components/dashboard/add-expense-modal";
 import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
+import { CurrencyRateSync } from "@/components/currency-rate-sync";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-[var(--app-canvas)]">
       <StoreHydration />
+      <CurrencyRateSync />
       <RecurringProcessor />
       <div className="hidden lg:block">
         <Sidebar />

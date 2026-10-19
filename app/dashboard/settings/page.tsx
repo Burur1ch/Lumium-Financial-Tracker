@@ -56,6 +56,7 @@ interface Profile {
 const CURRENCIES: { value: Currency; label: string }[] = [
   { value: "USD", label: "$ USD — US Dollar" },
   { value: "EUR", label: "€ EUR — Euro" },
+  { value: "BYN", label: "Br BYN — Белорусский рубль" },
   { value: "RUB", label: "₽ RUB — Russian Ruble" },
   { value: "GBP", label: "£ GBP — British Pound" },
   { value: "JPY", label: "¥ JPY — Japanese Yen" },
@@ -380,17 +381,22 @@ export default function SettingsPage() {
       >
         <div className="space-y-4">
           <Field label={t("currency")}>
-            <select
-              className={selectCls}
-              value={pendingCurrency}
-              onChange={(e) => setPendingCurrency(e.target.value as Currency)}
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            <div>
+              <select
+                className={selectCls}
+                value={pendingCurrency}
+                onChange={(e) => setPendingCurrency(e.target.value as Currency)}
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[11px] leading-4 text-slate-400 dark:text-slate-500">
+                {t("currencyNote")}
+              </p>
+            </div>
           </Field>
           <Field label={t("language")}>
             <select

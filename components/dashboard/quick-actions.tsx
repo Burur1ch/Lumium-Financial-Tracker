@@ -30,7 +30,7 @@ import {
 } from "@/app/dashboard/actions";
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
-import { RATES, usePrefs } from "@/store/prefs";
+import { usePrefs } from "@/store/prefs";
 import type { TranslationKey } from "@/store/translations";
 
 export interface QuickPreset {
@@ -80,6 +80,7 @@ const STARTER_EXPENSES: Array<{
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   EUR: "€",
+  BYN: "Br",
   RUB: "₽",
   GBP: "£",
   JPY: "¥",
@@ -93,7 +94,7 @@ function getIcon(iconKey: string) {
 export function QuickActions({ presets, categories }: QuickActionsProps) {
   const router = useRouter();
   const { t } = useI18n();
-  const { currency } = usePrefs();
+  const { currency, exchangeRates } = usePrefs();
   const [pendingPresetId, setPendingPresetId] = useState<string | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
   const [formMode, setFormMode] = useState<"list" | "create" | "edit">(
@@ -213,7 +214,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     setSelectedCategoryId(preset.category?.id ?? "");
     setName(preset.name);
     setAmount(
-      String(Number((preset.amount * (RATES[currency] ?? 1)).toFixed(2))),
+      String(Number((preset.amount * (exchangeRates[currency] ?? 1)).toFixed(2))),
     );
     setError(null);
     setFormMode("edit");
