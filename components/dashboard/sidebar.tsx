@@ -37,6 +37,7 @@ import {
 } from "@/store/prefs";
 import { canAccessAdvancedReports } from "@/utils/monetization/limits";
 import { UserAvatar } from "@/components/user-avatar";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   AlertTriangle,
   TrendingDown,
@@ -271,17 +272,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       {/* Top */}
       <div className="flex flex-col gap-6">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-2 py-1">
-          <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center text-white font-bold text-lg">
-            L
-          </div>
-          <span className="font-semibold text-lg text-slate-800 dark:text-slate-200">
-            Lumium
-          </span>
-          <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5">
-            ⌘
-          </span>
-        </div>
+        <Link
+          href="/dashboard"
+          onClick={onNavigate}
+          className="flex min-h-11 items-center rounded-xl px-2 py-1 hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-white/[0.04]"
+          aria-label={t("home")}
+        >
+          <BrandLogo />
+        </Link>
 
         {/* Nav */}
         <nav className="flex flex-col gap-1">
@@ -311,6 +309,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 key={item.key}
                 href={item.href}
                 onClick={onNavigate}
+                aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-red-50 dark:bg-red-950/30 text-red-500"

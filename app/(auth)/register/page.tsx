@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/hooks/useI18n";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -44,9 +45,8 @@ export default function RegisterPage() {
         <ThemeToggle compact />
       </div>
       <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-        <Link href="/" className="mx-auto flex w-fit items-center gap-2.5" aria-label="Lumium">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500 font-black text-white">L</span>
-          <span className="text-xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-50">Lumium</span>
+        <Link href="/" className="mx-auto flex min-h-11 w-fit items-center rounded-xl px-2 active:scale-[0.98]" aria-label="Lumium">
+          <BrandLogo size="md" wordmarkClassName="text-xl" />
         </Link>
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,6 +24,8 @@ import {
 import { useI18n } from "@/hooks/useI18n";
 import { useNotifStore, usePrefs } from "@/store/prefs";
 import { UserAvatar } from "@/components/user-avatar";
+import { BrandLogo } from "@/components/brand-logo";
+import PeriodSelector from "@/components/dashboard/period-selector";
 
 const moreItems = [
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
@@ -42,6 +44,7 @@ export function MobileAppChrome() {
   const { notifications, markAllRead, markRead } = useNotifStore();
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [periodOpen, setPeriodOpen] = useState(false);
   const unreadCount = notifications.filter((item) => item.unread).length;
   const isHome = pathname === "/dashboard";
   const monthLocale = {
@@ -55,13 +58,14 @@ export function MobileAppChrome() {
   }).format(new Date());
 
   useEffect(() => {
-    if (!moreOpen && !notificationsOpen) return;
+    if (!moreOpen && !notificationsOpen && !periodOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMoreOpen(false);
         setNotificationsOpen(false);
+        setPeriodOpen(false);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -69,7 +73,7 @@ export function MobileAppChrome() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [moreOpen, notificationsOpen]);
+  }, [moreOpen, notificationsOpen, periodOpen]);
 
   const openAddTransaction = () => {
     window.dispatchEvent(new Event("lumium:open-add-transaction"));
@@ -98,27 +102,48 @@ export function MobileAppChrome() {
 
   return (
     <>
-      {isHome && (
       <header className="mobile-topbar lg:hidden">
-        <Link href="/dashboard" className="flex min-h-11 items-center" aria-label={t("home")}>
-          <span className="text-[1.65rem] font-extrabold tracking-[-0.055em] text-slate-950 dark:text-white">
-            Lumium
-          </span>
+        <Link
+          href="/dashboard"
+          className="flex min-h-11 items-center rounded-xl pr-2 active:scale-[0.98]"
+          aria-label={t("home")}
+        >
+          <BrandLogo />
         </Link>
 
         <div className="ml-auto flex items-center gap-0.5">
-          <Link
-            href="/dashboard?period=30d"
-            className="mr-1 flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-sm font-semibold capitalize text-slate-700 dark:text-slate-200"
-          >
-            {monthLabel}
-            <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
-          </Link>
+          {isHome && (
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodOpen(true);
+                setNotificationsOpen(false);
+                setMoreOpen(false);
+              }}
+              className="mr-1 flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-sm font-semibold capitalize text-slate-700 hover:bg-slate-100 active:scale-[0.98] dark:text-slate-200 dark:hover:bg-white/[0.06]"
+              aria-haspopup="dialog"
+              aria-expanded={periodOpen}
+              aria-controls="period-sheet"
+            >
+              {monthLabel}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${periodOpen ? "rotate-180" : ""}`}
+                strokeWidth={2}
+              />
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setNotificationsOpen(true)}
-            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 active:scale-[0.96] dark:text-slate-300"
+            onClick={() => {
+              setNotificationsOpen(true);
+              setPeriodOpen(false);
+              setMoreOpen(false);
+            }}
+            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-300 dark:hover:bg-white/[0.06]"
             aria-label={t("notifications")}
+            aria-haspopup="dialog"
+            aria-expanded={notificationsOpen}
+            aria-controls="notifications-sheet"
           >
             <Bell className="h-5 w-5" strokeWidth={1.8} />
             {unreadCount > 0 && (
@@ -136,14 +161,13 @@ export function MobileAppChrome() {
           </Link>
         </div>
       </header>
-      )}
 
       <nav className="mobile-bottom-nav lg:hidden" aria-label={t("mobileNavigation")}>
-        <Link className={`mobile-nav-item ${primaryItems[0].active ? "is-active" : ""}`} href={primaryItems[0].href}>
+        <Link className={`mobile-nav-item ${primaryItems[0].active ? "is-active" : ""}`} href={primaryItems[0].href} aria-current={primaryItems[0].active ? "page" : undefined}>
           <Home className="h-5 w-5" strokeWidth={1.8} />
           <span>{primaryItems[0].label}</span>
         </Link>
-        <Link className={`mobile-nav-item ${primaryItems[1].active ? "is-active" : ""}`} href={primaryItems[1].href}>
+        <Link className={`mobile-nav-item ${primaryItems[1].active ? "is-active" : ""}`} href={primaryItems[1].href} aria-current={primaryItems[1].active ? "page" : undefined}>
           <ArrowLeftRight className="h-5 w-5" strokeWidth={1.8} />
           <span>{primaryItems[1].label}</span>
         </Link>
@@ -155,14 +179,22 @@ export function MobileAppChrome() {
         >
           <Plus className="h-6 w-6" strokeWidth={2.2} />
         </button>
-        <Link className={`mobile-nav-item ${primaryItems[2].active ? "is-active" : ""}`} href={primaryItems[2].href}>
+        <Link className={`mobile-nav-item ${primaryItems[2].active ? "is-active" : ""}`} href={primaryItems[2].href} aria-current={primaryItems[2].active ? "page" : undefined}>
           <BarChart3 className="h-5 w-5" strokeWidth={1.8} />
           <span>{primaryItems[2].label}</span>
         </Link>
         <button
           type="button"
-          onClick={() => setMoreOpen(true)}
+          onClick={() => {
+            setMoreOpen(true);
+            setPeriodOpen(false);
+            setNotificationsOpen(false);
+          }}
           className={`mobile-nav-item ${moreOpen || moreItems.some((item) => pathname.startsWith(item.href)) ? "is-active" : ""}`}
+          aria-label={t("more")}
+          aria-haspopup="dialog"
+          aria-expanded={moreOpen}
+          aria-controls="more-sheet"
         >
           <MoreHorizontal className="h-5 w-5" strokeWidth={1.8} />
           <span>{t("more")}</span>
@@ -172,6 +204,7 @@ export function MobileAppChrome() {
       {moreOpen && (
         <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setMoreOpen(false)}>
           <section
+            id="more-sheet"
             role="dialog"
             aria-modal="true"
             aria-labelledby="more-sheet-title"
@@ -202,9 +235,38 @@ export function MobileAppChrome() {
         </div>
       )}
 
+      {periodOpen && isHome && (
+        <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setPeriodOpen(false)}>
+          <section
+            id="period-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="period-sheet-title"
+            className="mobile-sheet"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="mobile-sheet-handle" />
+            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+              <h2 id="period-sheet-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
+                {t("selectPeriod")}
+              </h2>
+              <button type="button" className="icon-button" onClick={() => setPeriodOpen(false)} aria-label={t("close")}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="overflow-x-auto px-4 pb-5">
+              <Suspense>
+                <PeriodSelector onSelect={() => setPeriodOpen(false)} />
+              </Suspense>
+            </div>
+          </section>
+        </div>
+      )}
+
       {notificationsOpen && (
         <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setNotificationsOpen(false)}>
           <section
+            id="notifications-sheet"
             role="dialog"
             aria-modal="true"
             aria-labelledby="notifications-sheet-title"

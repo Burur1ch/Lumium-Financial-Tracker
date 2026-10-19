@@ -8,6 +8,7 @@ import {
   BusFront,
   Check,
   Coffee,
+  Fuel,
   Home,
   Loader2,
   MoreHorizontal,
@@ -30,6 +31,7 @@ import {
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { RATES, usePrefs } from "@/store/prefs";
+import type { TranslationKey } from "@/store/translations";
 
 export interface QuickPreset {
   id: string;
@@ -58,8 +60,21 @@ const ICONS: Array<{ key: string; icon: LucideIcon }> = [
   { key: "utensils", icon: Utensils },
   { key: "shopping", icon: ShoppingBasket },
   { key: "bus", icon: BusFront },
+  { key: "fuel", icon: Fuel },
   { key: "home", icon: Home },
   { key: "other", icon: MoreHorizontal },
+];
+
+const STARTER_EXPENSES: Array<{
+  nameKey: TranslationKey;
+  icon: string;
+}> = [
+  { nameKey: "expenseGroceries", icon: "shopping" },
+  { nameKey: "expenseTransport", icon: "bus" },
+  { nameKey: "expenseCoffee", icon: "coffee" },
+  { nameKey: "expenseDining", icon: "utensils" },
+  { nameKey: "expenseFuel", icon: "fuel" },
+  { nameKey: "expenseHome", icon: "home" },
 ];
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -168,6 +183,25 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
 
   const openCreate = () => {
     resetForm();
+    setFormMode("create");
+    setManagerOpen(true);
+  };
+
+  const openStarterExpense = (starter: (typeof STARTER_EXPENSES)[number]) => {
+    resetForm();
+    const localizedName = t(starter.nameKey);
+    const matchingCategory = categories.find(
+      (category) =>
+        category.type === "expense" &&
+        category.name.trim().toLocaleLowerCase() ===
+          localizedName.trim().toLocaleLowerCase(),
+    );
+
+    setSelectedType("expense");
+    setSelectedIcon(starter.icon);
+    setSelectedCategoryId(matchingCategory?.id ?? "");
+    setName(localizedName);
+    setAmount("");
     setFormMode("create");
     setManagerOpen(true);
   };
@@ -324,31 +358,69 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 sm:hidden">
-          {presets.slice(0, 5).map((preset) => renderPreset(preset, true))}
-          {presets.length < 8 && (
+        {presets.length === 0 ? (
+          <div>
+            <p className="mb-2.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {t("starterExpensesHint")}
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {STARTER_EXPENSES.map((starter) => {
+                const Icon = getIcon(starter.icon);
+                return (
+                  <button
+                    key={starter.nameKey}
+                    type="button"
+                    onClick={() => openStarterExpense(starter)}
+                    className="flex min-h-[4.6rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-center text-[11px] font-semibold leading-tight text-slate-700 hover:border-red-300 hover:bg-red-50 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-200 dark:hover:border-red-900 dark:hover:bg-red-950/20"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/40">
+                      <Icon className="h-5 w-5" strokeWidth={1.9} />
+                    </span>
+                    <span className="max-w-full truncate">
+                      {t(starter.nameKey)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             <button
               type="button"
               onClick={openCreate}
-              className="flex min-h-[4.15rem] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-xs font-semibold text-slate-500 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-300"
+              className="mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-500 hover:border-red-400 hover:text-red-500 active:scale-[0.99] dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-700 dark:hover:text-red-400 sm:w-auto sm:px-4"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-200">
-                <Plus className="h-5 w-5" />
-              </span>
-              <span className="hidden min-[375px]:inline">{t("addQuickAction")}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
-          {presets.map((preset) => renderPreset(preset))}
-          {presets.length < 8 && (
-            <button type="button" onClick={openCreate} className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400">
               <Plus className="h-4 w-4" />
-              {presets.length === 0 ? t("createQuickAction") : t("addQuickAction")}
+              {t("createCustomQuickAction")}
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 sm:hidden">
+              {presets.slice(0, 5).map((preset) => renderPreset(preset, true))}
+              {presets.length < 8 && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="flex min-h-[4.15rem] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-xs font-semibold text-slate-500 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-300"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-200">
+                    <Plus className="h-5 w-5" />
+                  </span>
+                  <span className="hidden min-[375px]:inline">{t("addQuickAction")}</span>
+                </button>
+              )}
+            </div>
+
+            <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
+              {presets.map((preset) => renderPreset(preset))}
+              {presets.length < 8 && (
+                <button type="button" onClick={openCreate} className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400">
+                  <Plus className="h-4 w-4" />
+                  {t("addQuickAction")}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       {managerOpen && (
@@ -486,6 +558,47 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     </button>
                   ))}
                 </div>
+
+                {formMode === "create" && selectedType === "expense" && (
+                  <fieldset>
+                    <legend className="mb-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                      {t("basicExpenses")}
+                    </legend>
+                    <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+                      {STARTER_EXPENSES.map((starter) => {
+                        const Icon = getIcon(starter.icon);
+                        const localizedName = t(starter.nameKey);
+                        const selected =
+                          selectedIcon === starter.icon &&
+                          name === localizedName;
+
+                        return (
+                          <button
+                            key={starter.nameKey}
+                            type="button"
+                            onClick={() => {
+                              const matchingCategory = categories.find(
+                                (category) =>
+                                  category.type === "expense" &&
+                                  category.name.trim().toLocaleLowerCase() ===
+                                    localizedName.trim().toLocaleLowerCase(),
+                              );
+                              setSelectedIcon(starter.icon);
+                              setSelectedCategoryId(
+                                matchingCategory?.id ?? "",
+                              );
+                              setName(localizedName);
+                            }}
+                            className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold active:scale-[0.98] ${selected ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" : "border-slate-200 text-slate-600 hover:border-red-300 dark:border-slate-800 dark:text-slate-300"}`}
+                          >
+                            <Icon className="h-4 w-4" strokeWidth={1.9} />
+                            {localizedName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                )}
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
