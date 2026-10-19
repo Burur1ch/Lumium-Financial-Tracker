@@ -18,7 +18,11 @@ function isValidPeriod(v: string | null): v is Period {
   return VALID_PERIODS.includes(v as Period);
 }
 
-export default function PeriodSelector() {
+export default function PeriodSelector({
+  onSelect,
+}: {
+  onSelect?: () => void;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -79,6 +83,7 @@ export default function PeriodSelector() {
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
+    onSelect?.();
   };
 
   return (
