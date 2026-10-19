@@ -19,6 +19,7 @@ import {
   Wallet,
   X,
   ArrowLeftRight,
+  ChevronDown,
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { useNotifStore, usePrefs } from "@/store/prefs";
@@ -37,11 +38,21 @@ const moreItems = [
 export function MobileAppChrome() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const { avatarColor, avatarIcon } = usePrefs();
+  const { avatarColor, avatarIcon, language } = usePrefs();
   const { notifications, markAllRead, markRead } = useNotifStore();
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const unreadCount = notifications.filter((item) => item.unread).length;
+  const isHome = pathname === "/dashboard";
+  const monthLocale = {
+    en: "en-US",
+    ru: "ru-RU",
+    de: "de-DE",
+    fr: "fr-FR",
+  }[language];
+  const monthLabel = new Intl.DateTimeFormat(monthLocale, {
+    month: "long",
+  }).format(new Date());
 
   useEffect(() => {
     if (!moreOpen && !notificationsOpen) return;
@@ -87,17 +98,22 @@ export function MobileAppChrome() {
 
   return (
     <>
+      {isHome && (
       <header className="mobile-topbar lg:hidden">
-        <Link href="/dashboard" className="flex min-h-11 items-center gap-2.5" aria-label={t("home")}>
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-500 text-sm font-black text-white shadow-sm shadow-red-500/20">
-            L
-          </span>
-          <span className="text-lg font-bold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
+        <Link href="/dashboard" className="flex min-h-11 items-center" aria-label={t("home")}>
+          <span className="text-[1.65rem] font-extrabold tracking-[-0.055em] text-slate-950 dark:text-white">
             Lumium
           </span>
         </Link>
 
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-0.5">
+          <Link
+            href="/dashboard?period=30d"
+            className="mr-1 flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-sm font-semibold capitalize text-slate-700 dark:text-slate-200"
+          >
+            {monthLabel}
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
+          </Link>
           <button
             type="button"
             onClick={() => setNotificationsOpen(true)}
@@ -120,6 +136,7 @@ export function MobileAppChrome() {
           </Link>
         </div>
       </header>
+      )}
 
       <nav className="mobile-bottom-nav lg:hidden" aria-label={t("mobileNavigation")}>
         <Link className={`mobile-nav-item ${primaryItems[0].active ? "is-active" : ""}`} href={primaryItems[0].href}>

@@ -36,10 +36,12 @@ export default async function TransactionsPage({
   const transactions = await getFilteredTransactions(filters);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
+    <div className="mobile-finance-page mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
       {/* Шапка страницы транзакций */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <DashboardPageTitle titleKey="transactions" subtitleKey="transactionsSubtitle" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-sm:[&_p]:hidden">
+          <DashboardPageTitle titleKey="transactions" subtitleKey="transactionsSubtitle" />
+        </div>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
           <ExportTransactionsButton filters={filters} />
           <AddTransactionButton className="hidden w-full sm:inline-flex sm:w-auto" />

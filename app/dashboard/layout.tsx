@@ -16,7 +16,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-[var(--app-canvas)]">
       <StoreHydration />
       <RecurringProcessor />
       <div className="hidden lg:block">
@@ -26,7 +26,7 @@ export default function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <MobileAppChrome />
 
-        <main className="dashboard-main flex-1 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-slate-900/20">
+        <main className="dashboard-main flex-1 overflow-y-auto overscroll-contain bg-[var(--app-canvas)]">
           <Suspense>
             <NavigationProgress />
             <PeriodLoadingWrapper>{children}</PeriodLoadingWrapper>

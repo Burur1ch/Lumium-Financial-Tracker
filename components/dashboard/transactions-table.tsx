@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { TransactionDetailSheet } from "@/components/dashboard/transaction-detail-sheet";
@@ -27,7 +27,7 @@ export interface Transaction {
   category_id?: string | null;
   recurring_transaction_id?: string | null;
   date: string;
-  categories?: CategorySummary[] | null;
+  categories?: CategorySummary | CategorySummary[] | null;
   splits?: Array<{
     id: string;
     categoryId: string | null;
@@ -55,7 +55,7 @@ export default function TransactionsTable({
   showViewAll = false,
   categories = [],
 }: TransactionsTableProps) {
-  const { fmt, fmtDate, t } = useI18n();
+  const { fmt, fmtDate, t, language } = useI18n();
   const { plan } = usePrefs();
   const historyDays = getPlanHistoryDays(plan);
   const limitedTransactions = React.useMemo(
@@ -69,14 +69,86 @@ export default function TransactionsTable({
     React.useState<Transaction | null>(null);
   const visible = limitedTransactions.slice(0, visibleCount);
   const hasMore = visibleCount < limitedTransactions.length;
+  const mobileVisible = showViewAll ? visible.slice(0, 3) : visible;
+  const locale = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language];
+  const todayKey = new Date().toDateString();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = yesterday.toDateString();
+  const groupedMobileTransactions = mobileVisible.reduce<Array<{ key: string; label: string; items: Transaction[] }>>((groups, tx) => {
+    const date = new Date(tx.date);
+    const key = date.toDateString();
+    let group = groups.find((item) => item.key === key);
+    if (!group) {
+      const calendarDate = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(date);
+      const label = key === todayKey
+        ? `${t("today")}, ${calendarDate}`
+        : key === yesterdayKey
+          ? `${t("yesterday")}, ${calendarDate}`
+          : calendarDate;
+      group = { key, label, items: [] };
+      groups.push(group);
+    }
+    group.items.push(tx);
+    return groups;
+  }, []);
+
+  const renderMobileRows = (items: Transaction[]) => (
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/75 dark:border-white/[0.055] dark:bg-white/[0.035]">
+      {items.map((tx) => {
+        const isExpense = tx.type === "expense";
+        const cat = Array.isArray(tx.categories) ? tx.categories[0] : tx.categories;
+        const date = new Date(tx.date);
+        const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+        const relativeDate = date.toDateString() === todayKey
+          ? t("today")
+          : date.toDateString() === yesterdayKey
+            ? t("yesterday")
+            : fmtDate(tx.date);
+        const meta = showViewAll
+          ? `${cat?.name ?? t("uncategorized")} · ${relativeDate}, ${time}`
+          : `${cat?.name ?? t("uncategorized")} · ${time}`;
+        const avatarColor = cat?.color ?? (isExpense ? "#ef4444" : "#10b981");
+        return (
+          <button
+            key={tx.id}
+            type="button"
+            onClick={() => setSelectedTransaction(tx)}
+            className="flex min-h-[4.35rem] w-full items-center gap-3 border-b border-slate-200/70 px-3 text-left last:border-b-0 active:bg-slate-100/70 dark:border-white/[0.055] dark:active:bg-white/[0.045]"
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm"
+              style={{ backgroundColor: avatarColor }}
+            >
+              {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{tx.description}</span>
+                {tx.review_status === "needs_review" && (
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-label={t("needsReview")} />
+                )}
+              </span>
+              <span className="mt-0.5 block truncate text-[11px] text-slate-400 dark:text-slate-500">{meta}</span>
+            </span>
+            <span className={`shrink-0 text-sm font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
+              {isExpense ? "−" : "+"}{fmt(Number(tx.amount))}
+            </span>
+            {!showViewAll && <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.8} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-      <div className="mb-4 flex items-center justify-between sm:mb-6">
+    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-900">
+      <div className={`mb-2.5 flex items-center justify-between sm:mb-6 ${showViewAll ? "" : "max-sm:hidden"}`}>
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
             {t("recentTransactions")}
           </h4>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+          <p className="mt-0.5 hidden text-xs text-slate-400 dark:text-slate-500 sm:block">
             {t("latestActivity")}
           </p>
         </div>
@@ -104,82 +176,25 @@ export default function TransactionsTable({
         </div>
       )}
 
-      {/* Mobile: card list */}
-      <div className="sm:hidden flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+      {/* Mobile: grouped finance feed */}
+      <div className="space-y-4 sm:hidden">
         {limitedTransactions.length === 0 ? (
-          <p className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+          <p className="finance-panel py-8 text-center text-xs text-slate-400 dark:text-slate-500">
             {t("noTransactions")}
           </p>
+        ) : showViewAll ? (
+          renderMobileRows(mobileVisible)
         ) : (
-          visible.map((tx) => {
-            const isExpense = tx.type === "expense";
-            const cat = Array.isArray(tx.categories)
-              ? tx.categories[0]
-              : tx.categories;
-            const formattedDate = fmtDate(tx.date);
+          groupedMobileTransactions.map((group) => {
+            const total = group.items.reduce((sum, tx) => sum + (tx.type === "income" ? Number(tx.amount) : -Number(tx.amount)), 0);
             return (
-              <button
-                key={tx.id}
-                type="button"
-                onClick={() => setSelectedTransaction(tx)}
-                className="flex w-full items-center gap-3 py-3 text-left active:scale-[0.99]"
-              >
-                <div
-                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border dark:border-transparent ${
-                    isExpense
-                      ? "bg-red-50 dark:bg-red-950/20 text-red-500"
-                      : "bg-green-50 dark:bg-green-950/20 text-green-500"
-                  }`}
-                >
-                  {isExpense ? (
-                    <ArrowDownRight className="w-4 h-4" />
-                  ) : (
-                    <ArrowUpRight className="w-4 h-4" />
-                  )}
+              <section key={group.key}>
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">{group.label}</h3>
+                  <span className={`text-xs font-bold tabular-nums ${total >= 0 ? "text-emerald-500" : "text-slate-700 dark:text-slate-200"}`}>{total >= 0 ? "+" : "−"}{fmt(Math.abs(total))}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                      {tx.description}
-                    </p>
-                    {tx.review_status === "needs_review" && (
-                      <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
-                        {t("needsReview")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                      {formattedDate}
-                    </span>
-                    {cat ? (
-                      <span
-                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                        style={{
-                          backgroundColor: `${cat.color}18`,
-                          color: cat.color,
-                        }}
-                      >
-                        {cat.name}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                        {t("uncategorized")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`shrink-0 text-sm font-bold tabular-nums ${
-                    isExpense
-                      ? "text-slate-800 dark:text-slate-200"
-                      : "text-green-600 dark:text-green-400"
-                  }`}
-                >
-                  {isExpense ? "-" : "+"}
-                  {fmt(Number(tx.amount))}
-                </span>
-              </button>
+                {renderMobileRows(group.items)}
+              </section>
             );
           })
         )}
@@ -279,7 +294,7 @@ export default function TransactionsTable({
       </div>
 
       {/* Show more button */}
-      {hasMore && (
+      {hasMore && !showViewAll && (
         <button
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
           className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"

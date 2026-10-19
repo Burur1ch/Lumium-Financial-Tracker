@@ -18,6 +18,8 @@ import PeriodSelector from "@/components/dashboard/period-selector";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Suspense } from "react";
+import { getBudgetsWithProgress } from "./actions";
+import { MobileDashboardOverview } from "@/components/dashboard/mobile-dashboard-overview";
 
 type Period = "7d" | "30d" | "3m" | "1y" | "all";
 
@@ -174,6 +176,11 @@ export default async function DashboardPage({
     type: "expense" | "income";
     color: string;
   }> = [];
+  let dashboardBudgets: Array<{
+    monthly_limit: number;
+    current_spent: number;
+    categories: { name: string; color: string } | null;
+  }> = [];
   const chartDataMap: { [key: string]: { income: number; expense: number } } =
     {};
   const categoryDataMap: { [key: string]: { value: number; color: string } } =
@@ -191,8 +198,14 @@ export default async function DashboardPage({
 
   if (user) {
     const owner = eq(transactions.user_id, user.id);
-    const [txAll, prevData, recentData, presetData, categoryOptions] =
-      await Promise.all([
+    const [
+      txAll,
+      prevData,
+      recentData,
+      presetData,
+      categoryOptions,
+      budgetData,
+    ] = await Promise.all([
       db
         .select({
           amount: transactions.amount,
@@ -275,7 +288,14 @@ export default async function DashboardPage({
         .from(categories)
         .where(eq(categories.user_id, user.id))
         .orderBy(asc(categories.name)),
+      getBudgetsWithProgress(),
     ]);
+
+    dashboardBudgets = budgetData.map((budget) => ({
+      monthly_limit: Number(budget.monthly_limit),
+      current_spent: Number(budget.current_spent),
+      categories: budget.categories,
+    }));
 
     quickPresets = presetData.map((preset) => ({
       id: preset.id,
@@ -346,8 +366,45 @@ export default async function DashboardPage({
     ([name, obj]) => ({ name, value: obj.value, color: obj.color }),
   );
 
+  const mobileTrend = expenseChartData.reduce<number[]>((trend, point) => {
+    const previous = trend.at(-1) ?? 0;
+    return [...trend, previous + point.income - point.expense];
+  }, []);
+  const mobileBudget = {
+    spent: dashboardBudgets.reduce((sum, budget) => sum + budget.current_spent, 0),
+    limit: dashboardBudgets.reduce((sum, budget) => sum + budget.monthly_limit, 0),
+    categories: [...dashboardBudgets]
+      .sort((a, b) => b.monthly_limit - a.monthly_limit)
+      .slice(0, 3)
+      .map((budget) => ({
+        name: budget.categories?.name ?? "Other",
+        color: budget.categories?.color ?? "#64748b",
+        limit: budget.monthly_limit,
+      })),
+  };
+
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
+    <>
+      <div className="mobile-finance-page mx-auto w-full max-w-lg space-y-5 px-4 py-3 lg:hidden">
+        <MobileDashboardOverview
+          balance={totalIncome - totalExpenses}
+          balanceDelta={(totalIncome - totalExpenses) - (prevIncome - prevExpenses)}
+          income={totalIncome}
+          expense={totalExpenses}
+          incomeChange={calcChange(totalIncome, prevIncome)}
+          expenseChange={calcChange(totalExpenses, prevExpenses)}
+          trend={mobileTrend}
+          budget={mobileBudget}
+        />
+        <QuickActions presets={quickPresets} categories={quickCategories} />
+        <TransactionsTable
+          transactions={recentTransactions}
+          categories={quickCategories}
+          showViewAll
+        />
+      </div>
+
+      <div className="mx-auto hidden w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8 lg:block">
       <div className="hidden items-center justify-between gap-4 lg:flex">
         <DashboardHeader />
         <div className="flex items-center gap-3">
@@ -409,6 +466,7 @@ export default async function DashboardPage({
           showViewAll
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
