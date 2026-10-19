@@ -29,6 +29,8 @@ export default function SetBudgetModal({
   const [isOpen, setIsOpen] = useState(false);
   const [categoryId, setCategoryId] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
+  const [rolloverEnabled, setRolloverEnabled] = useState(false);
+  const [alertThreshold, setAlertThreshold] = useState("75");
   const [showPaywall, setShowPaywall] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -51,10 +53,14 @@ export default function SetBudgetModal({
           categoryId,
           limitAmount: parseFloat(limitAmount),
           currency,
+          rolloverEnabled,
+          alertThreshold: Number(alertThreshold),
         });
         setIsOpen(false);
         setCategoryId("");
         setLimitAmount("");
+        setRolloverEnabled(false);
+        setAlertThreshold("75");
         router.refresh(); // Мгновенно обновляем серверные данные на странице
       } catch {
         alert(t("budgetLimitDesc"));
@@ -147,6 +153,36 @@ export default function SetBudgetModal({
                     ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                  {t("budgetAlertThreshold")}
+                </label>
+                <select
+                  value={alertThreshold}
+                  onChange={(event) => setAlertThreshold(event.target.value)}
+                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-800 outline-none focus:border-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                >
+                  <option value="75">75%</option>
+                  <option value="80">80%</option>
+                  <option value="90">90%</option>
+                </select>
+              </div>
+
+              <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={rolloverEnabled}
+                  onChange={(event) => setRolloverEnabled(event.target.checked)}
+                  className="h-4 w-4 accent-red-500"
+                />
+                <span>
+                  {t("rolloverBudget")}
+                  <small className="mt-0.5 block font-normal text-slate-400">
+                    {t("rolloverBudgetHint")}
+                  </small>
+                </span>
+              </label>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">

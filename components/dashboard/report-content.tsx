@@ -134,14 +134,14 @@ export default function ReportContent({
   const periodLabel = periodLabelMap[period] ?? t("last30days");
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("reports")}
           </h1>
-          <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {periodLabel} · {data?.txCount ?? 0}{" "}
             {t("transactions").toLowerCase()}
           </p>
@@ -194,7 +194,7 @@ export default function ReportContent({
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
             <StatCard
               label={t("totalIncome")}
               value={fmt(data.totalIncome)}
@@ -236,7 +236,7 @@ export default function ReportContent({
           {/* Two columns: largest transactions + category breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Largest transactions */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Receipt className="w-4 h-4 text-slate-400" />
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -288,7 +288,7 @@ export default function ReportContent({
             </div>
 
             {/* Category breakdown */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-4 h-4 text-slate-400" />
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">

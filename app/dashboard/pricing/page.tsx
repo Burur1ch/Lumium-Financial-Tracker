@@ -259,8 +259,8 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 w-full max-w-7xl mx-auto space-y-6 md:space-y-8">
-      <section className="relative overflow-hidden rounded-[32px] border border-slate-100 dark:border-slate-800 bg-linear-to-br from-white via-orange-50/70 to-red-50 dark:from-slate-900 dark:via-orange-950/10 dark:to-red-950/10 p-6 md:p-8 shadow-sm">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:rounded-[32px] md:p-8">
         <div className="absolute inset-y-0 right-0 w-1/2 opacity-60 pointer-events-none">
           <div className="absolute right-[-10%] top-[-10%] h-56 w-56 rounded-full bg-red-200/30 blur-3xl dark:bg-red-700/10" />
           <div className="absolute right-[10%] bottom-[-20%] h-64 w-64 rounded-full bg-orange-200/30 blur-3xl dark:bg-orange-700/10" />
@@ -272,7 +272,7 @@ export default function PricingPage() {
               <Zap className="w-3.5 h-3.5" />
               {t("pricing")}
             </div>
-            <h1 className="mt-4 max-w-2xl text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            <h1 className="mt-4 max-w-2xl text-2xl font-black tracking-[-0.035em] text-slate-950 dark:text-slate-50 md:text-4xl">
               Pick a plan that grows from simple tracking to shared financial
               control.
             </h1>
@@ -280,7 +280,7 @@ export default function PricingPage() {
               {t("pricingSubtitle")}
             </p>
 
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="mt-6 hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-3">
               <div className="rounded-2xl border border-white/70 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 p-4 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-red-500">
                   <TrendingUp className="w-4 h-4" />
@@ -317,7 +317,7 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-white/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/85 p-5 backdrop-blur-sm shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 md:rounded-[28px]">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Billing
             </p>

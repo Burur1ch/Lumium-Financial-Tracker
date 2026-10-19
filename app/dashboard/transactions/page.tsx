@@ -2,13 +2,15 @@ import React from "react";
 import { getCategories, getFilteredTransactions } from "../actions";
 import TransactionsTable from "@/components/dashboard/transactions-table";
 import TransactionsFilters from "@/components/dashboard/transactions-filters";
-import AddExpenseModal from "@/components/dashboard/add-expense-modal";
+import { AddTransactionButton } from "@/components/dashboard/add-transaction-button";
 import { ExportTransactionsButton } from "@/components/dashboard/export-transactions-button";
+import { DashboardPageTitle } from "@/components/dashboard/dashboard-page-title";
 
 interface SearchParams {
   search?: string;
   type?: string;
   categoryId?: string;
+  reviewStatus?: string;
 }
 
 interface TransactionsPageProps {
@@ -27,26 +29,20 @@ export default async function TransactionsPage({
     search: resolvedParams.search,
     type: resolvedParams.type,
     categoryId: resolvedParams.categoryId,
+    reviewStatus: resolvedParams.reviewStatus,
   };
 
   // Получаем отфильтрованный массив транзакций из PostgreSQL
   const transactions = await getFilteredTransactions(filters);
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
       {/* Шапка страницы транзакций */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Transactions
-          </h1>
-          <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
-            View, search, and audit all your financial logs
-          </p>
-        </div>
+        <DashboardPageTitle titleKey="transactions" subtitleKey="transactionsSubtitle" />
         <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
           <ExportTransactionsButton filters={filters} />
-          <AddExpenseModal categories={categories} />
+          <AddTransactionButton className="hidden w-full sm:inline-flex sm:w-auto" />
         </div>
       </div>
 
@@ -55,7 +51,7 @@ export default async function TransactionsPage({
 
       {/* Таблица с результатами выборки */}
       <div className="w-full">
-        <TransactionsTable transactions={transactions} />
+        <TransactionsTable transactions={transactions} categories={categories} />
       </div>
     </div>
   );

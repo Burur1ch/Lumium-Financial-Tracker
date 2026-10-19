@@ -8,6 +8,20 @@
       "when": 1791827210023,
       "tag": "0000_lonely_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792402766872,
+      "tag": "0001_cute_moon_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792404729169,
+      "tag": "0002_deep_colonel_america",
+      "breakpoints": true
     }
   ]
 }

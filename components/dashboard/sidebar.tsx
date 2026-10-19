@@ -14,6 +14,7 @@ import {
   HelpCircle,
   CreditCard,
   Bell,
+  CalendarClock,
   LogOut,
   X,
   ChevronRight,
@@ -80,6 +81,7 @@ const menuItemDefs = [
   { key: "users" as const, href: "/dashboard/users", icon: Users },
   { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
+  { key: "planning" as const, href: "/dashboard/planning", icon: CalendarClock },
   { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
@@ -107,6 +109,7 @@ interface BudgetForNotif {
   id: string;
   monthly_limit: number;
   current_spent: number;
+  alert_threshold?: number;
   categories?: { name: string; color?: string }[] | { name: string } | null;
 }
 
@@ -163,7 +166,7 @@ function buildDynamicNotifications(
       continue;
     }
 
-    if (usagePct >= 80) {
+    if (usagePct >= (b.alert_threshold ?? 75)) {
       scored.push({
         severity: 80,
         notif: {

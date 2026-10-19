@@ -1,0 +1,219 @@
+{
+  "generated_at": "2026-10-19T10:36:13.837421+00:00",
+  "nodes": {
+    "app_dashboard_actions_createtransaction": {
+      "code_fingerprint": "92422dbcfe6f3b4633e88022ed4b4c01f1ff0ca4b20befcbf79cbfff34450c13",
+      "label": "createTransaction()",
+      "last": "2026-10-19T10:32:01.184857+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
+        {
+          "date": "2026-10-19T10:24:18.552204+00:00",
+          "outcome": "useful",
+          "q": "Implement selected convenience features: transaction details, recurring operations, automation rules and review, richer budgets, savings goals, and placeholders for shared/family finances"
+        },
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        },
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 4.997083205,
+      "source_file": "app/dashboard/actions.ts",
+      "status": "preferred",
+      "uses": 5
+    },
+    "app_dashboard_actions_upsertbudget": {
+      "code_fingerprint": "92422dbcfe6f3b4633e88022ed4b4c01f1ff0ca4b20befcbf79cbfff34450c13",
+      "label": "upsertBudget()",
+      "last": "2026-10-19T10:32:01.184857+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
+        {
+          "date": "2026-10-19T10:24:18.552204+00:00",
+          "outcome": "useful",
+          "q": "Implement selected convenience features: transaction details, recurring operations, automation rules and review, richer budgets, savings goals, and placeholders for shared/family finances"
+        },
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 3.997913113,
+      "source_file": "app/dashboard/actions.ts",
+      "status": "preferred",
+      "uses": 4
+    },
+    "app_dashboard_page_dashboardpage": {
+      "code_fingerprint": "8a2db676034d74143a16ddf7112afae7a53f6428e5ca7ab3ab7aa2c4069191e4",
+      "label": "DashboardPage()",
+      "last": "2026-10-19T10:32:01.184857+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
+        {
+          "date": "2026-10-19T10:24:18.552204+00:00",
+          "outcome": "useful",
+          "q": "Implement selected convenience features: transaction details, recurring operations, automation rules and review, richer budgets, savings goals, and placeholders for shared/family finances"
+        },
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        },
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        }
+      ],
+      "score": 3.998165046,
+      "source_file": "app/dashboard/page.tsx",
+      "status": "preferred",
+      "uses": 4
+    },
+    "app_dashboard_transactions_page_transactionspage": {
+      "code_fingerprint": "0ad9ed8a26b22e27b7c3fcfe0ef439b56f3f5ee57fe4593204aa641b79af38e1",
+      "label": "TransactionsPage()",
+      "last": "2026-10-19T09:28:46.139782+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 0.998918159,
+      "source_file": "app/dashboard/transactions/page.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_dashboard_add_expense_modal_addexpensemodal": {
+      "code_fingerprint": "f4cf867d856e4d8517778c023cfa9c7d8e802bdbe06e1ff0e61d10ec0681ab50",
+      "label": "AddExpenseModal()",
+      "last": "2026-10-19T09:44:29.135005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 1.99808825,
+      "source_file": "components/dashboard/add-expense-modal.tsx",
+      "status": "preferred",
+      "uses": 2
+    },
+    "components_dashboard_sidebar_builddynamicnotifications": {
+      "code_fingerprint": "11761b535e3b1ab48bbae170e83b57aaf2dac372604a6c27468aad93ea667829",
+      "label": "buildDynamicNotifications()",
+      "last": "2026-10-19T10:24:18.552204+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T10:24:18.552204+00:00",
+          "outcome": "useful",
+          "q": "Implement selected convenience features: transaction details, recurring operations, automation rules and review, richer budgets, savings goals, and placeholders for shared/family finances"
+        },
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 2.997980675,
+      "source_file": "components/dashboard/sidebar.tsx",
+      "status": "preferred",
+      "uses": 3
+    },
+    "components_dashboard_transactions_filters_transactionsfilters": {
+      "code_fingerprint": "23d33d8a35ca2c8697460eff515328008c3f9d60843d5a529b7f538f2b1486e9",
+      "label": "TransactionsFilters()",
+      "last": "2026-10-19T09:49:42.324122+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        }
+      ],
+      "score": 0.999253778,
+      "source_file": "components/dashboard/transactions-filters.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_dashboard_transactions_table_transactionstable": {
+      "code_fingerprint": "b156b2cb8026dc488fbffc0b174338034682b2caea45d59e302902635eb20798",
+      "label": "TransactionsTable()",
+      "last": "2026-10-19T10:32:01.184857+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T10:32:01.184857+00:00",
+          "outcome": "useful",
+          "q": "Verify the full cycle of the newly implemented transaction, planning, budget, goal, review and shared-finance placeholder features"
+        },
+        {
+          "date": "2026-10-19T10:24:18.552204+00:00",
+          "outcome": "useful",
+          "q": "Implement selected convenience features: transaction details, recurring operations, automation rules and review, richer budgets, savings goals, and placeholders for shared/family finances"
+        },
+        {
+          "date": "2026-10-19T09:49:42.324122+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а еще какие улучшения можешь порекомендовать? для удобства. Сравни у конкурентов и можно у них какие-то фичи и удобства взять"
+        },
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 4.997083205,
+      "source_file": "components/dashboard/transactions-table.tsx",
+      "status": "preferred",
+      "uses": 5
+    }
+  },
+  "version": 1
+}

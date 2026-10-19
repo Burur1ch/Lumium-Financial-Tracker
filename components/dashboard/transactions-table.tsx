@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { TransactionDetailSheet } from "@/components/dashboard/transaction-detail-sheet";
 import {
   getPlanHistoryDays,
   isWithinHistoryLimit,
@@ -15,18 +16,35 @@ interface CategorySummary {
   color: string;
 }
 
-interface Transaction {
+export interface Transaction {
   id: string;
   description: string;
   amount: number;
   type: "income" | "expense";
   status: "completed" | "pending";
+  note?: string | null;
+  review_status?: "reviewed" | "needs_review";
+  category_id?: string | null;
+  recurring_transaction_id?: string | null;
   date: string;
   categories?: CategorySummary[] | null;
+  splits?: Array<{
+    id: string;
+    categoryId: string | null;
+    amount: number;
+    note: string | null;
+  }>;
 }
 
 interface TransactionsTableProps {
   transactions: Transaction[];
+  showViewAll?: boolean;
+  categories?: Array<{
+    id: string;
+    name: string;
+    color: string;
+    type: "expense" | "income";
+  }>;
 }
 
 const INITIAL_COUNT = 10;
@@ -34,6 +52,8 @@ const PAGE_SIZE = 10;
 
 export default function TransactionsTable({
   transactions,
+  showViewAll = false,
+  categories = [],
 }: TransactionsTableProps) {
   const { fmt, fmtDate, t } = useI18n();
   const { plan } = usePrefs();
@@ -45,11 +65,13 @@ export default function TransactionsTable({
   );
   const hiddenCount = transactions.length - limitedTransactions.length;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_COUNT);
+  const [selectedTransaction, setSelectedTransaction] =
+    React.useState<Transaction | null>(null);
   const visible = limitedTransactions.slice(0, visibleCount);
   const hasMore = visibleCount < limitedTransactions.length;
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
-      <div className="flex items-center justify-between mb-6">
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+      <div className="mb-4 flex items-center justify-between sm:mb-6">
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
             {t("recentTransactions")}
@@ -58,6 +80,14 @@ export default function TransactionsTable({
             {t("latestActivity")}
           </p>
         </div>
+        {showViewAll && (
+          <Link
+            href="/dashboard/transactions"
+            className="inline-flex min-h-11 items-center px-2 text-xs font-bold text-slate-500 hover:text-red-500 dark:text-slate-400"
+          >
+            {t("viewAll")}
+          </Link>
+        )}
       </div>
 
       {hiddenCount > 0 && historyDays !== null && (
@@ -88,7 +118,12 @@ export default function TransactionsTable({
               : tx.categories;
             const formattedDate = fmtDate(tx.date);
             return (
-              <div key={tx.id} className="flex items-center gap-3 py-3">
+              <button
+                key={tx.id}
+                type="button"
+                onClick={() => setSelectedTransaction(tx)}
+                className="flex w-full items-center gap-3 py-3 text-left active:scale-[0.99]"
+              >
                 <div
                   className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border dark:border-transparent ${
                     isExpense
@@ -103,9 +138,16 @@ export default function TransactionsTable({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
-                    {tx.description}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {tx.description}
+                    </p>
+                    {tx.review_status === "needs_review" && (
+                      <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                        {t("needsReview")}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[11px] text-slate-400 dark:text-slate-500">
                       {formattedDate}
@@ -137,7 +179,7 @@ export default function TransactionsTable({
                   {isExpense ? "-" : "+"}
                   {fmt(Number(tx.amount))}
                 </span>
-              </div>
+              </button>
             );
           })
         )}
@@ -173,7 +215,8 @@ export default function TransactionsTable({
                 return (
                   <tr
                     key={tx.id}
-                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
+                    onClick={() => setSelectedTransaction(tx)}
+                    className="cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
                   >
                     <td className="py-3.5 pl-2 flex items-center gap-3">
                       <div
@@ -190,8 +233,13 @@ export default function TransactionsTable({
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-slate-800 dark:text-slate-200 font-semibold">
+                        <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-semibold">
                           {tx.description}
+                          {tx.review_status === "needs_review" && (
+                            <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                              {t("needsReview")}
+                            </span>
+                          )}
                         </span>
                         <span className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">
                           {formattedDate}
@@ -236,8 +284,16 @@ export default function TransactionsTable({
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
           className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         >
-          Show more ({limitedTransactions.length - visibleCount} left)
+          {t("showMore")} ({limitedTransactions.length - visibleCount} {t("remaining")})
         </button>
+      )}
+
+      {selectedTransaction && (
+        <TransactionDetailSheet
+          transaction={selectedTransaction}
+          categories={categories}
+          onClose={() => setSelectedTransaction(null)}
+        />
       )}
     </div>
   );

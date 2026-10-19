@@ -1,38 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lumium
 
-## Getting Started
+Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreSQL, Drizzle ORM, and Better Auth.
 
-### Local development
+## Product features
 
-1. Install dependencies with `npm install`.
-2. Copy `.env.example` to `.env.local` and set a unique `BETTER_AUTH_SECRET` (at least 32 characters). Add Stripe values only if testing billing.
-3. Start PostgreSQL using Docker Compose: `docker compose up -d`.
-4. Apply the shared schema: `npm run db:migrate`.
-5. Start Next.js: `npm run dev` and open [http://localhost:3000](http://localhost:3000).
+- Income and expense tracking with categories, notes, editing, duplication, deletion, and review status.
+- One-tap quick transaction presets for repeated purchases such as transport or coffee.
+- Split transactions across multiple categories while preserving the original total.
+- Recurring weekly, monthly, and yearly transactions with optional automatic materialization.
+- Description-based automation rules for categorization and review queues.
+- Monthly category budgets with custom alert thresholds, unused-budget rollover, historical averages, and month-end forecasts.
+- Savings goals with target amounts, optional deadlines, and progress tracking.
+- URL-driven reports and transaction filters.
+- Responsive mobile navigation, light/dark themes, and English, Russian, German, and French translations.
+- Shared-budget and family-wallet screens are currently UI placeholders only. Knowing another profile ID does not grant access to its data.
 
-If Docker is unavailable, run PostgreSQL 16+ locally and set `DATABASE_URL` to that database. Keep local and production schemas in sync by committing Drizzle migrations under `db/migrations/`.
+## Requirements
 
-### Railway deployment
+- Node.js 20.9 or newer
+- npm
+- PostgreSQL 16+ or Docker Compose
 
-Create a Railway PostgreSQL service, then configure the web service with `DATABASE_URL` from the Postgres service, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, and the required Stripe variables. Run `npm run db:migrate` against Railway before deploying the application. Use Railway's private/internal database URL when the web service is on the same Railway project; use the public URL only when required, with TLS enabled.
+## Local development
 
-Better Auth stores password hashes and sessions in PostgreSQL. Existing Supabase users, password hashes, data, and sessions are not automatically copied by this setup; plan and verify a separate export/import and password reset or credential migration before cutover.
+1. Install dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Copy `.env.example` to `.env.local`. Set a unique `BETTER_AUTH_SECRET` of at least 32 characters.
 
-## Learn More
+3. Start the bundled PostgreSQL service:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   docker compose up -d
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Apply all Drizzle migrations:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm run db:migrate
+   ```
 
-## Deploy on Vercel
+5. Start the application and open [http://localhost:3000](http://localhost:3000):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+If Docker is unavailable, run PostgreSQL locally and change `DATABASE_URL`. The database schema must be migrated before opening authenticated dashboard pages.
+
+## Useful commands
+
+```bash
+npm run dev          # development server
+npm run build        # production build
+npm run start        # production server after build
+npm run lint         # ESLint
+npx tsc --noEmit     # strict TypeScript check
+npm run db:generate  # generate a migration after schema changes
+npm run db:migrate   # apply pending migrations
+npm run db:studio    # open Drizzle Studio
+```
+
+## Recurring transaction behavior
+
+Automatic recurring transactions are processed when an authenticated dashboard layout mounts. Creation is protected by an idempotency key, so refreshing the dashboard does not duplicate the same scheduled occurrence. This is not a background scheduler: deployments that require processing without user visits should call equivalent protected logic from a scheduled worker or cron job.
+
+## Architecture
+
+- Route data fetching lives under `app/dashboard`.
+- Domain writes and ownership checks live in `app/dashboard/actions.ts`.
+- Reusable dashboard UI lives in `components/dashboard`.
+- PostgreSQL tables are declared in `db/schema.ts`; generated migrations live in `db/migrations`.
+- Every protected action derives the owner from the Better Auth session. Client-provided user IDs are not trusted.
+- User-facing strings live in `store/translations.ts`.
+- Currency and date presentation use `hooks/useI18n.ts` and `components/money.tsx`.
+
+See [AI_PROJECT_OVERVIEW.md](./AI_PROJECT_OVERVIEW.md) for domain behavior and [AI_FILE_MAP.md](./AI_FILE_MAP.md) for the repository map.
+
+## Railway deployment
+
+Create a Railway PostgreSQL service and configure the web service with:
+
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- `NEXT_PUBLIC_APP_URL`
+- Stripe variables from `.env.example` when billing is enabled
+- Resend variables when the support form is enabled
+
+Run `npm run db:migrate` against the Railway database before deploying the application. Prefer Railway's private database URL when the web service and database are in the same project.
+
+Better Auth stores password hashes and sessions in PostgreSQL. Users and sessions from another authentication provider are not migrated automatically.

@@ -293,13 +293,13 @@ export default function HelpPage() {
     "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-800 dark:text-slate-200 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-slate-400";
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-4xl mx-auto">
+    <div className="mx-auto w-full max-w-4xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
           {t("helpTitle")}
         </h1>
-        <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {t("helpSubtitle")}
         </p>
       </div>
@@ -310,7 +310,7 @@ export default function HelpPage() {
           <a
             key={titleKey}
             href={href}
-            className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:border-red-200 dark:hover:border-red-900/50 hover:shadow-md transition-all"
+            className="group flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4"
           >
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <Icon className="w-4 h-4 text-red-500" />
@@ -326,7 +326,7 @@ export default function HelpPage() {
       {/* Tabs */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Tab bar */}
-        <div className="flex border-b border-slate-100 dark:border-slate-800">
+        <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -344,7 +344,7 @@ export default function HelpPage() {
         </div>
 
         {/* Tab content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* ── FAQ ── */}
           {activeTab === "faq" && (
             <div className="space-y-4">

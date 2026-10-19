@@ -50,7 +50,7 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
   const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 6);
 
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex flex-col gap-4 h-100">
+    <div className="flex h-auto min-h-64 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-6">
       <div>
         <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
           {t("categoryBreakdown")}
@@ -67,7 +67,7 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
       ) : (
         <>
           {/* Donut */}
-          <div className="relative w-full h-40 flex items-center justify-center shrink-0">
+          <div className="relative hidden h-40 w-full items-center justify-center shrink-0 sm:flex">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -90,7 +90,7 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
                 Total
               </span>
               <span className="text-lg font-extrabold text-slate-800 dark:text-slate-100">
