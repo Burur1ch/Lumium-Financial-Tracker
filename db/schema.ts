@@ -145,6 +145,11 @@ export const transactions = pgTable(
     amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
     type: varchar("type", { length: 16 }).notNull(),
     status: varchar("status", { length: 16 }).notNull().default("completed"),
+    note: text("note"),
+    review_status: varchar("review_status", { length: 16 })
+      .notNull()
+      .default("reviewed"),
+    recurring_transaction_id: uuid("recurring_transaction_id"),
     date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
     idempotency_key: varchar("idempotency_key", { length: 64 }),
   },
@@ -159,6 +164,10 @@ export const transactions = pgTable(
     check(
       "transactions_status_check",
       sql`${table.status} in ('completed', 'pending')`,
+    ),
+    check(
+      "transactions_review_status_check",
+      sql`${table.review_status} in ('reviewed', 'needs_review')`,
     ),
   ],
 );
@@ -191,6 +200,129 @@ export const quickTransactionPresets = pgTable(
   ],
 );
 
+export const recurringTransactions = pgTable(
+  "recurring_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category_id: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+    name: varchar("name", { length: 120 }).notNull(),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    type: varchar("type", { length: 16 }).notNull().default("expense"),
+    frequency: varchar("frequency", { length: 16 }).notNull(),
+    next_date: date("next_date", { mode: "string" }).notNull(),
+    auto_create: boolean("auto_create").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    last_created_at: timestamp("last_created_at", { withTimezone: true }),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (table) => [
+    index("recurring_transactions_user_date_idx").on(
+      table.user_id,
+      table.next_date,
+    ),
+    check(
+      "recurring_transactions_type_check",
+      sql`${table.type} in ('expense', 'income')`,
+    ),
+    check(
+      "recurring_transactions_frequency_check",
+      sql`${table.frequency} in ('weekly', 'monthly', 'yearly')`,
+    ),
+    check(
+      "recurring_transactions_amount_check",
+      sql`${table.amount} > 0`,
+    ),
+  ],
+);
+
+export const transactionRules = pgTable(
+  "transaction_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category_id: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+    name: varchar("name", { length: 100 }).notNull(),
+    match_text: varchar("match_text", { length: 120 }).notNull(),
+    type: varchar("type", { length: 16 }),
+    mark_reviewed: boolean("mark_reviewed").notNull().default(true),
+    active: boolean("active").notNull().default(true),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (table) => [
+    index("transaction_rules_user_idx").on(table.user_id, table.created_at),
+    check(
+      "transaction_rules_type_check",
+      sql`${table.type} is null or ${table.type} in ('expense', 'income')`,
+    ),
+  ],
+);
+
+export const transactionSplits = pgTable(
+  "transaction_splits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transaction_id: uuid("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category_id: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    note: text("note"),
+    created_at: createdAt(),
+  },
+  (table) => [
+    index("transaction_splits_transaction_idx").on(table.transaction_id),
+    check("transaction_splits_amount_check", sql`${table.amount} > 0`),
+  ],
+);
+
+export const savingsGoals = pgTable(
+  "savings_goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 120 }).notNull(),
+    target_amount: numeric("target_amount", {
+      precision: 14,
+      scale: 2,
+    }).notNull(),
+    current_amount: numeric("current_amount", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    target_date: date("target_date", { mode: "string" }),
+    color: varchar("color", { length: 32 }).notNull().default("#ef4444"),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (table) => [
+    index("savings_goals_user_idx").on(table.user_id, table.created_at),
+    check("savings_goals_target_check", sql`${table.target_amount} > 0`),
+    check("savings_goals_current_check", sql`${table.current_amount} >= 0`),
+    check(
+      "savings_goals_status_check",
+      sql`${table.status} in ('active', 'completed')`,
+    ),
+  ],
+);
+
 export const budgets = pgTable(
   "budgets",
   {
@@ -202,6 +334,8 @@ export const budgets = pgTable(
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
     monthly_limit: numeric("monthly_limit", { precision: 14, scale: 2 }).notNull(),
+    rollover_enabled: boolean("rollover_enabled").notNull().default(false),
+    alert_threshold: integer("alert_threshold").notNull().default(75),
     month_year: date("month_year", { mode: "string" }).notNull(),
   },
   (table) => [
@@ -211,6 +345,10 @@ export const budgets = pgTable(
       table.month_year,
     ),
     index("budgets_user_month_idx").on(table.user_id, table.month_year),
+    check(
+      "budgets_alert_threshold_check",
+      sql`${table.alert_threshold} between 50 and 100`,
+    ),
   ],
 );
 

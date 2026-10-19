@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  CalendarClock,
   CreditCard,
   Grid2X2,
   HelpCircle,
@@ -26,6 +27,7 @@ import { UserAvatar } from "@/components/user-avatar";
 const moreItems = [
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
   { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
+  { key: "planning" as const, href: "/dashboard/planning", icon: CalendarClock },
   { key: "users" as const, href: "/dashboard/users", icon: Users },
   { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },

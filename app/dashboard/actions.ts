@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, desc, eq, gte, ilike } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, lt, lte } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import {
@@ -8,7 +8,11 @@ import {
   categories,
   profiles,
   quickTransactionPresets,
+  recurringTransactions,
+  savingsGoals,
   subscriptions,
+  transactionRules,
+  transactionSplits,
   transactions,
 } from "@/db/schema";
 import { auth } from "@/utils/auth/server";
@@ -139,6 +143,59 @@ function parseTransactionDate(value: FormDataEntryValue | null) {
   }
 
   return parsed;
+}
+
+function parseDateOnly(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value) return null;
+  const parsed = parseTransactionDate(value);
+  return parsed ? value : null;
+}
+
+function addRecurringPeriod(
+  dateValue: string,
+  frequency: "weekly" | "monthly" | "yearly",
+) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  if (frequency === "weekly") date.setUTCDate(date.getUTCDate() + 7);
+  if (frequency === "monthly") {
+    const targetMonth = month;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = targetMonth % 12;
+    const lastDay = new Date(
+      Date.UTC(targetYear, normalizedMonth + 1, 0, 12),
+    ).getUTCDate();
+    date.setUTCFullYear(targetYear, normalizedMonth, Math.min(day, lastDay));
+  }
+  if (frequency === "yearly") {
+    const lastDay = new Date(Date.UTC(year + 1, month, 0, 12)).getUTCDate();
+    date.setUTCFullYear(year + 1, month - 1, Math.min(day, lastDay));
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+async function findMatchingRule(
+  userId: string,
+  description: string,
+  type: "expense" | "income",
+) {
+  const rules = await db
+    .select()
+    .from(transactionRules)
+    .where(
+      and(
+        eq(transactionRules.user_id, userId),
+        eq(transactionRules.active, true),
+      ),
+    )
+    .orderBy(asc(transactionRules.created_at));
+
+  const normalized = description.toLocaleLowerCase();
+  return rules.find(
+    (rule) =>
+      (!rule.type || rule.type === type) &&
+      normalized.includes(rule.match_text.toLocaleLowerCase()),
+  );
 }
 
 async function categoryBelongsToUser(
@@ -586,7 +643,9 @@ export async function createTransaction(formData: FormData) {
 
   // В реальном приложении здесь будет ID выбранной категории.
   // Пока передаем null или дефолтную категорию, если таблица пустая.
-  const category_id = (formData.get("category_id") as string) || null;
+  let category_id = (formData.get("category_id") as string) || null;
+  const noteInput = formData.get("note");
+  const note = typeof noteInput === "string" ? noteInput.trim() : "";
 
   if (
     typeof description !== "string" ||
@@ -606,11 +665,21 @@ export async function createTransaction(formData: FormData) {
 
   const amountInUsd = amount / RATES[currencyInput];
 
+  const typedType = type as "expense" | "income";
+  const matchingRule = await findMatchingRule(
+    user.id,
+    description.trim(),
+    typedType,
+  );
+  if (!category_id && matchingRule?.category_id) {
+    category_id = matchingRule.category_id;
+  }
+
   if (category_id) {
     const ownsCategory = await categoryBelongsToUser(
       user.id,
       category_id,
-      type,
+      typedType,
     );
     if (!ownsCategory) return { success: false, error: "Invalid category" };
   }
@@ -625,6 +694,11 @@ export async function createTransaction(formData: FormData) {
       amount: amountInUsd.toFixed(2),
       type,
       status,
+      note: note || null,
+      review_status:
+        matchingRule && !matchingRule.mark_reviewed
+          ? "needs_review"
+          : "reviewed",
       date: transactionDate,
     })
     .returning({ id: transactions.id });
@@ -837,6 +911,668 @@ export async function deleteTransaction(id: string) {
   return { success: true };
 }
 
+export async function updateTransaction(id: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_TRANSACTION" };
+  }
+
+  const descriptionInput = formData.get("description");
+  const amountInput = formData.get("amount");
+  const currencyInput = formData.get("currency");
+  const typeInput = formData.get("type");
+  const categoryInput = formData.get("category_id");
+  const noteInput = formData.get("note");
+  const transactionDate = parseTransactionDate(formData.get("date"));
+  const description =
+    typeof descriptionInput === "string" ? descriptionInput.trim() : "";
+  const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
+  const type =
+    typeInput === "expense" || typeInput === "income" ? typeInput : null;
+  const categoryId =
+    typeof categoryInput === "string" && categoryInput
+      ? categoryInput
+      : null;
+  const note = typeof noteInput === "string" ? noteInput.trim() : "";
+
+  if (
+    !description ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    !type ||
+    !transactionDate ||
+    typeof currencyInput !== "string" ||
+    !isCurrency(currencyInput)
+  ) {
+    return { success: false, error: "INVALID_TRANSACTION" };
+  }
+  if (
+    categoryId &&
+    !(await categoryBelongsToUser(user.id, categoryId, type))
+  ) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
+
+  const [updated] = await db
+    .update(transactions)
+    .set({
+      category_id: categoryId,
+      description,
+      amount: (amount / RATES[currencyInput]).toFixed(2),
+      type,
+      note: note || null,
+      review_status: "reviewed",
+      date: transactionDate,
+    })
+    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+    .returning({ id: transactions.id });
+
+  if (!updated) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function duplicateTransaction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_TRANSACTION" };
+  }
+
+  const [source] = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+    .limit(1);
+  if (!source) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+
+  const [created] = await db
+    .insert(transactions)
+    .values({
+      user_id: user.id,
+      category_id: source.category_id,
+      description: source.description,
+      amount: source.amount,
+      type: source.type,
+      status: source.status,
+      note: source.note,
+      review_status: "reviewed",
+      date: new Date(),
+    })
+    .returning({ id: transactions.id });
+
+  const splits = await db
+    .select()
+    .from(transactionSplits)
+    .where(
+      and(
+        eq(transactionSplits.transaction_id, id),
+        eq(transactionSplits.user_id, user.id),
+      ),
+    );
+  if (splits.length > 0) {
+    await db.insert(transactionSplits).values(
+      splits.map((split) => ({
+        transaction_id: created.id,
+        user_id: user.id,
+        category_id: split.category_id,
+        amount: split.amount,
+        note: split.note,
+      })),
+    );
+  }
+
+  revalidateFinancialViews();
+  return { success: true, transactionId: created.id };
+}
+
+export async function saveTransactionSplits(input: {
+  transactionId: string;
+  currency: string;
+  splits: Array<{ categoryId: string | null; amount: number; note?: string }>;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (
+    !UUID_PATTERN.test(input.transactionId) ||
+    !isCurrency(input.currency) ||
+    input.splits.length < 2 ||
+    input.splits.length > 12
+  ) {
+    return { success: false, error: "INVALID_SPLITS" };
+  }
+
+  const [transaction] = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      type: transactions.type,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.id, input.transactionId),
+        eq(transactions.user_id, user.id),
+      ),
+    )
+    .limit(1);
+  if (!transaction) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+  const currency = input.currency;
+
+  for (const split of input.splits) {
+    if (!Number.isFinite(split.amount) || split.amount <= 0) {
+      return { success: false, error: "INVALID_SPLITS" };
+    }
+    if (
+      split.categoryId &&
+      !(await categoryBelongsToUser(
+        user.id,
+        split.categoryId,
+        transaction.type as "expense" | "income",
+      ))
+    ) {
+      return { success: false, error: "INVALID_CATEGORY" };
+    }
+  }
+
+  const normalized = input.splits.map((split) => ({
+    ...split,
+    amountInUsd: split.amount / RATES[currency],
+  }));
+  const total = normalized.reduce((sum, split) => sum + split.amountInUsd, 0);
+  if (Math.abs(total - Number(transaction.amount)) > 0.011) {
+    return { success: false, error: "SPLIT_TOTAL_MISMATCH" };
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(transactionSplits)
+      .where(
+        and(
+          eq(transactionSplits.transaction_id, input.transactionId),
+          eq(transactionSplits.user_id, user.id),
+        ),
+      );
+    await tx.insert(transactionSplits).values(
+      normalized.map((split) => ({
+        transaction_id: input.transactionId,
+        user_id: user.id,
+        category_id: split.categoryId,
+        amount: split.amountInUsd.toFixed(2),
+        note: split.note?.trim() || null,
+      })),
+    );
+  });
+
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function setTransactionReviewStatus(
+  id: string,
+  status: "reviewed" | "needs_review",
+) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_TRANSACTION" };
+  }
+  const [updated] = await db
+    .update(transactions)
+    .set({ review_status: status })
+    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+    .returning({ id: transactions.id });
+  if (!updated) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function getPlanningData() {
+  const user = await getCurrentUser();
+  if (!user) return { recurring: [], rules: [], goals: [] };
+
+  const [recurring, rules, goals] = await Promise.all([
+    db
+      .select({
+        id: recurringTransactions.id,
+        name: recurringTransactions.name,
+        amount: recurringTransactions.amount,
+        type: recurringTransactions.type,
+        frequency: recurringTransactions.frequency,
+        nextDate: recurringTransactions.next_date,
+        autoCreate: recurringTransactions.auto_create,
+        active: recurringTransactions.active,
+        categoryId: recurringTransactions.category_id,
+        categoryName: categories.name,
+        categoryColor: categories.color,
+      })
+      .from(recurringTransactions)
+      .leftJoin(
+        categories,
+        eq(recurringTransactions.category_id, categories.id),
+      )
+      .where(eq(recurringTransactions.user_id, user.id))
+      .orderBy(asc(recurringTransactions.next_date)),
+    db
+      .select({
+        id: transactionRules.id,
+        name: transactionRules.name,
+        matchText: transactionRules.match_text,
+        type: transactionRules.type,
+        active: transactionRules.active,
+        markReviewed: transactionRules.mark_reviewed,
+        categoryId: transactionRules.category_id,
+        categoryName: categories.name,
+        categoryColor: categories.color,
+      })
+      .from(transactionRules)
+      .leftJoin(categories, eq(transactionRules.category_id, categories.id))
+      .where(eq(transactionRules.user_id, user.id))
+      .orderBy(asc(transactionRules.created_at)),
+    db
+      .select()
+      .from(savingsGoals)
+      .where(eq(savingsGoals.user_id, user.id))
+      .orderBy(asc(savingsGoals.created_at)),
+  ]);
+
+  return {
+    recurring: recurring.map((item) => ({
+      ...item,
+      amount: Number(item.amount),
+      type: item.type as "expense" | "income",
+      frequency: item.frequency as "weekly" | "monthly" | "yearly",
+    })),
+    rules: rules.map((item) => ({
+      ...item,
+      type: item.type as "expense" | "income" | null,
+    })),
+    goals: goals.map((goal) => ({
+      id: goal.id,
+      name: goal.name,
+      targetAmount: Number(goal.target_amount),
+      currentAmount: Number(goal.current_amount),
+      targetDate: goal.target_date,
+      color: goal.color,
+      status: goal.status as "active" | "completed",
+    })),
+  };
+}
+
+export async function createRecurringTransaction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  const nameInput = formData.get("name");
+  const amountInput = formData.get("amount");
+  const currencyInput = formData.get("currency");
+  const typeInput = formData.get("type");
+  const frequencyInput = formData.get("frequency");
+  const categoryInput = formData.get("category_id");
+  const nextDate = parseDateOnly(formData.get("next_date"));
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
+  const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
+  const type =
+    typeInput === "expense" || typeInput === "income" ? typeInput : null;
+  const frequency =
+    frequencyInput === "weekly" ||
+    frequencyInput === "monthly" ||
+    frequencyInput === "yearly"
+      ? frequencyInput
+      : null;
+  const categoryId =
+    typeof categoryInput === "string" && categoryInput
+      ? categoryInput
+      : null;
+
+  if (
+    !name ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    !type ||
+    !frequency ||
+    !nextDate ||
+    typeof currencyInput !== "string" ||
+    !isCurrency(currencyInput)
+  ) {
+    return { success: false, error: "INVALID_RECURRING" };
+  }
+  if (
+    categoryId &&
+    !(await categoryBelongsToUser(user.id, categoryId, type))
+  ) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
+
+  await db.insert(recurringTransactions).values({
+    user_id: user.id,
+    category_id: categoryId,
+    name,
+    amount: (amount / RATES[currencyInput]).toFixed(2),
+    type,
+    frequency,
+    next_date: nextDate,
+    auto_create: formData.get("auto_create") === "on",
+  });
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function materializeRecurringTransaction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_RECURRING" };
+  }
+  const [item] = await db
+    .select()
+    .from(recurringTransactions)
+    .where(
+      and(
+        eq(recurringTransactions.id, id),
+        eq(recurringTransactions.user_id, user.id),
+      ),
+    )
+    .limit(1);
+  if (!item) return { success: false, error: "RECURRING_NOT_FOUND" };
+
+  const idempotencyKey = `recurring-${item.id}-${item.next_date}`;
+  const [created] = await db
+    .insert(transactions)
+    .values({
+      user_id: user.id,
+      category_id: item.category_id,
+      description: item.name,
+      amount: item.amount,
+      type: item.type,
+      status: "completed",
+      review_status: "reviewed",
+      recurring_transaction_id: item.id,
+      idempotency_key: idempotencyKey,
+      date: parseTransactionDate(item.next_date) ?? new Date(),
+    })
+    .onConflictDoNothing({
+      target: [transactions.user_id, transactions.idempotency_key],
+    })
+    .returning({ id: transactions.id });
+
+  await db
+    .update(recurringTransactions)
+    .set({
+      next_date: addRecurringPeriod(
+        item.next_date,
+        item.frequency as "weekly" | "monthly" | "yearly",
+      ),
+      last_created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .where(
+      and(
+        eq(recurringTransactions.id, id),
+        eq(recurringTransactions.user_id, user.id),
+      ),
+    );
+
+  revalidateFinancialViews();
+  return { success: true, transactionId: created?.id ?? null };
+}
+
+export async function processDueRecurringTransactions() {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, createdCount: 0 };
+  const today = new Date().toISOString().slice(0, 10);
+  const due = await db
+    .select()
+    .from(recurringTransactions)
+    .where(
+      and(
+        eq(recurringTransactions.user_id, user.id),
+        eq(recurringTransactions.active, true),
+        eq(recurringTransactions.auto_create, true),
+        lte(recurringTransactions.next_date, today),
+      ),
+    );
+
+  let createdCount = 0;
+  for (const item of due) {
+    let nextDate = item.next_date;
+    let iterations = 0;
+    while (nextDate <= today && iterations < 24) {
+      const [created] = await db
+        .insert(transactions)
+        .values({
+          user_id: user.id,
+          category_id: item.category_id,
+          description: item.name,
+          amount: item.amount,
+          type: item.type,
+          status: "completed",
+          review_status: "reviewed",
+          recurring_transaction_id: item.id,
+          idempotency_key: `recurring-${item.id}-${nextDate}`,
+          date: parseTransactionDate(nextDate) ?? new Date(),
+        })
+        .onConflictDoNothing({
+          target: [transactions.user_id, transactions.idempotency_key],
+        })
+        .returning({ id: transactions.id });
+      if (created) createdCount += 1;
+      nextDate = addRecurringPeriod(
+        nextDate,
+        item.frequency as "weekly" | "monthly" | "yearly",
+      );
+      iterations += 1;
+    }
+    await db
+      .update(recurringTransactions)
+      .set({
+        next_date: nextDate,
+        last_created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(recurringTransactions.id, item.id),
+          eq(recurringTransactions.user_id, user.id),
+        ),
+      );
+  }
+
+  if (createdCount > 0) revalidateFinancialViews();
+  return { success: true, createdCount };
+}
+
+export async function deleteRecurringTransaction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_RECURRING" };
+  }
+  await db
+    .delete(recurringTransactions)
+    .where(
+      and(
+        eq(recurringTransactions.id, id),
+        eq(recurringTransactions.user_id, user.id),
+      ),
+    );
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function createTransactionRule(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  const nameInput = formData.get("name");
+  const matchInput = formData.get("match_text");
+  const categoryInput = formData.get("category_id");
+  const typeInput = formData.get("type");
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
+  const matchText =
+    typeof matchInput === "string" ? matchInput.trim().toLocaleLowerCase() : "";
+  const categoryId =
+    typeof categoryInput === "string" && categoryInput
+      ? categoryInput
+      : null;
+  const type =
+    typeInput === "expense" || typeInput === "income" ? typeInput : null;
+  if (!name || !matchText || matchText.length < 2 || !type) {
+    return { success: false, error: "INVALID_RULE" };
+  }
+  if (
+    categoryId &&
+    !(await categoryBelongsToUser(user.id, categoryId, type))
+  ) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
+  await db.insert(transactionRules).values({
+    user_id: user.id,
+    category_id: categoryId,
+    name,
+    match_text: matchText,
+    type,
+    mark_reviewed: formData.get("mark_reviewed") === "on",
+  });
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function applyTransactionRule(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) return { success: false, error: "INVALID_RULE" };
+  const [rule] = await db
+    .select()
+    .from(transactionRules)
+    .where(
+      and(eq(transactionRules.id, id), eq(transactionRules.user_id, user.id)),
+    )
+    .limit(1);
+  if (!rule) return { success: false, error: "RULE_NOT_FOUND" };
+  const conditions = [
+    eq(transactions.user_id, user.id),
+    ilike(transactions.description, `%${rule.match_text}%`),
+  ];
+  if (rule.type) conditions.push(eq(transactions.type, rule.type));
+  const updated = await db
+    .update(transactions)
+    .set({
+      category_id: rule.category_id,
+      review_status: rule.mark_reviewed ? "reviewed" : "needs_review",
+    })
+    .where(and(...conditions))
+    .returning({ id: transactions.id });
+  revalidateFinancialViews();
+  return { success: true, updatedCount: updated.length };
+}
+
+export async function deleteTransactionRule(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) return { success: false, error: "INVALID_RULE" };
+  await db
+    .delete(transactionRules)
+    .where(
+      and(eq(transactionRules.id, id), eq(transactionRules.user_id, user.id)),
+    );
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function createSavingsGoal(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  const nameInput = formData.get("name");
+  const targetInput = formData.get("target_amount");
+  const currentInput = formData.get("current_amount");
+  const currencyInput = formData.get("currency");
+  const targetDate = parseDateOnly(formData.get("target_date"));
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
+  const target = typeof targetInput === "string" ? Number(targetInput) : NaN;
+  const current =
+    typeof currentInput === "string" && currentInput
+      ? Number(currentInput)
+      : 0;
+  const colorInput = formData.get("color");
+  const color =
+    typeof colorInput === "string" && /^#[0-9a-f]{6}$/i.test(colorInput)
+      ? colorInput
+      : "#ef4444";
+  if (
+    !name ||
+    !Number.isFinite(target) ||
+    target <= 0 ||
+    !Number.isFinite(current) ||
+    current < 0 ||
+    typeof currencyInput !== "string" ||
+    !isCurrency(currencyInput)
+  ) {
+    return { success: false, error: "INVALID_GOAL" };
+  }
+  const targetUsd = target / RATES[currencyInput];
+  const currentUsd = current / RATES[currencyInput];
+  await db.insert(savingsGoals).values({
+    user_id: user.id,
+    name,
+    target_amount: targetUsd.toFixed(2),
+    current_amount: currentUsd.toFixed(2),
+    target_date: targetDate,
+    color,
+    status: currentUsd >= targetUsd ? "completed" : "active",
+  });
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function setSavingsGoalProgress(input: {
+  id: string;
+  amount: number;
+  currency: string;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (
+    !UUID_PATTERN.test(input.id) ||
+    !Number.isFinite(input.amount) ||
+    input.amount < 0 ||
+    !isCurrency(input.currency)
+  ) {
+    return { success: false, error: "INVALID_GOAL" };
+  }
+  const [goal] = await db
+    .select({ target: savingsGoals.target_amount })
+    .from(savingsGoals)
+    .where(
+      and(eq(savingsGoals.id, input.id), eq(savingsGoals.user_id, user.id)),
+    )
+    .limit(1);
+  if (!goal) return { success: false, error: "GOAL_NOT_FOUND" };
+  const amountUsd = input.amount / RATES[input.currency];
+  await db
+    .update(savingsGoals)
+    .set({
+      current_amount: amountUsd.toFixed(2),
+      status: amountUsd >= Number(goal.target) ? "completed" : "active",
+      updated_at: new Date(),
+    })
+    .where(
+      and(eq(savingsGoals.id, input.id), eq(savingsGoals.user_id, user.id)),
+    );
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function deleteSavingsGoal(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) return { success: false, error: "INVALID_GOAL" };
+  await db
+    .delete(savingsGoals)
+    .where(and(eq(savingsGoals.id, id), eq(savingsGoals.user_id, user.id)));
+  revalidateFinancialViews();
+  return { success: true };
+}
+
 export async function signOut() {
   await auth.api.signOut({ headers: await headers() });
 
@@ -919,6 +1655,7 @@ export async function getFilteredTransactions(filters: {
   search?: string;
   type?: string;
   categoryId?: string;
+  reviewStatus?: string;
 }) {
   const user = await getCurrentUser();
 
@@ -951,6 +1688,13 @@ export async function getFilteredTransactions(filters: {
     conditions.push(eq(transactions.category_id, filters.categoryId));
   }
 
+  if (
+    filters.reviewStatus === "reviewed" ||
+    filters.reviewStatus === "needs_review"
+  ) {
+    conditions.push(eq(transactions.review_status, filters.reviewStatus));
+  }
+
   // Сортируем: сначала самые новые
   const rows = await db
     .select({
@@ -959,6 +1703,9 @@ export async function getFilteredTransactions(filters: {
       amount: transactions.amount,
       type: transactions.type,
       status: transactions.status,
+      note: transactions.note,
+      review_status: transactions.review_status,
+      recurring_transaction_id: transactions.recurring_transaction_id,
       date: transactions.date,
       category_id: transactions.category_id,
       categories: { name: categories.name, color: categories.color },
@@ -967,13 +1714,46 @@ export async function getFilteredTransactions(filters: {
     .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(desc(transactions.date));
+
+  const splitRows = await db
+    .select({
+      id: transactionSplits.id,
+      transactionId: transactionSplits.transaction_id,
+      categoryId: transactionSplits.category_id,
+      amount: transactionSplits.amount,
+      note: transactionSplits.note,
+    })
+    .from(transactionSplits)
+    .where(eq(transactionSplits.user_id, user.id));
+  const splitsByTransaction = new Map<
+    string,
+    Array<{
+      id: string;
+      categoryId: string | null;
+      amount: number;
+      note: string | null;
+    }>
+  >();
+  splitRows.forEach((split) => {
+    const current = splitsByTransaction.get(split.transactionId) ?? [];
+    current.push({
+      id: split.id,
+      categoryId: split.categoryId,
+      amount: Number(split.amount),
+      note: split.note,
+    });
+    splitsByTransaction.set(split.transactionId, current);
+  });
+
   return rows.map((row) => ({
     ...row,
     amount: Number(row.amount),
     type: row.type as "expense" | "income",
     status: row.status as "completed" | "pending",
     date: row.date.toISOString(),
+    review_status: row.review_status as "reviewed" | "needs_review",
     categories: row.categories ? [row.categories] : null,
+    splits: splitsByTransaction.get(row.id) ?? [],
   }));
 }
 
@@ -1172,6 +1952,8 @@ export async function getBudgetsWithProgress() {
     .select({
       id: budgets.id,
       monthly_limit: budgets.monthly_limit,
+      rollover_enabled: budgets.rollover_enabled,
+      alert_threshold: budgets.alert_threshold,
       category_id: budgets.category_id,
       categories: { name: categories.name, color: categories.color },
     })
@@ -1188,6 +1970,17 @@ export async function getBudgetsWithProgress() {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
+  const startOfPreviousMonth = new Date(
+    startOfMonth.getFullYear(),
+    startOfMonth.getMonth() - 1,
+    1,
+  );
+  const startOfThreeMonthsAgo = new Date(
+    startOfMonth.getFullYear(),
+    startOfMonth.getMonth() - 3,
+    1,
+  );
+  const previousMonthYear = startOfPreviousMonth.toISOString().split("T")[0];
 
   const spending = await db
     .select({
@@ -1212,12 +2005,96 @@ export async function getBudgetsWithProgress() {
       (spentMap[tx.category_id] || 0) + Number(tx.amount);
   });
 
+  const [previousBudgets, previousSpending, historicalSpending] =
+    await Promise.all([
+    db
+      .select({
+        category_id: budgets.category_id,
+        monthly_limit: budgets.monthly_limit,
+      })
+      .from(budgets)
+      .where(
+        and(
+          eq(budgets.user_id, user.id),
+          eq(budgets.month_year, previousMonthYear),
+        ),
+      ),
+    db
+      .select({
+        amount: transactions.amount,
+        category_id: transactions.category_id,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.user_id, user.id),
+          eq(transactions.type, "expense"),
+          eq(transactions.status, "completed"),
+          gte(transactions.date, startOfPreviousMonth),
+          lt(transactions.date, startOfMonth),
+        ),
+      ),
+    db
+      .select({
+        amount: transactions.amount,
+        category_id: transactions.category_id,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.user_id, user.id),
+          eq(transactions.type, "expense"),
+          eq(transactions.status, "completed"),
+          gte(transactions.date, startOfThreeMonthsAgo),
+          lt(transactions.date, startOfMonth),
+        ),
+      ),
+  ]);
+  const previousLimitMap = new Map(
+    previousBudgets.map((budget) => [
+      budget.category_id,
+      Number(budget.monthly_limit),
+    ]),
+  );
+  const previousSpentMap = new Map<string, number>();
+  previousSpending.forEach((transaction) => {
+    if (!transaction.category_id) return;
+    previousSpentMap.set(
+      transaction.category_id,
+      (previousSpentMap.get(transaction.category_id) ?? 0) +
+        Number(transaction.amount),
+    );
+  });
+  const historicalSpentMap = new Map<string, number>();
+  historicalSpending.forEach((transaction) => {
+    if (!transaction.category_id) return;
+    historicalSpentMap.set(
+      transaction.category_id,
+      (historicalSpentMap.get(transaction.category_id) ?? 0) +
+        Number(transaction.amount),
+    );
+  });
+
   // Объединяем лимиты с реальными расходами
-  return budgetsData.map((b) => ({
-    ...b,
-    current_spent: spentMap[b.category_id] || 0,
-    monthly_limit: Number(b.monthly_limit),
-  }));
+  return budgetsData.map((b) => {
+    const baseLimit = Number(b.monthly_limit);
+    const rolloverAmount = b.rollover_enabled
+      ? Math.max(
+          (previousLimitMap.get(b.category_id) ?? 0) -
+            (previousSpentMap.get(b.category_id) ?? 0),
+          0,
+        )
+      : 0;
+    return {
+      ...b,
+      current_spent: spentMap[b.category_id] || 0,
+      base_limit: baseLimit,
+      rollover_amount: rolloverAmount,
+      average_monthly_spent:
+        (historicalSpentMap.get(b.category_id) ?? 0) / 3,
+      monthly_limit: baseLimit + rolloverAmount,
+    };
+  });
 }
 
 // Создание или обновление лимита бюджета (Upsert)
@@ -1225,6 +2102,8 @@ export async function upsertBudget(formData: {
   categoryId: string;
   limitAmount: number;
   currency: string;
+  rolloverEnabled?: boolean;
+  alertThreshold?: number;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -1236,6 +2115,10 @@ export async function upsertBudget(formData: {
     throw new Error("Invalid budget amount");
   }
   const limitInUsd = formData.limitAmount / RATES[formData.currency];
+  const alertThreshold = Math.min(
+    100,
+    Math.max(50, Math.round(formData.alertThreshold ?? 75)),
+  );
   const plan = await getCurrentPlanForUser(user);
   const [ownedCategory] = await db
     .select({ id: categories.id })
@@ -1288,12 +2171,19 @@ export async function upsertBudget(formData: {
       user_id: user.id,
       category_id: formData.categoryId,
       monthly_limit: limitInUsd.toFixed(2),
+      rollover_enabled: Boolean(formData.rolloverEnabled),
+      alert_threshold: alertThreshold,
       month_year: monthYear,
     })
     .onConflictDoUpdate({
       target: [budgets.user_id, budgets.category_id, budgets.month_year],
-      set: { monthly_limit: limitInUsd.toFixed(2) },
+      set: {
+        monthly_limit: limitInUsd.toFixed(2),
+        rollover_enabled: Boolean(formData.rolloverEnabled),
+        alert_threshold: alertThreshold,
+      },
     });
+  revalidatePath("/dashboard/budget");
 }
 
 // Получить профиль текущего пользователя

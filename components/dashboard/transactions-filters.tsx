@@ -55,7 +55,7 @@ export default function TransactionsFilters({
   }, [router, search, searchParams]);
 
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-4 md:gap-4 md:p-4">
+    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-5 md:gap-4 md:p-4">
       {/* 1. Поиск по тексту */}
       <div className="relative col-span-2 flex items-center md:col-span-2">
         <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 pointer-events-none" />
@@ -101,6 +101,18 @@ export default function TransactionsFilters({
         {isPending && (
           <span className="absolute right-3 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
         )}
+      </div>
+
+      <div className="relative col-span-2 flex items-center md:col-span-1">
+        <select
+          defaultValue={searchParams.get("reviewStatus") || "all"}
+          onChange={(e) => updateFilter("reviewStatus", e.target.value)}
+          className="min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-red-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+        >
+          <option value="all">{t("allReviews")}</option>
+          <option value="needs_review">{t("needsReview")}</option>
+          <option value="reviewed">{t("reviewed")}</option>
+        </select>
       </div>
     </div>
   );

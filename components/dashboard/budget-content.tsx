@@ -23,6 +23,11 @@ interface Category {
 interface BudgetItem {
   id: string;
   monthly_limit: number;
+  base_limit?: number;
+  rollover_amount?: number;
+  average_monthly_spent?: number;
+  rollover_enabled?: boolean;
+  alert_threshold?: number;
   current_spent: number;
   category_id: string;
   categories?: { name: string; color: string }[] | null;
@@ -50,7 +55,9 @@ export default function BudgetContent({
     (i) => i.current_spent >= i.monthly_limit,
   ).length;
   const safeBudgetCount = b.filter(
-    (i) => i.current_spent < i.monthly_limit * 0.8,
+    (i) =>
+      i.current_spent <
+      i.monthly_limit * ((i.alert_threshold ?? 75) / 100),
   ).length;
 
   return (
@@ -162,8 +169,19 @@ export default function BudgetContent({
               limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
             const remaining = Math.max(limit - spent, 0);
             const isOver = spent >= limit;
-            const isWarning = percentage >= 75 && !isOver;
+            const isWarning =
+              percentage >= (budget.alert_threshold ?? 75) && !isOver;
             const catColor = cat?.color || "#ef4444";
+            const today = new Date();
+            const daysInMonth = new Date(
+              today.getFullYear(),
+              today.getMonth() + 1,
+              0,
+            ).getDate();
+            const projected =
+              today.getDate() > 0
+                ? (spent / today.getDate()) * daysInMonth
+                : spent;
 
             return (
               <div
@@ -187,7 +205,9 @@ export default function BudgetContent({
                         {cat?.name || t("uncategorized")}
                       </h3>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                        {t("monthlyLimit")}
+                        {budget.rollover_amount && budget.rollover_amount > 0
+                          ? `${t("monthlyLimit")} + ${t("rollover")}`
+                          : t("monthlyLimit")}
                       </p>
                     </div>
                   </div>
@@ -218,6 +238,11 @@ export default function BudgetContent({
                       of <Money amount={limit} />
                     </span>
                   </div>
+                  {budget.rollover_amount && budget.rollover_amount > 0 ? (
+                    <p className="mb-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      +<Money amount={budget.rollover_amount} /> {t("fromPreviousMonth")}
+                    </p>
+                  ) : null}
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
@@ -247,6 +272,20 @@ export default function BudgetContent({
                           <Money amount={remaining} /> {t("left")}
                         </>
                       )}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-[10px] dark:border-slate-800">
+                    <span className="text-slate-400 dark:text-slate-500">
+                      {t("threeMonthAverage")}
+                      <strong className="mt-0.5 block text-xs text-slate-700 dark:text-slate-300">
+                        <Money amount={budget.average_monthly_spent ?? 0} />
+                      </strong>
+                    </span>
+                    <span className="text-right text-slate-400 dark:text-slate-500">
+                      {t("monthEndForecast")}
+                      <strong className={`mt-0.5 block text-xs ${projected > limit ? "text-red-500" : "text-slate-700 dark:text-slate-300"}`}>
+                        <Money amount={projected} />
+                      </strong>
                     </span>
                   </div>
                 </div>

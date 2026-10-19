@@ -1,121 +1,89 @@
 "use client";
 
-import React from "react";
-import {
-  Users,
-  UserPlus,
-  Shield,
-  Wallet,
-  Bell,
-  Lock,
-  ArrowRight,
-} from "lucide-react";
-
-const PLANNED_FEATURES = [
-  {
-    icon: UserPlus,
-    title: "Invite Members",
-    desc: "Invite family members or a partner to share your financial workspace.",
-  },
-  {
-    icon: Wallet,
-    title: "Shared Budgets",
-    desc: "Set joint monthly limits and track spending together in real time.",
-  },
-  {
-    icon: Shield,
-    title: "Role Permissions",
-    desc: "Assign roles — Owner, Editor, or Viewer — to control what each member can do.",
-  },
-  {
-    icon: Bell,
-    title: "Shared Notifications",
-    desc: "Get alerts when a shared budget is running low or a limit is exceeded.",
-  },
-  {
-    icon: Lock,
-    title: "Private Transactions",
-    desc: "Mark specific transactions as private so only you can see them.",
-  },
-];
+import { useState } from "react";
+import { Eye, Lock, Search, Shield, Users, Wallet } from "lucide-react";
+import { useI18n } from "@/hooks/useI18n";
 
 export default function UsersPage() {
+  const { t } = useI18n();
+  const [profileId, setProfileId] = useState("");
+  const [notice, setNotice] = useState(false);
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 p-4 md:gap-8 md:p-8">
-      {/* Hero */}
-      <div className="flex w-full flex-col items-center gap-4 pt-3 text-center md:pt-8">
-        <div className="relative">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500 shadow-md shadow-red-500/20 md:h-20 md:w-20 md:rounded-3xl">
-            <Users className="h-8 w-8 text-white md:h-10 md:w-10" />
-          </div>
-          <span className="absolute -top-2 -right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-white shadow">
-            Soon
+    <div className="mx-auto w-full max-w-5xl space-y-5 p-4 md:space-y-7 md:p-8">
+      <header>
+        <div className="flex items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500 text-white shadow-sm shadow-red-500/20">
+            <Users className="h-6 w-6" />
           </span>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
-            Family & Team Mode
-          </h1>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1.5 max-w-sm">
-            Manage finances together. Invite household members, set shared
-            budgets and track everyone&apos;s spending in one place.
-          </p>
-        </div>
-
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-          🚧 &nbsp;In development — coming in a future release
-        </span>
-      </div>
-
-      {/* Planned features */}
-      <div className="w-full space-y-3">
-        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">
-          Planned features
-        </p>
-        {PLANNED_FEATURES.map(({ icon: Icon, title, desc }) => (
-          <div
-            key={title}
-            className="flex items-start gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm opacity-80"
-          >
-            <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center shrink-0">
-              <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {title}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-relaxed">
-                {desc}
-              </p>
-            </div>
-            <div className="ml-auto shrink-0 mt-0.5">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500">
-                Planned
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
+                {t("sharedFinances")}
+              </h1>
+              <span className="rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+                {t("placeholder")}
               </span>
             </div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {t("sharedFinancesSubtitle")}
+            </p>
           </div>
-        ))}
-      </div>
-
-      {/* CTA */}
-      <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-linear-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 border border-red-100 dark:border-red-900/30">
-        <div>
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            Want this feature sooner?
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Let us know via Help &amp; Support — your feedback shapes our
-            roadmap.
-          </p>
         </div>
-        <a
-          href="/dashboard/help"
-          className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors"
-        >
-          Give feedback
-          <ArrowRight className="w-3.5 h-3.5" />
-        </a>
+      </header>
+
+      {notice && (
+        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          {t("sharedFeatureNotConnected")}
+        </p>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30">
+            <Eye className="h-5 w-5" />
+          </span>
+          <h2 className="mt-4 text-lg font-bold text-slate-950 dark:text-slate-50">
+            {t("viewBudgetById")}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {t("viewBudgetByIdHint")}
+          </p>
+          <div className="mt-5 flex gap-2">
+            <label className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input value={profileId} onChange={(event) => setProfileId(event.target.value)} placeholder={t("profileIdPlaceholder")} className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100" />
+            </label>
+            <button type="button" disabled={!profileId.trim()} onClick={() => setNotice(true)} className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-950">
+              {t("find")}
+            </button>
+          </div>
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+            {t("sharedAccessPrivacyHint")}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30">
+            <Wallet className="h-5 w-5" />
+          </span>
+          <h2 className="mt-4 text-lg font-bold text-slate-950 dark:text-slate-50">
+            {t("familyWallet")}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {t("familyWalletHint")}
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">{t("sharedBudgets")}</span>
+            <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">{t("memberRoles")}</span>
+            <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">{t("privateTransactions")}</span>
+            <span className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950">{t("sharedNotifications")}</span>
+          </div>
+          <button type="button" onClick={() => setNotice(true)} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            <Lock className="h-4 w-4" /> {t("comingSoon")}
+          </button>
+        </section>
       </div>
     </div>
   );

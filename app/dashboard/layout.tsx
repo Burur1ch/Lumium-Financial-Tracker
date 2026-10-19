@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import { StoreHydration } from "@/components/store-hydration";
 import { MobileAppChrome } from "@/components/dashboard/mobile-app-chrome";
 import AddExpenseModal from "@/components/dashboard/add-expense-modal";
+import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
       <StoreHydration />
+      <RecurringProcessor />
       <div className="hidden lg:block">
         <Sidebar />
       </div>

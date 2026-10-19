@@ -368,6 +368,15 @@ export default function AddExpenseModal({
                     />
                   </div>
 
+                  <div>
+                    <FieldLabel icon={FileText} label={t("transactionNote")} />
+                    <textarea
+                      name="note"
+                      placeholder={t("transactionNotePlaceholder")}
+                      className={inputCls + " min-h-20 py-3"}
+                    />
+                  </div>
+
                   {/* Category */}
                   <div>
                     <FieldLabel

@@ -231,6 +231,10 @@ export default async function DashboardPage({
           amount: transactions.amount,
           type: transactions.type,
           status: transactions.status,
+          note: transactions.note,
+          review_status: transactions.review_status,
+          category_id: transactions.category_id,
+          recurring_transaction_id: transactions.recurring_transaction_id,
           date: transactions.date,
           categories: { name: categories.name, color: categories.color },
         })
@@ -399,7 +403,11 @@ export default async function DashboardPage({
 
       {/* Таблица транзакций */}
       <div className="w-full overflow-hidden">
-        <TransactionsTable transactions={recentTransactions} showViewAll />
+        <TransactionsTable
+          transactions={recentTransactions}
+          categories={quickCategories}
+          showViewAll
+        />
       </div>
     </div>
   );

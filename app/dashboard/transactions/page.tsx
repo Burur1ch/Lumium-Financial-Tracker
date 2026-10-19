@@ -10,6 +10,7 @@ interface SearchParams {
   search?: string;
   type?: string;
   categoryId?: string;
+  reviewStatus?: string;
 }
 
 interface TransactionsPageProps {
@@ -28,6 +29,7 @@ export default async function TransactionsPage({
     search: resolvedParams.search,
     type: resolvedParams.type,
     categoryId: resolvedParams.categoryId,
+    reviewStatus: resolvedParams.reviewStatus,
   };
 
   // Получаем отфильтрованный массив транзакций из PostgreSQL
@@ -49,7 +51,7 @@ export default async function TransactionsPage({
 
       {/* Таблица с результатами выборки */}
       <div className="w-full">
-        <TransactionsTable transactions={transactions} />
+        <TransactionsTable transactions={transactions} categories={categories} />
       </div>
     </div>
   );
