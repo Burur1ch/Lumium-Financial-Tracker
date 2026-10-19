@@ -144,7 +144,8 @@ export const translations = {
     vsPrevYear: "vs prev year",
 
     // Misc
-    currencyNote: "Amounts are converted from USD using approximate rates",
+    currencyNote:
+      "Amounts are stored in USD and converted using official NBRB rates; fallback rates are used if the service is unavailable",
     allTypes: "All Types",
     allCategories: "All Categories",
     searchPlaceholder: "Search by description...",
@@ -529,7 +530,8 @@ export const translations = {
     vsPrev3m: "против пред. 3 месяцев",
     vsPrevYear: "против пред. года",
 
-    currencyNote: "Суммы пересчитываются из USD по примерному курсу",
+    currencyNote:
+      "Суммы хранятся в USD и пересчитываются по официальному курсу НБРБ; при недоступности сервиса используется резервный курс",
     allTypes: "Все типы",
     allCategories: "Все категории",
     searchPlaceholder: "Поиск по описанию...",
@@ -915,7 +917,8 @@ export const translations = {
     vsPrev3m: "vs. vorh. 3 Monate",
     vsPrevYear: "vs. vorh. Jahr",
 
-    currencyNote: "Beträge werden anhand ungefährer Kurse aus USD umgerechnet",
+    currencyNote:
+      "Beträge werden in USD gespeichert und mit offiziellen NBRB-Kursen umgerechnet; bei Ausfall wird ein Ersatzkurs verwendet",
     allTypes: "Alle Typen",
     allCategories: "Alle Kategorien",
     searchPlaceholder: "Nach Beschreibung suchen...",
@@ -1304,7 +1307,7 @@ export const translations = {
     vsPrevYear: "vs année préc.",
 
     currencyNote:
-      "Les montants sont convertis depuis USD selon des taux approximatifs",
+      "Les montants sont stockés en USD et convertis selon les taux officiels de la NBRB ; un taux de secours est utilisé si le service est indisponible",
     allTypes: "Tous les types",
     allCategories: "Toutes les catégories",
     searchPlaceholder: "Rechercher par description...",

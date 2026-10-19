@@ -25,7 +25,7 @@ import {
 import type { Transaction } from "@/components/dashboard/transactions-table";
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
-import { RATES, usePrefs } from "@/store/prefs";
+import { usePrefs } from "@/store/prefs";
 
 interface CategoryOption {
   id: string;
@@ -51,8 +51,8 @@ export function TransactionDetailSheet({
 }) {
   const router = useRouter();
   const { t, fmtDate } = useI18n();
-  const { currency } = usePrefs();
-  const rate = RATES[currency] ?? 1;
+  const { currency, exchangeRates } = usePrefs();
+  const rate = exchangeRates[currency] ?? 1;
   const [mode, setMode] = useState<"details" | "edit" | "split">("details");
   const [pending, setPending] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);

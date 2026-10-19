@@ -39,7 +39,7 @@ const FAQ_EN = [
   },
   {
     q: "How does currency conversion work?",
-    a: "Lumium stores all amounts in USD internally. When you change your display currency in Settings → Preferences, amounts are converted using fixed exchange rates for display purposes only. No actual conversion of your data occurs.",
+    a: "Lumium stores all amounts in USD internally. When you change your display currency in Settings → Preferences, amounts are converted using official National Bank of the Republic of Belarus rates. If the rate service is unavailable, Lumium uses a fallback rate so money entry remains available. No actual conversion of your stored data occurs.",
   },
   {
     q: "How do I change the language?",

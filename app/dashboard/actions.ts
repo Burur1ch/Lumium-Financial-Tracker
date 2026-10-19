@@ -26,7 +26,8 @@ import {
   isLimitReached,
 } from "@/utils/monetization/limits";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
-import { isCurrency, RATES } from "@/utils/currency";
+import { isCurrency } from "@/utils/currency";
+import { getCurrencyRate } from "@/utils/currency-server";
 import { revalidatePath } from "next/cache";
 import {
   getAppBaseUrl,
@@ -213,7 +214,7 @@ async function categoryBelongsToUser(
   return Boolean(ownedCategory && (!type || ownedCategory.type === type));
 }
 
-function parseQuickPresetForm(formData: FormData) {
+async function parseQuickPresetForm(formData: FormData) {
   const nameInput = formData.get("name");
   const amountInput = formData.get("amount");
   const currencyInput = formData.get("currency");
@@ -252,7 +253,7 @@ function parseQuickPresetForm(formData: FormData) {
 
   return {
     name,
-    amountInUsd: amount / RATES[currencyInput],
+    amountInUsd: amount / (await getCurrencyRate(currencyInput)),
     type,
     categoryId,
     icon,
@@ -663,7 +664,7 @@ export async function createTransaction(formData: FormData) {
     return { success: false, error: "Заполните все обязательные поля" };
   }
 
-  const amountInUsd = amount / RATES[currencyInput];
+  const amountInUsd = amount / (await getCurrencyRate(currencyInput));
 
   const typedType = type as "expense" | "income";
   const matchingRule = await findMatchingRule(
@@ -712,7 +713,7 @@ export async function createQuickPreset(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "UNAUTHORIZED" };
 
-  const input = parseQuickPresetForm(formData);
+  const input = await parseQuickPresetForm(formData);
   if (!input) return { success: false, error: "INVALID_PRESET" };
 
   if (
@@ -755,7 +756,7 @@ export async function updateQuickPreset(id: string, formData: FormData) {
     return { success: false, error: "INVALID_PRESET" };
   }
 
-  const input = parseQuickPresetForm(formData);
+  const input = await parseQuickPresetForm(formData);
   if (!input) return { success: false, error: "INVALID_PRESET" };
 
   if (
@@ -954,12 +955,13 @@ export async function updateTransaction(id: string, formData: FormData) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
 
+  const currencyRate = await getCurrencyRate(currencyInput);
   const [updated] = await db
     .update(transactions)
     .set({
       category_id: categoryId,
       description,
-      amount: (amount / RATES[currencyInput]).toFixed(2),
+      amount: (amount / currencyRate).toFixed(2),
       type,
       note: note || null,
       review_status: "reviewed",
@@ -1076,9 +1078,10 @@ export async function saveTransactionSplits(input: {
     }
   }
 
+  const currencyRate = await getCurrencyRate(currency);
   const normalized = input.splits.map((split) => ({
     ...split,
-    amountInUsd: split.amount / RATES[currency],
+    amountInUsd: split.amount / currencyRate,
   }));
   const total = normalized.reduce((sum, split) => sum + split.amountInUsd, 0);
   if (Math.abs(total - Number(transaction.amount)) > 0.011) {
@@ -1244,11 +1247,12 @@ export async function createRecurringTransaction(formData: FormData) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
 
+  const currencyRate = await getCurrencyRate(currencyInput);
   await db.insert(recurringTransactions).values({
     user_id: user.id,
     category_id: categoryId,
     name,
-    amount: (amount / RATES[currencyInput]).toFixed(2),
+    amount: (amount / currencyRate).toFixed(2),
     type,
     frequency,
     next_date: nextDate,
@@ -1509,8 +1513,9 @@ export async function createSavingsGoal(formData: FormData) {
   ) {
     return { success: false, error: "INVALID_GOAL" };
   }
-  const targetUsd = target / RATES[currencyInput];
-  const currentUsd = current / RATES[currencyInput];
+  const currencyRate = await getCurrencyRate(currencyInput);
+  const targetUsd = target / currencyRate;
+  const currentUsd = current / currencyRate;
   await db.insert(savingsGoals).values({
     user_id: user.id,
     name,
@@ -1547,7 +1552,7 @@ export async function setSavingsGoalProgress(input: {
     )
     .limit(1);
   if (!goal) return { success: false, error: "GOAL_NOT_FOUND" };
-  const amountUsd = input.amount / RATES[input.currency];
+  const amountUsd = input.amount / (await getCurrencyRate(input.currency));
   await db
     .update(savingsGoals)
     .set({
@@ -2114,7 +2119,8 @@ export async function upsertBudget(formData: {
   ) {
     throw new Error("Invalid budget amount");
   }
-  const limitInUsd = formData.limitAmount / RATES[formData.currency];
+  const limitInUsd =
+    formData.limitAmount / (await getCurrencyRate(formData.currency));
   const alertThreshold = Math.min(
     100,
     Math.max(50, Math.round(formData.alertThreshold ?? 75)),

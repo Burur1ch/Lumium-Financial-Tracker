@@ -81,6 +81,7 @@ export default function AddExpenseModal({
   const CURRENCY_SYMBOLS: Record<string, string> = {
     USD: "$",
     EUR: "€",
+    BYN: "Br",
     RUB: "₽",
     GBP: "£",
     JPY: "¥",

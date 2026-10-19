@@ -1,10 +1,19 @@
-export const CURRENCIES = ["USD", "EUR", "RUB", "GBP", "JPY", "CNY"] as const;
+export const CURRENCIES = [
+  "USD",
+  "EUR",
+  "BYN",
+  "RUB",
+  "GBP",
+  "JPY",
+  "CNY",
+] as const;
 
 export type Currency = (typeof CURRENCIES)[number];
 
 export const RATES: Record<Currency, number> = {
   USD: 1,
   EUR: 0.92,
+  BYN: 3.01,
   GBP: 0.79,
   RUB: 92.5,
   JPY: 155,

@@ -26,7 +26,7 @@ import {
 } from "@/app/dashboard/actions";
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
-import { RATES, usePrefs } from "@/store/prefs";
+import { usePrefs } from "@/store/prefs";
 
 interface CategoryOption {
   id: string;
@@ -84,8 +84,8 @@ export function PlanningContent({
 }) {
   const router = useRouter();
   const { t, fmtDate } = useI18n();
-  const { currency } = usePrefs();
-  const rate = RATES[currency] ?? 1;
+  const { currency, exchangeRates } = usePrefs();
+  const rate = exchangeRates[currency] ?? 1;
   const [tab, setTab] = useState<"recurring" | "rules" | "goals">("recurring");
   const [showForm, setShowForm] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);

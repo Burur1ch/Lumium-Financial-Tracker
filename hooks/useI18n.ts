@@ -1,5 +1,4 @@
 import { usePrefs } from "@/store/prefs";
-import { RATES } from "@/utils/currency";
 import { translations, TranslationKey } from "@/store/translations";
 
 const CURRENCY_LOCALES: Record<string, string> = {
@@ -9,6 +8,7 @@ const CURRENCY_LOCALES: Record<string, string> = {
   GBP: "en-GB",
   JPY: "ja-JP",
   CNY: "zh-CN",
+  BYN: "be-BY",
 };
 
 const LANGUAGE_LOCALES: Record<string, string> = {
@@ -19,7 +19,7 @@ const LANGUAGE_LOCALES: Record<string, string> = {
 };
 
 export function useI18n() {
-  const { currency, language, dateFormat } = usePrefs();
+  const { currency, language, dateFormat, exchangeRates } = usePrefs();
 
   const t = (key: TranslationKey): string => {
     return (
@@ -35,7 +35,7 @@ export function useI18n() {
   ): string => {
     const converted = opts?.noConvert
       ? amount
-      : amount * (RATES[currency] ?? 1);
+      : amount * (exchangeRates[currency] ?? 1);
     return new Intl.NumberFormat(CURRENCY_LOCALES[currency] ?? "en-US", {
       style: "currency",
       currency,
@@ -63,5 +63,13 @@ export function useI18n() {
     }
   };
 
-  return { t, fmt, fmtDate, currency, language, dateFormat };
+  return {
+    t,
+    fmt,
+    fmtDate,
+    currency,
+    currencyRate: exchangeRates[currency] ?? 1,
+    language,
+    dateFormat,
+  };
 }
