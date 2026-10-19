@@ -41,12 +41,12 @@ const PLANNED_FEATURES = [
 
 export default function UsersPage() {
   return (
-    <div className="p-4 md:p-8 w-full max-w-3xl mx-auto flex flex-col items-center gap-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 p-4 md:gap-8 md:p-8">
       {/* Hero */}
-      <div className="w-full flex flex-col items-center text-center gap-4 pt-8">
+      <div className="flex w-full flex-col items-center gap-4 pt-3 text-center md:pt-8">
         <div className="relative">
-          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-200 dark:shadow-red-900/30">
-            <Users className="w-10 h-10 text-white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500 shadow-md shadow-red-500/20 md:h-20 md:w-20 md:rounded-3xl">
+            <Users className="h-8 w-8 text-white md:h-10 md:w-10" />
           </div>
           <span className="absolute -top-2 -right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-white shadow">
             Soon
@@ -54,7 +54,7 @@ export default function UsersPage() {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             Family & Team Mode
           </h1>
           <p className="text-sm text-slate-400 dark:text-slate-500 mt-1.5 max-w-sm">

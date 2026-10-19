@@ -1,18 +1,22 @@
 import React from "react";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { categories, transactions } from "@/db/schema";
+import {
+  categories,
+  quickTransactionPresets,
+  transactions,
+} from "@/db/schema";
 import { auth } from "@/utils/auth/server";
-import { getCategories } from "./actions";
 import MetricCard from "@/components/dashboard/metric-card";
 import ExpenseChart from "@/components/dashboard/expense-chart";
 import CategoryChart from "@/components/dashboard/category-chart";
 import TransactionsTable from "@/components/dashboard/transactions-table";
-import AddExpenseModal from "@/components/dashboard/add-expense-modal";
+import { AddTransactionButton } from "@/components/dashboard/add-transaction-button";
 import PeriodSelector from "@/components/dashboard/period-selector";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
+import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Suspense } from "react";
 
 type Period = "7d" | "30d" | "3m" | "1y" | "all";
@@ -156,6 +160,20 @@ export default async function DashboardPage({
   let prevExpenses = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let recentTransactions: any[] = [];
+  let quickPresets: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    type: "expense" | "income";
+    icon: string;
+    category: { id: string; name: string; color: string } | null;
+  }> = [];
+  let quickCategories: Array<{
+    id: string;
+    name: string;
+    type: "expense" | "income";
+    color: string;
+  }> = [];
   const chartDataMap: { [key: string]: { income: number; expense: number } } =
     {};
   const categoryDataMap: { [key: string]: { value: number; color: string } } =
@@ -169,12 +187,12 @@ export default async function DashboardPage({
     "#8B5CF6",
     "#EC4899",
   ];
-  const categoriesList = await getCategories();
   const prevRange = getPrevPeriodRange(period);
 
   if (user) {
     const owner = eq(transactions.user_id, user.id);
-    const [txAll, prevData, recentData] = await Promise.all([
+    const [txAll, prevData, recentData, presetData, categoryOptions] =
+      await Promise.all([
       db
         .select({
           amount: transactions.amount,
@@ -221,7 +239,59 @@ export default async function DashboardPage({
         .where(owner)
         .orderBy(desc(transactions.date))
         .limit(20),
+      db
+        .select({
+          id: quickTransactionPresets.id,
+          name: quickTransactionPresets.name,
+          amount: quickTransactionPresets.amount,
+          type: quickTransactionPresets.type,
+          icon: quickTransactionPresets.icon,
+          categoryId: quickTransactionPresets.category_id,
+          categoryName: categories.name,
+          categoryColor: categories.color,
+        })
+        .from(quickTransactionPresets)
+        .leftJoin(
+          categories,
+          eq(quickTransactionPresets.category_id, categories.id),
+        )
+        .where(eq(quickTransactionPresets.user_id, user.id))
+        .orderBy(
+          asc(quickTransactionPresets.sort_order),
+          asc(quickTransactionPresets.created_at),
+        )
+        .limit(8),
+      db
+        .select({
+          id: categories.id,
+          name: categories.name,
+          type: categories.type,
+          color: categories.color,
+        })
+        .from(categories)
+        .where(eq(categories.user_id, user.id))
+        .orderBy(asc(categories.name)),
     ]);
+
+    quickPresets = presetData.map((preset) => ({
+      id: preset.id,
+      name: preset.name,
+      amount: Number(preset.amount),
+      type: preset.type as "expense" | "income",
+      icon: preset.icon,
+      category:
+        preset.categoryId && preset.categoryName && preset.categoryColor
+          ? {
+              id: preset.categoryId,
+              name: preset.categoryName,
+              color: preset.categoryColor,
+            }
+          : null,
+    }));
+    quickCategories = categoryOptions.map((category) => ({
+      ...category,
+      type: category.type as "expense" | "income",
+    }));
 
     if (prevData) {
       prevData.forEach((tx) => {
@@ -273,32 +343,18 @@ export default async function DashboardPage({
   );
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto">
-      {/* Шапка */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
+      <div className="hidden items-center justify-between gap-4 lg:flex">
         <DashboardHeader />
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
           <Suspense>
             <PeriodSelector />
           </Suspense>
-          <AddExpenseModal categories={categoriesList} />
+          <AddTransactionButton />
         </div>
       </div>
 
-      {/* Сетка карточек метрик */}
-      <div className="grid grid-cols-3 gap-3 md:gap-4">
-        <MetricCard
-          amount={totalExpenses}
-          change={calcChange(totalExpenses, prevExpenses)}
-          type="expense"
-          changeLabelKey={changeLabelKey}
-        />
-        <MetricCard
-          amount={totalIncome}
-          change={calcChange(totalIncome, prevIncome)}
-          type="income"
-          changeLabelKey={changeLabelKey}
-        />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <MetricCard
           amount={totalIncome - totalExpenses}
           change={calcChange(
@@ -307,11 +363,32 @@ export default async function DashboardPage({
           )}
           type="net"
           changeLabelKey={changeLabelKey}
+          featured
+        />
+        <MetricCard
+          amount={totalIncome}
+          change={calcChange(totalIncome, prevIncome)}
+          type="income"
+          changeLabelKey={changeLabelKey}
+        />
+        <MetricCard
+          amount={totalExpenses}
+          change={calcChange(totalExpenses, prevExpenses)}
+          type="expense"
+          changeLabelKey={changeLabelKey}
         />
       </div>
 
+      <QuickActions presets={quickPresets} categories={quickCategories} />
+
+      <div className="overflow-x-auto pb-1 lg:hidden">
+        <Suspense>
+          <PeriodSelector />
+        </Suspense>
+      </div>
+
       {/* Графики */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         <div className="lg:col-span-2 w-full overflow-hidden">
           <ExpenseChart data={expenseChartData} periodKey={periodKey} />
         </div>
@@ -322,7 +399,7 @@ export default async function DashboardPage({
 
       {/* Таблица транзакций */}
       <div className="w-full overflow-hidden">
-        <TransactionsTable transactions={recentTransactions} />
+        <TransactionsTable transactions={recentTransactions} showViewAll />
       </div>
     </div>
   );

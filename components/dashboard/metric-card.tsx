@@ -16,6 +16,7 @@ interface MetricCardProps {
   change: number | null;
   type: "income" | "expense" | "net";
   changeLabelKey?: TranslationKey;
+  featured?: boolean;
 }
 
 export default function MetricCard({
@@ -23,6 +24,7 @@ export default function MetricCard({
   change,
   type,
   changeLabelKey,
+  featured = false,
 }: MetricCardProps) {
   const isPositive = (change ?? 0) >= 0;
   const { fmt, t } = useI18n();
@@ -47,8 +49,8 @@ export default function MetricCard({
       glow: "before:bg-emerald-500/5",
     },
     net: {
-      icon: "bg-orange-100 dark:bg-orange-950/50 text-orange-500",
-      glow: "before:bg-orange-500/5",
+      icon: "bg-red-100 dark:bg-red-950/50 text-red-500",
+      glow: "before:bg-red-500/5",
     },
   }[type];
 
@@ -62,14 +64,14 @@ export default function MetricCard({
           ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500"
           : "bg-red-50 dark:bg-red-950/30 text-red-500"
         : isPositive
-          ? "bg-orange-50 dark:bg-orange-950/30 text-orange-500"
+          ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
           : "bg-red-50 dark:bg-red-950/30 text-red-500";
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+    <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ${featured ? "col-span-2 md:col-span-1" : ""}`}>
       {/* Top row: title + icon */}
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-tight">
+        <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 leading-tight">
           {title}
         </p>
         <div
@@ -81,9 +83,9 @@ export default function MetricCard({
 
       {/* Amount */}
       <p
-        className={`mt-2 sm:mt-3 text-base sm:text-3xl font-bold tracking-tight tabular-nums truncate ${
+        className={`mt-2 sm:mt-3 font-bold tracking-[-0.035em] tabular-nums truncate ${featured ? "text-3xl sm:text-3xl" : "text-lg sm:text-3xl"} ${
           type === "net"
-            ? "text-orange-500"
+            ? "text-slate-950 dark:text-slate-50"
             : type === "income"
               ? "text-emerald-500"
               : "text-red-500"

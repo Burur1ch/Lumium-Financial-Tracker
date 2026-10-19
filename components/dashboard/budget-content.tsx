@@ -54,14 +54,14 @@ export default function BudgetContent({
   ).length;
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("budgetsLimits")}
           </h1>
-          <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {t("monthlySpendingLimits")}
           </p>
           {budgetLimit !== null && (
@@ -75,13 +75,13 @@ export default function BudgetContent({
 
       {/* Summary row */}
       {b.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm flex items-center gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4 text-slate-400" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {t("totalLimit")}
               </p>
               <p className="text-base font-bold text-slate-800 dark:text-slate-100">
@@ -89,12 +89,12 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <TrendingDown className="w-4 h-4 text-red-500" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {t("totalSpent")}
               </p>
               <p className="text-base font-bold text-red-500">
@@ -102,12 +102,12 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {t("overLimitCount")}
               </p>
               <p className="text-base font-bold text-slate-800 dark:text-slate-100">
@@ -118,12 +118,12 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                 {t("onTrack")}
               </p>
               <p className="text-base font-bold text-slate-800 dark:text-slate-100">
@@ -139,7 +139,7 @@ export default function BudgetContent({
 
       {/* Budget cards */}
       {b.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-16 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center gap-3">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900 sm:p-16">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
             <Wallet className="w-6 h-6 text-slate-400" />
           </div>
@@ -153,7 +153,7 @@ export default function BudgetContent({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {b.map((budget) => {
             const cat = getCat(budget);
             const limit = Number(budget.monthly_limit ?? 0);
@@ -168,7 +168,7 @@ export default function BudgetContent({
             return (
               <div
                 key={budget.id}
-                className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col gap-4 hover:shadow-md transition-shadow duration-200"
+                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between">

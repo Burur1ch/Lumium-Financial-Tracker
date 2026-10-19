@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { authClient } from "@/utils/auth/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useI18n } from "@/hooks/useI18n";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useI18n();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +26,7 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      setError(signInError.message ?? "Не удалось выполнить вход");
+      setError(signInError.message ?? t("signInFailed"));
       setLoading(false);
     } else {
       router.push("/dashboard");
@@ -32,15 +35,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+    <main className="relative flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4 py-8 dark:bg-[#0b0f1a]">
+      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))]">
+        <ThemeToggle compact />
+      </div>
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+        <Link href="/" className="mx-auto flex w-fit items-center gap-2.5" aria-label="Lumium">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500 font-black text-white">L</span>
+          <span className="text-xl font-bold tracking-[-0.03em] text-slate-950 dark:text-slate-50">Lumium</span>
+        </Link>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Вход в систему
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+            {t("signInTitle")}
           </h1>
-          <p className="text-sm text-slate-500">
-            Введите свои данные для доступа к Lumium
-          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t("signInSubtitle")}</p>
         </div>
 
         {error && (
@@ -51,8 +59,8 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase mb-1.5">
-              Email
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {t("email")}
             </label>
             <input
               type="email"
@@ -60,13 +68,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@example.com"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm placeholder-slate-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 text-black"
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase mb-1.5">
-              Пароль
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              {t("password")}
             </label>
             <input
               type="password"
@@ -74,29 +82,29 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm placeholder-slate-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 text-black"
+              className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 active:scale-[0.98] disabled:opacity-50"
           >
-            {loading ? "Вход..." : "Войти"}
+            {loading ? t("signingIn") : t("signIn")}
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-500">
-          Нет аккаунта?{" "}
+        <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+          {t("noAccount")}{" "}
           <Link
             href="/register"
             className="font-semibold text-red-500 hover:underline"
           >
-            Зарегистрироваться
+            {t("signUp")}
           </Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

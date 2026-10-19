@@ -3,6 +3,7 @@ import {
   check,
   date,
   index,
+  integer,
   numeric,
   pgTable,
   text,
@@ -145,15 +146,48 @@ export const transactions = pgTable(
     type: varchar("type", { length: 16 }).notNull(),
     status: varchar("status", { length: 16 }).notNull().default("completed"),
     date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
+    idempotency_key: varchar("idempotency_key", { length: 64 }),
   },
   (table) => [
     index("transactions_user_date_idx").on(table.user_id, table.date),
     index("transactions_user_category_idx").on(table.user_id, table.category_id),
+    unique("transactions_user_idempotency_unique").on(
+      table.user_id,
+      table.idempotency_key,
+    ),
     check("transactions_type_check", sql`${table.type} in ('expense', 'income')`),
     check(
       "transactions_status_check",
       sql`${table.status} in ('completed', 'pending')`,
     ),
+  ],
+);
+
+export const quickTransactionPresets = pgTable(
+  "quick_transaction_presets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category_id: uuid("category_id").references(() => categories.id, {
+      onDelete: "set null",
+    }),
+    name: varchar("name", { length: 80 }).notNull(),
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    type: varchar("type", { length: 16 }).notNull().default("expense"),
+    icon: varchar("icon", { length: 32 }).notNull().default("train"),
+    sort_order: integer("sort_order").notNull().default(0),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (table) => [
+    index("quick_presets_user_order_idx").on(table.user_id, table.sort_order),
+    check(
+      "quick_presets_type_check",
+      sql`${table.type} in ('expense', 'income')`,
+    ),
+    check("quick_presets_amount_check", sql`${table.amount} > 0`),
   ],
 );
 

@@ -271,14 +271,14 @@ export default function CategoriesPage() {
   const { t } = useI18n();
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("categories")}
           </h1>
-          <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {t("manageCategoriesDesc")}
           </p>
         </div>
@@ -303,9 +303,9 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Create form */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm h-fit space-y-5">
+        <div className="h-fit space-y-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
             {t("createCategory")}
           </h3>

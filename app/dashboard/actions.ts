@@ -7,6 +7,7 @@ import {
   budgets,
   categories,
   profiles,
+  quickTransactionPresets,
   subscriptions,
   transactions,
 } from "@/db/schema";
@@ -39,6 +40,20 @@ type StripeSubscriptionStatus =
   | "canceled"
   | "unpaid"
   | "paused";
+
+const QUICK_PRESET_LIMIT = 8;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9_-]{8,64}$/;
+const QUICK_PRESET_ICONS = new Set([
+  "train",
+  "coffee",
+  "utensils",
+  "shopping",
+  "bus",
+  "home",
+  "other",
+]);
 
 function isStripePlanActive(
   status: StripeSubscriptionStatus,
@@ -100,6 +115,91 @@ async function getCurrentPlanForUser(user: { id: string }): Promise<PlanKey> {
 async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
+}
+
+function revalidateFinancialViews() {
+  revalidatePath("/dashboard", "layout");
+}
+
+function parseTransactionDate(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value) return new Date();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day, 12));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
+async function categoryBelongsToUser(
+  userId: string,
+  categoryId: string,
+  type?: "expense" | "income",
+) {
+  if (!UUID_PATTERN.test(categoryId)) return false;
+  const [ownedCategory] = await db
+    .select({ id: categories.id, type: categories.type })
+    .from(categories)
+    .where(and(eq(categories.id, categoryId), eq(categories.user_id, userId)))
+    .limit(1);
+
+  return Boolean(ownedCategory && (!type || ownedCategory.type === type));
+}
+
+function parseQuickPresetForm(formData: FormData) {
+  const nameInput = formData.get("name");
+  const amountInput = formData.get("amount");
+  const currencyInput = formData.get("currency");
+  const typeInput = formData.get("type");
+  const categoryInput = formData.get("category_id");
+  const iconInput = formData.get("icon");
+
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
+  const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
+  const type: "expense" | "income" | null =
+    typeInput === "expense"
+      ? "expense"
+      : typeInput === "income"
+        ? "income"
+        : null;
+  const categoryId =
+    typeof categoryInput === "string" && categoryInput
+      ? categoryInput
+      : null;
+  const icon =
+    typeof iconInput === "string" && QUICK_PRESET_ICONS.has(iconInput)
+      ? iconInput
+      : "other";
+
+  if (
+    !name ||
+    name.length > 80 ||
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    typeof currencyInput !== "string" ||
+    !isCurrency(currencyInput) ||
+    !type
+  ) {
+    return null;
+  }
+
+  return {
+    name,
+    amountInUsd: amount / RATES[currencyInput],
+    type,
+    categoryId,
+    icon,
+  };
 }
 
 function getPeriodStartDate(period: string): Date | null {
@@ -482,6 +582,7 @@ export async function createTransaction(formData: FormData) {
   const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
   const type = formData.get("type");
   const status = formData.get("status") ?? "completed";
+  const transactionDate = parseTransactionDate(formData.get("date"));
 
   // В реальном приложении здесь будет ID выбранной категории.
   // Пока передаем null или дефолтную категорию, если таблица пустая.
@@ -497,7 +598,8 @@ export async function createTransaction(formData: FormData) {
     typeof status !== "string" ||
     (status !== "completed" && status !== "pending") ||
     typeof currencyInput !== "string" ||
-    !isCurrency(currencyInput)
+    !isCurrency(currencyInput) ||
+    !transactionDate
   ) {
     return { success: false, error: "Заполните все обязательные поля" };
   }
@@ -505,29 +607,233 @@ export async function createTransaction(formData: FormData) {
   const amountInUsd = amount / RATES[currencyInput];
 
   if (category_id) {
-    const [ownedCategory] = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(
-        and(eq(categories.id, category_id), eq(categories.user_id, user.id)),
-      )
-      .limit(1);
-    if (!ownedCategory) return { success: false, error: "Invalid category" };
+    const ownsCategory = await categoryBelongsToUser(
+      user.id,
+      category_id,
+      type,
+    );
+    if (!ownsCategory) return { success: false, error: "Invalid category" };
   }
 
   // 3. Вставляем запись в таблицу transactions
-  await db.insert(transactions).values({
-    user_id: user.id,
-    category_id,
-    description: description.trim(),
-    amount: amountInUsd.toFixed(2),
-    type,
-    status,
-    date: new Date(),
-  });
+  const [created] = await db
+    .insert(transactions)
+    .values({
+      user_id: user.id,
+      category_id,
+      description: description.trim(),
+      amount: amountInUsd.toFixed(2),
+      type,
+      status,
+      date: transactionDate,
+    })
+    .returning({ id: transactions.id });
 
   // 4. Сбрасываем кэш страницы дашборда, чтобы графики и таблицы сразу обновились
+  revalidateFinancialViews();
+  return { success: true, transactionId: created.id };
+}
+
+export async function createQuickPreset(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+
+  const input = parseQuickPresetForm(formData);
+  if (!input) return { success: false, error: "INVALID_PRESET" };
+
+  if (
+    input.categoryId &&
+    !(await categoryBelongsToUser(user.id, input.categoryId, input.type))
+  ) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
+
+  const [presetCount] = await db
+    .select({ count: count() })
+    .from(quickTransactionPresets)
+    .where(eq(quickTransactionPresets.user_id, user.id));
+
+  if (presetCount.count >= QUICK_PRESET_LIMIT) {
+    return { success: false, error: "QUICK_PRESET_LIMIT" };
+  }
+
+  const [created] = await db
+    .insert(quickTransactionPresets)
+    .values({
+      user_id: user.id,
+      category_id: input.categoryId,
+      name: input.name,
+      amount: input.amountInUsd.toFixed(2),
+      type: input.type,
+      icon: input.icon,
+      sort_order: presetCount.count,
+    })
+    .returning({ id: quickTransactionPresets.id });
+
   revalidatePath("/dashboard");
+  return { success: true, presetId: created.id };
+}
+
+export async function updateQuickPreset(id: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_PRESET" };
+  }
+
+  const input = parseQuickPresetForm(formData);
+  if (!input) return { success: false, error: "INVALID_PRESET" };
+
+  if (
+    input.categoryId &&
+    !(await categoryBelongsToUser(user.id, input.categoryId, input.type))
+  ) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
+
+  const [updated] = await db
+    .update(quickTransactionPresets)
+    .set({
+      category_id: input.categoryId,
+      name: input.name,
+      amount: input.amountInUsd.toFixed(2),
+      type: input.type,
+      icon: input.icon,
+      updated_at: new Date(),
+    })
+    .where(
+      and(
+        eq(quickTransactionPresets.id, id),
+        eq(quickTransactionPresets.user_id, user.id),
+      ),
+    )
+    .returning({ id: quickTransactionPresets.id });
+
+  if (!updated) return { success: false, error: "PRESET_NOT_FOUND" };
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deleteQuickPreset(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_PRESET" };
+  }
+
+  await db
+    .delete(quickTransactionPresets)
+    .where(
+      and(
+        eq(quickTransactionPresets.id, id),
+        eq(quickTransactionPresets.user_id, user.id),
+      ),
+    );
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function createTransactionFromPreset(input: {
+  presetId: string;
+  idempotencyKey: string;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (
+    !UUID_PATTERN.test(input.presetId) ||
+    !IDEMPOTENCY_KEY_PATTERN.test(input.idempotencyKey)
+  ) {
+    return { success: false, error: "INVALID_PRESET" };
+  }
+
+  const [existing] = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.user_id, user.id),
+        eq(transactions.idempotency_key, input.idempotencyKey),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    return { success: true, transactionId: existing.id, duplicate: true };
+  }
+
+  const [preset] = await db
+    .select({
+      name: quickTransactionPresets.name,
+      amount: quickTransactionPresets.amount,
+      type: quickTransactionPresets.type,
+      categoryId: quickTransactionPresets.category_id,
+    })
+    .from(quickTransactionPresets)
+    .where(
+      and(
+        eq(quickTransactionPresets.id, input.presetId),
+        eq(quickTransactionPresets.user_id, user.id),
+      ),
+    )
+    .limit(1);
+
+  if (!preset) return { success: false, error: "PRESET_NOT_FOUND" };
+
+  const [created] = await db
+    .insert(transactions)
+    .values({
+      user_id: user.id,
+      category_id: preset.categoryId,
+      description: preset.name,
+      amount: preset.amount,
+      type: preset.type,
+      status: "completed",
+      date: new Date(),
+      idempotency_key: input.idempotencyKey,
+    })
+    .onConflictDoNothing({
+      target: [transactions.user_id, transactions.idempotency_key],
+    })
+    .returning({ id: transactions.id });
+
+  if (created) {
+    revalidateFinancialViews();
+    return { success: true, transactionId: created.id, duplicate: false };
+  }
+
+  const [deduplicated] = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.user_id, user.id),
+        eq(transactions.idempotency_key, input.idempotencyKey),
+      ),
+    )
+    .limit(1);
+
+  return deduplicated
+    ? { success: true, transactionId: deduplicated.id, duplicate: true }
+    : { success: false, error: "CREATE_FAILED" };
+}
+
+export async function deleteTransaction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_TRANSACTION" };
+  }
+
+  const [deleted] = await db
+    .delete(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+    .returning({ id: transactions.id });
+
+  if (!deleted) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+
+  revalidateFinancialViews();
   return { success: true };
 }
 

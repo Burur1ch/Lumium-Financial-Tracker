@@ -102,7 +102,7 @@ function Section({
           </p>
         </div>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </div>
   );
 }
@@ -223,12 +223,12 @@ export default function SettingsPage() {
   const selectCls = inputCls + " cursor-pointer";
 
   return (
-    <div className="p-4 md:p-8 space-y-6 w-full max-w-3xl mx-auto">
+    <div className="mx-auto w-full max-w-3xl space-y-5 p-4 md:space-y-6 md:p-8">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
           {t("settings")}
         </h1>
-        <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mt-1">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           {t("manageAccountDesc")}
         </p>
       </div>

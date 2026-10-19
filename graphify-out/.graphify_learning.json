@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-10-19T09:47:41.921157+00:00",
+  "nodes": {
+    "app_dashboard_actions_createtransaction": {
+      "code_fingerprint": "b08ee2028b83edb92e8feb7bebb498b96ec942bb451c069b9d3016528053e8d7",
+      "label": "createTransaction()",
+      "last": "2026-10-19T09:44:29.135005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 1.999644765,
+      "source_file": "app/dashboard/actions.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "app_dashboard_actions_upsertbudget": {
+      "code_fingerprint": "b08ee2028b83edb92e8feb7bebb498b96ec942bb451c069b9d3016528053e8d7",
+      "label": "upsertBudget()",
+      "last": "2026-10-19T09:28:46.139782+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 0.999696318,
+      "source_file": "app/dashboard/actions.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "app_dashboard_page_dashboardpage": {
+      "code_fingerprint": "21ff966574ced9608774a744a2c40928c52398f0d9f4a5440ca73a33500936d9",
+      "label": "DashboardPage()",
+      "last": "2026-10-19T09:44:29.135005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        }
+      ],
+      "score": 0.999948447,
+      "source_file": "app/dashboard/page.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "app_dashboard_transactions_page_transactionspage": {
+      "code_fingerprint": "01dd08e8d8ac357b020e3640ec23cfdd9cc9a2b8c2f6f7868e02f7f8b7c6e057",
+      "label": "TransactionsPage()",
+      "last": "2026-10-19T09:28:46.139782+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 0.999696318,
+      "source_file": "app/dashboard/transactions/page.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_dashboard_add_expense_modal_addexpensemodal": {
+      "code_fingerprint": "b0c63a91e5219dc6443c1e0ed98c0f103840f92bf950e0d74c1be4169bf378fa",
+      "label": "AddExpenseModal()",
+      "last": "2026-10-19T09:44:29.135005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 1.999644765,
+      "source_file": "components/dashboard/add-expense-modal.tsx",
+      "status": "preferred",
+      "uses": 2
+    },
+    "components_dashboard_sidebar_builddynamicnotifications": {
+      "code_fingerprint": "9548254aaa868ec0ee67dbe35ff64cdd0f961c1b6c81c30e7d9e2c3eeed4bdfb",
+      "label": "buildDynamicNotifications()",
+      "last": "2026-10-19T09:28:46.139782+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 0.999696318,
+      "source_file": "components/dashboard/sidebar.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "components_dashboard_transactions_table_transactionstable": {
+      "code_fingerprint": "5524da3bab118dafa097e264dc6a37e9d1b1f0962fe84f7f351aaa62ab591a03",
+      "label": "TransactionsTable()",
+      "last": "2026-10-19T09:44:29.135005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-19T09:44:29.135005+00:00",
+          "outcome": "useful",
+          "q": "Внедрить быстрые настраиваемые траты в одну кнопку"
+        },
+        {
+          "date": "2026-10-19T09:28:46.139782+00:00",
+          "outcome": "useful",
+          "q": "Хорошо, а какие улучшения по проекту можешь предложить или улучшить (например закастомить траты в одну кнопку (метро например)) или что-то еще?"
+        }
+      ],
+      "score": 1.999644765,
+      "source_file": "components/dashboard/transactions-table.tsx",
+      "status": "preferred",
+      "uses": 2
+    }
+  },
+  "version": 1
+}

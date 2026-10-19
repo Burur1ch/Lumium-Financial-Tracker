@@ -27,6 +27,7 @@ interface Transaction {
 
 interface TransactionsTableProps {
   transactions: Transaction[];
+  showViewAll?: boolean;
 }
 
 const INITIAL_COUNT = 10;
@@ -34,6 +35,7 @@ const PAGE_SIZE = 10;
 
 export default function TransactionsTable({
   transactions,
+  showViewAll = false,
 }: TransactionsTableProps) {
   const { fmt, fmtDate, t } = useI18n();
   const { plan } = usePrefs();
@@ -48,8 +50,8 @@ export default function TransactionsTable({
   const visible = limitedTransactions.slice(0, visibleCount);
   const hasMore = visibleCount < limitedTransactions.length;
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
-      <div className="flex items-center justify-between mb-6">
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+      <div className="mb-4 flex items-center justify-between sm:mb-6">
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
             {t("recentTransactions")}
@@ -58,6 +60,14 @@ export default function TransactionsTable({
             {t("latestActivity")}
           </p>
         </div>
+        {showViewAll && (
+          <Link
+            href="/dashboard/transactions"
+            className="inline-flex min-h-11 items-center px-2 text-xs font-bold text-slate-500 hover:text-red-500 dark:text-slate-400"
+          >
+            {t("viewAll")}
+          </Link>
+        )}
       </div>
 
       {hiddenCount > 0 && historyDays !== null && (
@@ -236,7 +246,7 @@ export default function TransactionsTable({
           onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
           className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         >
-          Show more ({limitedTransactions.length - visibleCount} left)
+          {t("showMore")} ({limitedTransactions.length - visibleCount} {t("remaining")})
         </button>
       )}
     </div>

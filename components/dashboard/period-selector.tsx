@@ -82,7 +82,7 @@ export default function PeriodSelector() {
   };
 
   return (
-    <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800">
+    <div className="flex min-w-max items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-900">
       {PERIODS.map((p) => {
         const locked = !accessiblePeriods.includes(p.value as Period);
 
@@ -91,9 +91,9 @@ export default function PeriodSelector() {
             key={p.value}
             onClick={() => select(p.value)}
             disabled={isPending}
-            className={`relative px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 disabled:cursor-wait ${
+            className={`relative min-h-10 min-w-11 rounded-lg px-3 py-2 text-xs font-bold transition-all duration-150 disabled:cursor-wait ${
               current === p.value
-                ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm"
+                ? "bg-red-500 text-white shadow-sm shadow-red-500/20"
                 : locked
                   ? "text-slate-400 dark:text-slate-600 hover:text-red-500"
                   : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
