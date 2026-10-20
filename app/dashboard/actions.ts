@@ -1942,17 +1942,35 @@ export async function exportReportWorkbook(period: string = "30d") {
   return { success: true, workbook, filename };
 }
 
-// Получение бюджетов с агрегацией текущих расходов за текущий месяц
-export async function getBudgetsWithProgress() {
+// Получение бюджетов с агрегацией расходов за выбранный календарный месяц
+export async function getBudgetsWithProgress(month?: string) {
   const user = await getCurrentUser();
   if (!user) return [];
 
-  // 1. Получаем лимиты бюджетов за текущий месяц
   const now = new Date();
-  const currentMonthYear = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month ?? "");
+  const selectedYear = monthMatch
+    ? Number(monthMatch[1])
+    : now.getUTCFullYear();
+  const selectedMonthIndex = monthMatch
+    ? Number(monthMatch[2]) - 1
+    : now.getUTCMonth();
+  const startOfMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex, 1),
+  );
+  const startOfNextMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex + 1, 1),
+  );
+  const startOfPreviousMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex - 1, 1),
+  );
+  const startOfThreeMonthsAgo = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex - 3, 1),
+  );
+  const currentMonthYear = startOfMonth.toISOString().slice(0, 10);
+  const previousMonthYear = startOfPreviousMonth.toISOString().slice(0, 10);
 
+  // 1. Получаем лимиты бюджетов за выбранный месяц
   const budgetsData = await db
     .select({
       id: budgets.id,
@@ -1971,22 +1989,7 @@ export async function getBudgetsWithProgress() {
       ),
     );
 
-  // 2. Получаем расходы за текущий месяц для расчета прогресса
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-  const startOfPreviousMonth = new Date(
-    startOfMonth.getFullYear(),
-    startOfMonth.getMonth() - 1,
-    1,
-  );
-  const startOfThreeMonthsAgo = new Date(
-    startOfMonth.getFullYear(),
-    startOfMonth.getMonth() - 3,
-    1,
-  );
-  const previousMonthYear = startOfPreviousMonth.toISOString().split("T")[0];
-
+  // 2. Получаем расходы только внутри выбранного месяца
   const spending = await db
     .select({
       amount: transactions.amount,
@@ -1999,6 +2002,7 @@ export async function getBudgetsWithProgress() {
         eq(transactions.type, "expense"),
         eq(transactions.status, "completed"),
         gte(transactions.date, startOfMonth),
+        lt(transactions.date, startOfNextMonth),
       ),
     );
 

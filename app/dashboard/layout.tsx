@@ -26,7 +26,9 @@ export default function DashboardLayout({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileAppChrome />
+        <Suspense fallback={null}>
+          <MobileAppChrome />
+        </Suspense>
 
         <main className="dashboard-main flex-1 overflow-y-auto overscroll-contain bg-[var(--app-canvas)]">
           <Suspense>
