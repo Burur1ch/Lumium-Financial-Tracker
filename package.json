@@ -10,6 +10,7 @@
     "icons:generate": "node scripts/generate-icons.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed:railway": "node scripts/seed-railway-demo.cjs",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "agentation": "^3.1.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",

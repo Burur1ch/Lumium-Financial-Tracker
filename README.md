@@ -51,6 +51,23 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
 
 If Docker is unavailable, run PostgreSQL locally and change `DATABASE_URL`. The database schema must be migrated before opening authenticated dashboard pages.
 
+### Local authentication
+
+There is no seeded demo account. With PostgreSQL running and migrations applied, open [http://localhost:3000/register](http://localhost:3000/register), create an account with a password of at least 8 characters, and then use the same credentials at [http://localhost:3000/login](http://localhost:3000/login). Accounts and sessions are stored in the database configured by `DATABASE_URL`.
+
+### Visual feedback with Agentation
+
+The Agentation toolbar is mounted only in development and connects to the local MCP server at `http://localhost:4747`.
+
+```bash
+npx -y agentation-mcp doctor
+# Start this only if doctor reports that the server is not running:
+npx -y agentation-mcp server
+npm run dev
+```
+
+Open the local app and use the toolbar in the bottom-right corner to attach feedback to an element. Production builds do not render the toolbar.
+
 ## Useful commands
 
 ```bash

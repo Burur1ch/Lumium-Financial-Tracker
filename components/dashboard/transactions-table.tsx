@@ -131,7 +131,7 @@ export default function TransactionsTable({
               </span>
               <span className="mt-0.5 block truncate text-[11px] text-slate-400 dark:text-slate-500">{meta}</span>
             </span>
-            <span className={`shrink-0 text-sm font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
+            <span className={`max-w-[7.75rem] shrink-0 truncate text-right text-[13px] font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
               {isExpense ? "−" : "+"}{fmt(Number(tx.amount))}
             </span>
             {!showViewAll && <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.8} />}

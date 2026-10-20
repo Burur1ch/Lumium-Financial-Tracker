@@ -36,10 +36,12 @@ export function useI18n() {
     const converted = opts?.noConvert
       ? amount
       : amount * (exchangeRates[currency] ?? 1);
+    const decimals = opts?.decimals ?? true;
     return new Intl.NumberFormat(CURRENCY_LOCALES[currency] ?? "en-US", {
       style: "currency",
       currency,
-      maximumFractionDigits: opts?.decimals ? 2 : 0,
+      minimumFractionDigits: decimals ? 2 : 0,
+      maximumFractionDigits: decimals ? 2 : 0,
     }).format(converted);
   };
 

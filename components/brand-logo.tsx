@@ -4,6 +4,7 @@ interface BrandLogoProps {
   className?: string;
   size?: "sm" | "md";
   wordmarkClassName?: string;
+  showMark?: boolean;
 }
 
 const LOGO_SIZES = {
@@ -15,19 +16,22 @@ export function BrandLogo({
   className = "",
   size = "sm",
   wordmarkClassName = "",
+  showMark = true,
 }: BrandLogoProps) {
   const logoSize = LOGO_SIZES[size];
 
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
-      <Image
-        src="/icon.svg"
-        width={logoSize.pixels}
-        height={logoSize.pixels}
-        alt=""
-        unoptimized
-        className={logoSize.className}
-      />
+      {showMark && (
+        <Image
+          src="/icon.svg"
+          width={logoSize.pixels}
+          height={logoSize.pixels}
+          alt=""
+          unoptimized
+          className={logoSize.className}
+        />
+      )}
       <span
         className={`text-lg font-bold tracking-[-0.035em] text-slate-950 dark:text-slate-50 ${wordmarkClassName}`}
       >

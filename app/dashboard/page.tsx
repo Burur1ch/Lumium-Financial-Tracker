@@ -369,7 +369,7 @@ export default async function DashboardPage({
   const mobileTrend = expenseChartData.reduce<number[]>((trend, point) => {
     const previous = trend.at(-1) ?? 0;
     return [...trend, previous + point.income - point.expense];
-  }, []);
+  }, [0]);
   const mobileBudget = {
     spent: dashboardBudgets.reduce((sum, budget) => sum + budget.current_spent, 0),
     limit: dashboardBudgets.reduce((sum, budget) => sum + budget.monthly_limit, 0),

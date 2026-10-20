@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ScheduledTheme } from "@/components/scheduled-theme";
+import { Agentation } from "agentation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,6 +47,9 @@ export default function RootLayout({
           <ScheduledTheme />
           {children}
         </ThemeProvider>
+        {process.env.NODE_ENV === "development" && (
+          <Agentation endpoint="http://localhost:4747" />
+        )}
       </body>
     </html>
   );
