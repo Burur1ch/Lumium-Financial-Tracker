@@ -1,7 +1,8 @@
 "use client";
 
-import { CarFront, Eye, House, TrendingDown, TrendingUp, Utensils } from "lucide-react";
+import { CarFront, Eye, EyeOff, House, TrendingDown, TrendingUp, Utensils } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/store/prefs";
 
 interface BudgetCategory {
   name: string;
@@ -31,38 +32,68 @@ const LOCALES = {
   fr: "fr-FR",
 } as const;
 
-function buildPath(values: number[], width: number, height: number) {
-  if (values.length < 2) return `M 0 ${height / 2} L ${width} ${height / 2}`;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+function getChartPoints(values: number[], width: number, height: number) {
+  const normalized = values.length > 1 ? values : [0, 0];
+  const min = Math.min(...normalized);
+  const max = Math.max(...normalized);
   const range = max - min || 1;
-  return values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * width;
-      const y = height - ((value - min) / range) * (height - 10) - 5;
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+
+  return normalized.map((value, index) => ({
+    value,
+    x: (index / (normalized.length - 1)) * width,
+    y: height - ((value - min) / range) * (height - 12) - 6,
+  }));
+}
+
+function buildPath(values: number[], width: number, height: number) {
+  const points = getChartPoints(values, width, height);
+  if (points.length < 2) return `M 0 ${height / 2} L ${width} ${height / 2}`;
+  return points
+    .map((point, index) => {
+      return `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
     })
     .join(" ");
 }
 
-function TrendChart({ values }: { values: number[] }) {
-  const normalized = values.length > 1 ? values : [0, 0, 0, 0, 0, 0];
-  const splitIndex = Math.max(2, Math.floor(normalized.length * 0.35));
-  const first = normalized.slice(0, splitIndex);
-  const second = normalized.slice(splitIndex - 1);
+function TrendChart({ values, hidden }: { values: number[]; hidden: boolean }) {
+  const normalized = values.length > 1 ? values : [0, 0];
+  const points = getChartPoints(normalized, 148, 62);
 
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 156 62"
-      className="h-14 w-full overflow-visible"
+      viewBox="0 0 148 62"
+      className={`h-[4.25rem] w-full overflow-visible transition-opacity ${hidden ? "opacity-20" : "opacity-100"}`}
       preserveAspectRatio="none"
     >
-      <path d="M 0 48 H 156" stroke="currentColor" strokeDasharray="3 5" className="text-slate-300 dark:text-slate-700" />
-      <path d={buildPath(first, 54, 62)} fill="none" stroke="#ef4444" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <g transform="translate(52 0)">
-        <path d={buildPath(second, 104, 62)} fill="none" stroke="#20c982" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
+      <path d="M 0 52 H 148" stroke="currentColor" strokeDasharray="3 5" className="text-slate-300 dark:text-slate-700" />
+      {!hidden && (
+        <>
+          <path d={buildPath(normalized, 148, 62)} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300 dark:text-slate-700" />
+          {points.slice(1).map((point, index) => {
+            const previous = points[index];
+            const growing = point.value >= previous.value;
+            return (
+              <line
+                key={`${point.x}-${point.y}`}
+                x1={previous.x}
+                y1={previous.y}
+                x2={point.x}
+                y2={point.y}
+                stroke={growing ? "#20c982" : "#ef4444"}
+                strokeWidth="2.7"
+                strokeLinecap="round"
+              />
+            );
+          })}
+          <circle
+            cx={points.at(-1)?.x}
+            cy={points.at(-1)?.y}
+            r="2.8"
+            fill={normalized.at(-1)! >= normalized.at(-2)! ? "#20c982" : "#ef4444"}
+          />
+        </>
+      )}
     </svg>
   );
 }
@@ -78,36 +109,48 @@ export function MobileDashboardOverview({
   budget,
 }: MobileDashboardOverviewProps) {
   const { fmt, t, language, currencyRate } = useI18n();
+  const { balanceHidden, toggleBalanceHidden } = usePrefs();
   const locale = LOCALES[language];
   const month = new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date());
   const budgetPercent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
   const greenWidth = Math.min(budgetPercent, 55);
   const amberWidth = Math.max(budgetPercent - greenWidth, 0);
-  const compactMax = Math.max(...trend.map((value) => Math.abs(value)), Math.abs(balance), 0) * currencyRate;
-  const compactValue = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 }).format(compactMax);
+  const convertedTrend = (trend.length > 1 ? trend : [0, balance]).map((value) => value * currencyRate);
+  const compactFormatter = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 });
+  const compactMax = compactFormatter.format(Math.max(...convertedTrend, 0));
+  const compactMin = compactFormatter.format(Math.min(...convertedTrend, 0));
   const categoryIcons = [House, Utensils, CarFront];
 
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
       <div className="finance-panel px-4 py-3">
-        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(7rem,0.8fr)] items-center gap-3">
+        <div className="grid grid-cols-[minmax(0,1.12fr)_minmax(7.5rem,0.88fr)] items-center gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
               <span>{t("myBalance")}</span>
-              <Eye className="h-4 w-4 text-slate-400" strokeWidth={1.8} />
+              <button
+                type="button"
+                onClick={toggleBalanceHidden}
+                className="-m-2 flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:scale-95 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
+                aria-label={balanceHidden ? t("showBalance") : t("hideBalance")}
+                aria-pressed={balanceHidden}
+              >
+                {balanceHidden ? <EyeOff className="h-4 w-4" strokeWidth={1.8} /> : <Eye className="h-4 w-4" strokeWidth={1.8} />}
+              </button>
             </div>
-            <p className="mt-1 truncate text-[2rem] font-extrabold leading-none tracking-[-0.055em] text-slate-950 dark:text-white">
-              {fmt(balance)}
+            <p className="mt-1 whitespace-nowrap text-[clamp(1.55rem,7.2vw,2.15rem)] font-extrabold leading-none tracking-[-0.055em] text-slate-950 dark:text-white">
+              {balanceHidden ? "••••••" : fmt(balance)}
             </p>
             <div className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${balanceDelta >= 0 ? "text-emerald-500" : "text-red-500"}`}>
               {balanceDelta >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              <span>{balanceDelta >= 0 ? "+" : ""}{fmt(balanceDelta)}</span>
+              <span className="whitespace-nowrap">{balanceHidden ? "••••" : `${balanceDelta >= 0 ? "+" : ""}${fmt(balanceDelta)}`}</span>
               <span className="font-medium text-slate-400 dark:text-slate-500">{t("forThirtyDays")}</span>
             </div>
           </div>
-          <div className="relative min-w-0 pl-1">
-            <span className="absolute right-0 top-0 text-[10px] font-medium text-slate-400 dark:text-slate-500">{compactValue}</span>
-            <TrendChart values={trend} />
+          <div className="relative min-w-0 pr-8">
+            <span className="absolute right-0 top-0 text-[10px] font-medium tabular-nums text-slate-400 dark:text-slate-500">{balanceHidden ? "••" : compactMax}</span>
+            <span className="absolute bottom-1 right-0 text-[10px] font-medium tabular-nums text-slate-400 dark:text-slate-500">{balanceHidden ? "••" : compactMin}</span>
+            <TrendChart values={trend} hidden={balanceHidden} />
           </div>
         </div>
 
@@ -119,11 +162,11 @@ export function MobileDashboardOverview({
 
       <div className="finance-panel px-4 py-3">
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               {t("budgetFor")} {month}
             </p>
-            <p className="mt-1 text-lg font-extrabold tracking-[-0.025em] text-slate-950 dark:text-white">
+            <p className="mt-1 truncate text-[clamp(1rem,4.8vw,1.125rem)] font-extrabold tracking-[-0.025em] text-slate-950 dark:text-white">
               {fmt(budget.spent)} <span className="text-sm font-medium text-slate-500">{t("of")} {fmt(budget.limit)}</span>
             </p>
           </div>
@@ -187,7 +230,7 @@ function SummaryTile({
         </span>
         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{isIncome ? t("totalIncome") : t("totalExpenses")}</span>
       </div>
-      <p className="mt-1.5 truncate text-base font-extrabold tabular-nums text-slate-950 dark:text-white">{fmt(amount)}</p>
+      <p className="mt-1.5 truncate text-[clamp(0.82rem,4vw,1rem)] font-extrabold tabular-nums text-slate-950 dark:text-white">{fmt(amount)}</p>
       <p className={`mt-1 text-[10px] font-semibold ${favorable ? "text-emerald-500" : "text-red-500"}`}>
         {change === null ? t("noDataShort") : `${change >= 0 ? "+" : ""}${change}%`} <span className="font-medium text-slate-400 dark:text-slate-500">{t("vsPreviousMonth")}</span>
       </p>

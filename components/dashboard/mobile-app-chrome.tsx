@@ -105,33 +105,45 @@ export function MobileAppChrome() {
       <header className="mobile-topbar lg:hidden">
         <Link
           href="/dashboard"
-          className="flex min-h-11 items-center rounded-xl pr-2 active:scale-[0.98]"
+          className="mobile-topbar-brand min-w-0 rounded-xl active:scale-[0.98]"
           aria-label={t("home")}
         >
-          <BrandLogo />
+          <BrandLogo
+            showMark={false}
+            className="min-w-0"
+            wordmarkClassName="text-[1.45rem] font-extrabold"
+          />
         </Link>
 
-        <div className="ml-auto flex items-center gap-0.5">
-          {isHome && (
-            <button
-              type="button"
-              onClick={() => {
-                setPeriodOpen(true);
-                setNotificationsOpen(false);
-                setMoreOpen(false);
-              }}
-              className="mr-1 flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-sm font-semibold capitalize text-slate-700 hover:bg-slate-100 active:scale-[0.98] dark:text-slate-200 dark:hover:bg-white/[0.06]"
-              aria-haspopup="dialog"
-              aria-expanded={periodOpen}
-              aria-controls="period-sheet"
-            >
-              {monthLabel}
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${periodOpen ? "rotate-180" : ""}`}
-                strokeWidth={2}
-              />
-            </button>
-          )}
+        {isHome && (
+          <button
+            type="button"
+            onClick={() => {
+              setPeriodOpen(true);
+              setNotificationsOpen(false);
+              setMoreOpen(false);
+            }}
+            className="mobile-topbar-period"
+            aria-haspopup="dialog"
+            aria-expanded={periodOpen}
+            aria-controls="period-sheet"
+          >
+            <span className="truncate">{monthLabel}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${periodOpen ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
+        )}
+
+        <div className="mobile-topbar-actions">
+          <Link
+            href="/dashboard/settings"
+            className="flex h-10 w-10 items-center justify-center rounded-full active:scale-[0.96]"
+            aria-label={t("settings")}
+          >
+            <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -139,26 +151,19 @@ export function MobileAppChrome() {
               setPeriodOpen(false);
               setMoreOpen(false);
             }}
-            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-300 dark:hover:bg-white/[0.06]"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-200 dark:hover:bg-white/[0.06]"
             aria-label={t("notifications")}
             aria-haspopup="dialog"
             aria-expanded={notificationsOpen}
             aria-controls="notifications-sheet"
           >
-            <Bell className="h-5 w-5" strokeWidth={1.8} />
+            <Bell className="h-[1.35rem] w-[1.35rem]" strokeWidth={1.9} />
             {unreadCount > 0 && (
-              <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+              <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white ring-2 ring-[var(--app-canvas)]">
                 {Math.min(unreadCount, 9)}
               </span>
             )}
           </button>
-          <Link
-            href="/dashboard/settings"
-            className="flex h-11 w-11 items-center justify-center rounded-xl active:scale-[0.96]"
-            aria-label={t("settings")}
-          >
-            <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
-          </Link>
         </div>
       </header>
 

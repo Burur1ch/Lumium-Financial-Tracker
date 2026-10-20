@@ -321,7 +321,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           <span className={`${mobile ? "text-xs" : "text-sm"} block truncate font-semibold text-slate-900 dark:text-slate-100`}>
             {preset.name}
           </span>
-          <span className={`mt-0.5 block text-xs font-bold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>
+          <span className={`mt-0.5 block max-w-full truncate text-[11px] font-bold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>
             {preset.type === "income" ? "+" : ""}
             <Money amount={preset.amount} decimals />
           </span>
@@ -364,7 +364,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
             <p className="mb-2.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
               {t("starterExpensesHint")}
             </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-3 sm:grid-cols-6">
               {STARTER_EXPENSES.map((starter) => {
                 const Icon = getIcon(starter.icon);
                 return (
@@ -395,7 +395,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 sm:hidden">
+            <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-3 sm:hidden">
               {presets.slice(0, 5).map((preset) => renderPreset(preset, true))}
               {presets.length < 8 && (
                 <button
