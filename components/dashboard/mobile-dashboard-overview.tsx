@@ -11,6 +11,7 @@ interface BudgetCategory {
 }
 
 interface MobileDashboardOverviewProps {
+  month: string;
   balance: number;
   balanceDelta: number;
   income: number;
@@ -99,6 +100,7 @@ function TrendChart({ values, hidden }: { values: number[]; hidden: boolean }) {
 }
 
 export function MobileDashboardOverview({
+  month,
   balance,
   balanceDelta,
   income,
@@ -111,7 +113,11 @@ export function MobileDashboardOverview({
   const { fmt, t, language, currencyRate } = useI18n();
   const { balanceHidden, toggleBalanceHidden } = usePrefs();
   const locale = LOCALES[language];
-  const month = new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date());
+  const [monthYear, monthNumber] = month.split("-").map(Number);
+  const monthLabel = new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: monthYear === new Date().getFullYear() ? undefined : "numeric",
+  }).format(new Date(monthYear, monthNumber - 1, 1, 12));
   const budgetPercent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
   const greenWidth = Math.min(budgetPercent, 55);
   const amberWidth = Math.max(budgetPercent - greenWidth, 0);
@@ -144,7 +150,7 @@ export function MobileDashboardOverview({
             <div className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${balanceDelta >= 0 ? "text-emerald-500" : "text-red-500"}`}>
               {balanceDelta >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               <span className="whitespace-nowrap">{balanceHidden ? "••••" : `${balanceDelta >= 0 ? "+" : ""}${fmt(balanceDelta)}`}</span>
-              <span className="font-medium text-slate-400 dark:text-slate-500">{t("forThirtyDays")}</span>
+              <span className="font-medium text-slate-400 dark:text-slate-500">{t("vsPreviousMonth")}</span>
             </div>
           </div>
           <div className="relative min-w-0 pr-8">
@@ -164,7 +170,7 @@ export function MobileDashboardOverview({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {t("budgetFor")} {month}
+              {t("budgetFor")} {monthLabel}
             </p>
             <p className="mt-1 truncate text-[clamp(1rem,4.8vw,1.125rem)] font-extrabold tracking-[-0.025em] text-slate-950 dark:text-white">
               {fmt(budget.spent)} <span className="text-sm font-medium text-slate-500">{t("of")} {fmt(budget.limit)}</span>

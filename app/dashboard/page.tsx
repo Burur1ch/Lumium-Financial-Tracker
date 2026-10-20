@@ -14,106 +14,35 @@ import ExpenseChart from "@/components/dashboard/expense-chart";
 import CategoryChart from "@/components/dashboard/category-chart";
 import TransactionsTable from "@/components/dashboard/transactions-table";
 import { AddTransactionButton } from "@/components/dashboard/add-transaction-button";
-import PeriodSelector from "@/components/dashboard/period-selector";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Suspense } from "react";
 import { getBudgetsWithProgress } from "./actions";
 import { MobileDashboardOverview } from "@/components/dashboard/mobile-dashboard-overview";
+import { MonthSelector } from "@/components/dashboard/month-selector";
 
-type Period = "7d" | "30d" | "3m" | "1y" | "all";
+const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
-function getPeriodStart(period: Period): string | null {
+function getMonthKey(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthRange(rawMonth?: string) {
   const now = new Date();
-  switch (period) {
-    case "7d": {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 7);
-      return d.toISOString();
-    }
-    case "30d": {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 30);
-      return d.toISOString();
-    }
-    case "3m": {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - 3);
-      return d.toISOString();
-    }
-    case "1y": {
-      const d = new Date(now);
-      d.setFullYear(d.getFullYear() - 1);
-      return d.toISOString();
-    }
-    case "all":
-      return null;
-  }
-}
+  const fallback = getMonthKey(now);
+  const match = MONTH_PATTERN.exec(rawMonth ?? fallback);
+  const year = match ? Number(match[1]) : now.getUTCFullYear();
+  const monthIndex = match ? Number(match[2]) - 1 : now.getUTCMonth();
+  const start = new Date(Date.UTC(year, monthIndex, 1));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 1));
+  const previousStart = new Date(Date.UTC(year, monthIndex - 1, 1));
 
-function getPrevPeriodRange(
-  period: Period,
-): { start: string; end: string } | null {
-  if (period === "all") return null;
-  const now = new Date();
-  const end = getPeriodStart(period)!; // start of current = end of prev
-  let start: Date;
-  switch (period) {
-    case "7d":
-      start = new Date(end);
-      start.setDate(start.getDate() - 7);
-      break;
-    case "30d":
-      start = new Date(end);
-      start.setDate(start.getDate() - 30);
-      break;
-    case "3m":
-      start = new Date(end);
-      start.setMonth(start.getMonth() - 3);
-      break;
-    case "1y":
-      start = new Date(end);
-      start.setFullYear(start.getFullYear() - 1);
-      break;
-    default:
-      return null;
-  }
-  void now;
-  return { start: start.toISOString(), end };
-}
-
-function getPeriodKey(
-  period: Period,
-): "last7days" | "last30days" | "last3months" | "lastYear" | "allTime" {
-  switch (period) {
-    case "7d":
-      return "last7days";
-    case "30d":
-      return "last30days";
-    case "3m":
-      return "last3months";
-    case "1y":
-      return "lastYear";
-    case "all":
-      return "allTime";
-  }
-}
-
-function getChangeLabelKey(
-  period: Period,
-): "vsPrev7d" | "vsPrev30d" | "vsPrev3m" | "vsPrevYear" | "allTime" {
-  switch (period) {
-    case "7d":
-      return "vsPrev7d";
-    case "30d":
-      return "vsPrev30d";
-    case "3m":
-      return "vsPrev3m";
-    case "1y":
-      return "vsPrevYear";
-    case "all":
-      return "allTime";
-  }
+  return {
+    key: getMonthKey(start),
+    start,
+    end,
+    previousStart,
+  };
 }
 
 function calcChange(current: number, prev: number): number | null {
@@ -121,36 +50,15 @@ function calcChange(current: number, prev: number): number | null {
   return Math.round(((current - prev) / prev) * 100);
 }
 
-// Group by day for 7d/30d, by week for 3m, by month for 1y/all
-function getGroupLabel(dateStr: string, period: Period): string {
-  const date = new Date(dateStr);
-  if (period === "7d" || period === "30d") {
-    return date.toISOString().slice(0, 10);
-  }
-  if (period === "3m") {
-    // ISO week start (Monday)
-    const d = new Date(date);
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d.toISOString().slice(0, 10);
-  }
-  // 1y / all → month
-  return `${date.toISOString().slice(0, 7)}-01`;
-}
-
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ month?: string }>;
 }) {
-  const { period: rawPeriod } = await searchParams;
-  const period: Period = (
-    ["7d", "30d", "3m", "1y", "all"].includes(rawPeriod ?? "")
-      ? rawPeriod
-      : "30d"
-  ) as Period;
-  const periodStart = getPeriodStart(period);
-  const periodKey = getPeriodKey(period);
-  const changeLabelKey = getChangeLabelKey(period);
+  const { month: rawMonth } = await searchParams;
+  const monthRange = getMonthRange(rawMonth);
+  const periodKey = "monthly" as const;
+  const changeLabelKey = "vsPreviousMonth" as const;
 
   const session = await auth.api.getSession({ headers: await headers() });
   const user = session?.user;
@@ -194,8 +102,6 @@ export default async function DashboardPage({
     "#8B5CF6",
     "#EC4899",
   ];
-  const prevRange = getPrevPeriodRange(period);
-
   if (user) {
     const owner = eq(transactions.user_id, user.id);
     const [
@@ -216,27 +122,24 @@ export default async function DashboardPage({
         .from(transactions)
         .leftJoin(categories, eq(transactions.category_id, categories.id))
         .where(
-          periodStart
-            ? and(
-                owner,
-                eq(transactions.status, "completed"),
-                gte(transactions.date, new Date(periodStart)),
-              )
-            : and(owner, eq(transactions.status, "completed")),
+          and(
+            owner,
+            eq(transactions.status, "completed"),
+            gte(transactions.date, monthRange.start),
+            lt(transactions.date, monthRange.end),
+          ),
         ),
-      prevRange
-        ? db
-            .select({ amount: transactions.amount, type: transactions.type })
-            .from(transactions)
-            .where(
-              and(
-                owner,
-                eq(transactions.status, "completed"),
-                gte(transactions.date, new Date(prevRange.start)),
-                lt(transactions.date, new Date(prevRange.end)),
-              ),
-            )
-        : Promise.resolve([]),
+      db
+        .select({ amount: transactions.amount, type: transactions.type })
+        .from(transactions)
+        .where(
+          and(
+            owner,
+            eq(transactions.status, "completed"),
+            gte(transactions.date, monthRange.previousStart),
+            lt(transactions.date, monthRange.start),
+          ),
+        ),
       db
         .select({
           id: transactions.id,
@@ -253,7 +156,13 @@ export default async function DashboardPage({
         })
         .from(transactions)
         .leftJoin(categories, eq(transactions.category_id, categories.id))
-        .where(owner)
+        .where(
+          and(
+            owner,
+            gte(transactions.date, monthRange.start),
+            lt(transactions.date, monthRange.end),
+          ),
+        )
         .orderBy(desc(transactions.date))
         .limit(20),
       db
@@ -288,7 +197,7 @@ export default async function DashboardPage({
         .from(categories)
         .where(eq(categories.user_id, user.id))
         .orderBy(asc(categories.name)),
-      getBudgetsWithProgress(),
+      getBudgetsWithProgress(monthRange.key),
     ]);
 
     dashboardBudgets = budgetData.map((budget) => ({
@@ -328,7 +237,7 @@ export default async function DashboardPage({
     if (txAll) {
       txAll.forEach((tx, idx) => {
         const amount = Number(tx.amount);
-        const groupKey = getGroupLabel(tx.date.toISOString(), period);
+        const groupKey = tx.date.toISOString().slice(0, 10);
 
         if (!chartDataMap[groupKey])
           chartDataMap[groupKey] = { income: 0, expense: 0 };
@@ -387,6 +296,7 @@ export default async function DashboardPage({
     <>
       <div className="mobile-finance-page mx-auto w-full max-w-lg space-y-5 px-4 py-3 lg:hidden">
         <MobileDashboardOverview
+          month={monthRange.key}
           balance={totalIncome - totalExpenses}
           balanceDelta={(totalIncome - totalExpenses) - (prevIncome - prevExpenses)}
           income={totalIncome}
@@ -409,7 +319,7 @@ export default async function DashboardPage({
         <DashboardHeader />
         <div className="flex items-center gap-3">
           <Suspense>
-            <PeriodSelector />
+            <MonthSelector variant="stepper" />
           </Suspense>
           <AddTransactionButton />
         </div>
@@ -441,12 +351,6 @@ export default async function DashboardPage({
       </div>
 
       <QuickActions presets={quickPresets} categories={quickCategories} />
-
-      <div className="overflow-x-auto pb-1 lg:hidden">
-        <Suspense>
-          <PeriodSelector />
-        </Suspense>
-      </div>
 
       {/* Графики */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">

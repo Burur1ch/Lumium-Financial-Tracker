@@ -95,6 +95,12 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   const router = useRouter();
   const { t } = useI18n();
   const { currency, exchangeRates } = usePrefs();
+  const [presetOverrides, setPresetOverrides] = useState<
+    Record<string, QuickPreset>
+  >({});
+  const [deletedPresetIds, setDeletedPresetIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [pendingPresetId, setPendingPresetId] = useState<string | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
   const [formMode, setFormMode] = useState<"list" | "create" | "edit">(
@@ -244,6 +250,31 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         return;
       }
 
+      if (editingPreset) {
+        const rate = exchangeRates[currency] ?? 1;
+        const normalizedAmount = Number(amount) / rate;
+        const selectedCategory = categories.find(
+          (category) => category.id === selectedCategoryId,
+        );
+        setPresetOverrides((current) => ({
+          ...current,
+          [editingPreset.id]: {
+            ...editingPreset,
+            name: name.trim(),
+            amount: normalizedAmount,
+            type: selectedType,
+            icon: selectedIcon,
+            category: selectedCategory
+              ? {
+                  id: selectedCategory.id,
+                  name: selectedCategory.name,
+                  color: selectedCategory.color,
+                }
+              : null,
+          },
+        }));
+      }
+
       resetForm();
       setFormMode("list");
       setManagerOpen(false);
@@ -265,6 +296,11 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         setError(t("genericError"));
         return;
       }
+      setDeletedPresetIds((current) => {
+        const next = new Set(current);
+        next.add(preset.id);
+        return next;
+      });
       router.refresh();
     } catch {
       setError(t("genericError"));
@@ -295,6 +331,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   const filteredCategories = categories.filter(
     (category) => category.type === selectedType,
   );
+  const visiblePresets = presets
+    .filter((preset) => !deletedPresetIds.has(preset.id))
+    .map((preset) => presetOverrides[preset.id] ?? preset);
   const currencySymbol = CURRENCY_SYMBOLS[currency] ?? currency;
   const renderPreset = (preset: QuickPreset, mobile = false) => {
     const Icon = getIcon(preset.icon);
@@ -343,7 +382,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
               {t("quickActionsSubtitle")}
             </p>
           </div>
-          {presets.length > 0 && (
+          {visiblePresets.length > 0 && (
             <button
               type="button"
               onClick={() => {
@@ -359,7 +398,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           )}
         </div>
 
-        {presets.length === 0 ? (
+        {visiblePresets.length === 0 ? (
           <div>
             <p className="mb-2.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
               {t("starterExpensesHint")}
@@ -396,8 +435,8 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-3 sm:hidden">
-              {presets.slice(0, 5).map((preset) => renderPreset(preset, true))}
-              {presets.length < 8 && (
+              {visiblePresets.slice(0, 5).map((preset) => renderPreset(preset, true))}
+              {visiblePresets.length < 8 && (
                 <button
                   type="button"
                   onClick={openCreate}
@@ -412,8 +451,8 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
             </div>
 
             <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
-              {presets.map((preset) => renderPreset(preset))}
-              {presets.length < 8 && (
+              {visiblePresets.map((preset) => renderPreset(preset))}
+              {visiblePresets.length < 8 && (
                 <button type="button" onClick={openCreate} className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400">
                   <Plus className="h-4 w-4" />
                   {t("addQuickAction")}
@@ -480,7 +519,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     {error}
                   </p>
                 )}
-                {presets.map((preset) => {
+                {visiblePresets.map((preset) => {
                   const Icon = getIcon(preset.icon);
                   return (
                     <div
@@ -525,7 +564,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     </div>
                   );
                 })}
-                {presets.length < 8 && (
+                {visiblePresets.length < 8 && (
                   <button
                     type="button"
                     onClick={openCreate}

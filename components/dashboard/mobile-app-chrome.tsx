@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -25,7 +25,12 @@ import { useI18n } from "@/hooks/useI18n";
 import { useNotifStore, usePrefs } from "@/store/prefs";
 import { UserAvatar } from "@/components/user-avatar";
 import { BrandLogo } from "@/components/brand-logo";
-import PeriodSelector from "@/components/dashboard/period-selector";
+import {
+  getCurrentMonthKey,
+  isValidMonthKey,
+  monthKeyToDate,
+  MonthSelector,
+} from "@/components/dashboard/month-selector";
 
 const moreItems = [
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
@@ -39,12 +44,13 @@ const moreItems = [
 
 export function MobileAppChrome() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const { avatarColor, avatarIcon, language } = usePrefs();
   const { notifications, markAllRead, markRead } = useNotifStore();
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [periodOpen, setPeriodOpen] = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
   const unreadCount = notifications.filter((item) => item.unread).length;
   const isHome = pathname === "/dashboard";
   const monthLocale = {
@@ -53,19 +59,26 @@ export function MobileAppChrome() {
     de: "de-DE",
     fr: "fr-FR",
   }[language];
+  const rawMonth = searchParams.get("month");
+  const selectedMonth = isValidMonthKey(rawMonth)
+    ? rawMonth
+    : getCurrentMonthKey();
+  const selectedMonthDate = monthKeyToDate(selectedMonth);
+  const currentYear = new Date().getFullYear();
   const monthLabel = new Intl.DateTimeFormat(monthLocale, {
     month: "long",
-  }).format(new Date());
+    year: selectedMonthDate.getFullYear() === currentYear ? undefined : "numeric",
+  }).format(selectedMonthDate);
 
   useEffect(() => {
-    if (!moreOpen && !notificationsOpen && !periodOpen) return;
+    if (!moreOpen && !notificationsOpen && !monthOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMoreOpen(false);
         setNotificationsOpen(false);
-        setPeriodOpen(false);
+        setMonthOpen(false);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -73,7 +86,7 @@ export function MobileAppChrome() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [moreOpen, notificationsOpen, periodOpen]);
+  }, [moreOpen, notificationsOpen, monthOpen]);
 
   const openAddTransaction = () => {
     window.dispatchEvent(new Event("lumium:open-add-transaction"));
@@ -119,18 +132,18 @@ export function MobileAppChrome() {
           <button
             type="button"
             onClick={() => {
-              setPeriodOpen(true);
+              setMonthOpen(true);
               setNotificationsOpen(false);
               setMoreOpen(false);
             }}
             className="mobile-topbar-period"
             aria-haspopup="dialog"
-            aria-expanded={periodOpen}
-            aria-controls="period-sheet"
+            aria-expanded={monthOpen}
+            aria-controls="month-sheet"
           >
             <span className="truncate">{monthLabel}</span>
             <ChevronDown
-              className={`h-3.5 w-3.5 shrink-0 transition-transform ${periodOpen ? "rotate-180" : ""}`}
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${monthOpen ? "rotate-180" : ""}`}
               strokeWidth={2}
             />
           </button>
@@ -148,7 +161,7 @@ export function MobileAppChrome() {
             type="button"
             onClick={() => {
               setNotificationsOpen(true);
-              setPeriodOpen(false);
+              setMonthOpen(false);
               setMoreOpen(false);
             }}
             className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-200 dark:hover:bg-white/[0.06]"
@@ -192,7 +205,7 @@ export function MobileAppChrome() {
           type="button"
           onClick={() => {
             setMoreOpen(true);
-            setPeriodOpen(false);
+            setMonthOpen(false);
             setNotificationsOpen(false);
           }}
           className={`mobile-nav-item ${moreOpen || moreItems.some((item) => pathname.startsWith(item.href)) ? "is-active" : ""}`}
@@ -240,29 +253,27 @@ export function MobileAppChrome() {
         </div>
       )}
 
-      {periodOpen && isHome && (
-        <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setPeriodOpen(false)}>
+      {monthOpen && isHome && (
+        <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setMonthOpen(false)}>
           <section
-            id="period-sheet"
+            id="month-sheet"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="period-sheet-title"
+            aria-labelledby="month-sheet-title"
             className="mobile-sheet"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="mobile-sheet-handle" />
             <div className="flex items-center justify-between px-5 pb-3 pt-1">
-              <h2 id="period-sheet-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
-                {t("selectPeriod")}
+              <h2 id="month-sheet-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
+                {t("selectMonth")}
               </h2>
-              <button type="button" className="icon-button" onClick={() => setPeriodOpen(false)} aria-label={t("close")}>
+              <button type="button" className="icon-button" onClick={() => setMonthOpen(false)} aria-label={t("close")}>
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-x-auto px-4 pb-5">
-              <Suspense>
-                <PeriodSelector onSelect={() => setPeriodOpen(false)} />
-              </Suspense>
+            <div className="px-4 pb-5">
+              <MonthSelector onSelect={() => setMonthOpen(false)} />
             </div>
           </section>
         </div>
