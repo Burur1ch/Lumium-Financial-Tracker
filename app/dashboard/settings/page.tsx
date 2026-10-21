@@ -36,6 +36,7 @@ import {
   UserAvatar,
   AVATAR_COLORS,
   AVATAR_ICONS,
+  PROFILE_AVATARS,
 } from "@/components/user-avatar";
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -137,6 +138,7 @@ export default function SettingsPage() {
     setDateFormat,
     setAvatarColor,
     setAvatarIcon,
+    setAvatarPreset,
   } = usePrefs();
 
   const [mounted, setMounted] = useState(false);
@@ -166,6 +168,9 @@ export default function SettingsPage() {
   const [pendingIcon, setPendingIcon] = useState(
     () => usePrefs.getState().avatarIcon,
   );
+  const [pendingAvatarPreset, setPendingAvatarPreset] = useState(
+    () => usePrefs.getState().avatarPreset,
+  );
   const activePlan = getPlan(plan);
 
   useEffect(() => {
@@ -185,6 +190,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setAvatarColor(pendingColor);
     setAvatarIcon(pendingIcon);
+    setAvatarPreset(pendingAvatarPreset);
     startTransition(async () => {
       const fd = new FormData();
       fd.append("name", name);
@@ -274,32 +280,72 @@ export default function SettingsPage() {
               <UserAvatar
                 color={pendingColor}
                 iconKey={pendingIcon}
+                imageKey={pendingAvatarPreset}
                 size="lg"
               />
               <div>
                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  Profile avatar
+                  {t("profileAvatar")}
                 </p>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  Choose a color and icon
+                  {t("chooseAvatar")}
                 </p>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                {t("generatedAvatars")}
+              </p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {PROFILE_AVATARS.map((avatar) => (
+                  <button
+                    key={avatar.key}
+                    type="button"
+                    onClick={() => setPendingAvatarPreset(avatar.key)}
+                    className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-transform hover:scale-[1.04] ${
+                      pendingAvatarPreset === avatar.key
+                        ? "border-red-500 ring-2 ring-red-500/20"
+                        : "border-transparent"
+                    }`}
+                    aria-label={`${t("selectAvatar")} ${avatar.key.slice(-2)}`}
+                  >
+                    <UserAvatar
+                      color={pendingColor}
+                      iconKey={pendingIcon}
+                      imageKey={avatar.key}
+                      size="lg"
+                      className="h-full w-full"
+                    />
+                    {pendingAvatarPreset === avatar.key && (
+                      <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow-sm">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
             {/* Color swatches */}
             <div>
               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Color
+                {t("avatarColor")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {AVATAR_COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setPendingColor(c)}
+                    onClick={() => {
+                      setPendingColor(c);
+                      setPendingAvatarPreset("classic");
+                    }}
                     className="w-7 h-7 rounded-full transition-transform hover:scale-110"
                     style={{
                       backgroundColor: c,
-                      outline: pendingColor === c ? `3px solid ${c}` : "none",
+                      outline:
+                        pendingAvatarPreset === "classic" && pendingColor === c
+                          ? `3px solid ${c}`
+                          : "none",
                       outlineOffset: "2px",
                     }}
                   />
@@ -309,21 +355,24 @@ export default function SettingsPage() {
             {/* Icon grid */}
             <div>
               <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Icon
+                {t("classicIcons")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {AVATAR_ICONS.map(({ key, icon: Icon }) => (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setPendingIcon(key)}
+                    onClick={() => {
+                      setPendingIcon(key);
+                      setPendingAvatarPreset("classic");
+                    }}
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                      pendingIcon === key
+                      pendingAvatarPreset === "classic" && pendingIcon === key
                         ? "text-white"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                     style={
-                      pendingIcon === key
+                      pendingAvatarPreset === "classic" && pendingIcon === key
                         ? { backgroundColor: pendingColor }
                         : {}
                     }

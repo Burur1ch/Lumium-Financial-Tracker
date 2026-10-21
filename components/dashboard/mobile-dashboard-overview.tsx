@@ -1,12 +1,14 @@
 "use client";
 
-import { CarFront, Eye, EyeOff, House, TrendingDown, TrendingUp, Utensils } from "lucide-react";
+import { Eye, EyeOff, Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface BudgetCategory {
   name: string;
   color: string;
+  icon?: string | null;
   limit: number;
 }
 
@@ -125,7 +127,6 @@ export function MobileDashboardOverview({
   const compactFormatter = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 });
   const compactMax = compactFormatter.format(Math.max(...convertedTrend, 0));
   const compactMin = compactFormatter.format(Math.min(...convertedTrend, 0));
-  const categoryIcons = [House, Utensils, CarFront];
 
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
@@ -189,15 +190,21 @@ export function MobileDashboardOverview({
         {budget.categories.length > 0 ? (
           <div className="mt-2.5 grid grid-cols-3 gap-2">
             {budget.categories.slice(0, 3).map((category, index) => {
-              const Icon = categoryIcons[index] ?? House;
               return (
                 <div key={`${category.name}-${index}`} className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: `${category.color}22`, color: category.color }}
-                  >
-                    <Icon className="h-4 w-4" strokeWidth={2.1} />
-                  </span>
+                  <CategoryArtwork
+                    icon={category.icon}
+                    name={category.name}
+                    className="h-7 w-7 rounded-lg"
+                    fallback={
+                      <span
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                        style={{ backgroundColor: `${category.color}22`, color: category.color }}
+                      >
+                        <Wallet className="h-4 w-4" strokeWidth={2.1} />
+                      </span>
+                    }
+                  />
                   <span className="min-w-0">
                     <span className="block truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">{category.name}</span>
                     <strong className="block truncate text-xs text-slate-800 dark:text-slate-100">{fmt(category.limit)}</strong>

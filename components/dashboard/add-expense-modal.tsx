@@ -16,12 +16,14 @@ import {
 import { createTransaction, createCategory } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface Category {
   id: string;
   name: string;
   type: "expense" | "income";
   color?: string;
+  icon?: string | null;
 }
 
 interface AddExpenseModalProps {
@@ -487,12 +489,16 @@ export default function AddExpenseModal({
                           <span className="flex items-center gap-2">
                             {selectedCat ? (
                               <>
-                                <span
-                                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                                  style={{
-                                    backgroundColor:
-                                      selectedCat.color ?? "#94a3b8",
-                                  }}
+                                <CategoryArtwork
+                                  icon={selectedCat.icon}
+                                  name={selectedCat.name}
+                                  className="h-7 w-7 rounded-lg"
+                                  fallback={
+                                    <span
+                                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                      style={{ backgroundColor: selectedCat.color ?? "#94a3b8" }}
+                                    />
+                                  }
                                 />
                                 <span className="text-slate-800 dark:text-slate-200 font-medium">
                                   {selectedCat.name}
@@ -543,11 +549,16 @@ export default function AddExpenseModal({
                               className={`flex min-h-11 w-full items-center justify-between gap-2 px-3.5 py-2.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${selectedCategoryId === cat.id ? "text-red-500 font-semibold" : "text-slate-700 dark:text-slate-300"}`}
                             >
                               <span className="flex items-center gap-2">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                                  style={{
-                                    backgroundColor: cat.color ?? "#94a3b8",
-                                  }}
+                                <CategoryArtwork
+                                  icon={cat.icon}
+                                  name={cat.name}
+                                  className="h-7 w-7 rounded-lg"
+                                  fallback={
+                                    <span
+                                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                      style={{ backgroundColor: cat.color ?? "#94a3b8" }}
+                                    />
+                                  }
                                 />
                                 {cat.name}
                               </span>

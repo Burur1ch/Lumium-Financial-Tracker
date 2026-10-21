@@ -87,6 +87,7 @@ interface PrefsState {
   dateFormat: DateFormat;
   avatarColor: string;
   avatarIcon: string;
+  avatarPreset: string | null;
   balanceHidden: boolean;
   exchangeRates: Record<Currency, number>;
   exchangeRateSource: "nbrb" | "fallback";
@@ -97,6 +98,7 @@ interface PrefsState {
   setDateFormat: (d: DateFormat) => void;
   setAvatarColor: (c: string) => void;
   setAvatarIcon: (i: string) => void;
+  setAvatarPreset: (preset: string | null) => void;
   toggleBalanceHidden: () => void;
   setExchangeRates: (
     rates: Partial<Record<Currency, number>>,
@@ -114,6 +116,7 @@ export const usePrefs = create<PrefsState>()(
       dateFormat: "MMM D, YYYY",
       avatarColor: "#EF4444",
       avatarIcon: "User",
+      avatarPreset: null,
       balanceHidden: false,
       exchangeRates: { ...RATES },
       exchangeRateSource: "fallback",
@@ -124,6 +127,7 @@ export const usePrefs = create<PrefsState>()(
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setAvatarColor: (avatarColor) => set({ avatarColor }),
       setAvatarIcon: (avatarIcon) => set({ avatarIcon }),
+      setAvatarPreset: (avatarPreset) => set({ avatarPreset }),
       toggleBalanceHidden: () =>
         set((state) => ({ balanceHidden: !state.balanceHidden })),
       setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>

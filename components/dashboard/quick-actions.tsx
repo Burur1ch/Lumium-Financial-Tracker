@@ -32,6 +32,7 @@ import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import type { TranslationKey } from "@/store/translations";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 export interface QuickPreset {
   id: string;
@@ -39,7 +40,7 @@ export interface QuickPreset {
   amount: number;
   type: "expense" | "income";
   icon: string;
-  category: { id: string; name: string; color: string } | null;
+  category: { id: string; name: string; color: string; icon?: string | null } | null;
 }
 
 interface QuickCategory {
@@ -47,6 +48,7 @@ interface QuickCategory {
   name: string;
   type: "expense" | "income";
   color: string;
+  icon?: string | null;
 }
 
 interface QuickActionsProps {
@@ -269,6 +271,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                   id: selectedCategory.id,
                   name: selectedCategory.name,
                   color: selectedCategory.color,
+                  icon: selectedCategory.icon,
                 }
               : null,
           },
@@ -346,16 +349,28 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         onClick={() => void handleQuickAdd(preset)}
         className={`flex items-center gap-2.5 border text-left active:scale-[0.98] disabled:opacity-60 ${mobile ? "min-h-[4.15rem] min-w-0 rounded-xl border-slate-200/80 bg-white/80 px-2.5 dark:border-white/[0.055] dark:bg-white/[0.035]" : "min-h-16 min-w-36 rounded-2xl border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950"}`}
       >
-        <span
-          className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
-          style={{ backgroundColor: preset.category?.color || "#ef4444" }}
-        >
-          {pending ? (
+        {pending ? (
+          <span
+            className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
+            style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+          >
             <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Icon className="h-5 w-5" strokeWidth={2} />
-          )}
-        </span>
+          </span>
+        ) : (
+          <CategoryArtwork
+            icon={preset.category?.icon}
+            name={preset.category?.name}
+            className={`${mobile ? "h-9 w-9" : "h-10 w-10"} rounded-xl`}
+            fallback={
+              <span
+                className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
+                style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+              >
+                <Icon className="h-5 w-5" strokeWidth={2} />
+              </span>
+            }
+          />
+        )}
         <span className="min-w-0">
           <span className={`${mobile ? "text-xs" : "text-sm"} block truncate font-semibold text-slate-900 dark:text-slate-100`}>
             {preset.name}
@@ -526,12 +541,19 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                       key={preset.id}
                       className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 px-3 dark:border-slate-800"
                     >
-                      <span
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                        style={{ backgroundColor: preset.category?.color || "#ef4444" }}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
+                      <CategoryArtwork
+                        icon={preset.category?.icon}
+                        name={preset.category?.name}
+                        className="h-10 w-10 rounded-xl"
+                        fallback={
+                          <span
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+                            style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </span>
+                        }
+                      />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">
                           {preset.name}

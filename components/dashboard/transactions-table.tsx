@@ -6,6 +6,7 @@ import { ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { TransactionDetailSheet } from "@/components/dashboard/transaction-detail-sheet";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 import {
   getPlanHistoryDays,
   isWithinHistoryLimit,
@@ -14,6 +15,7 @@ import {
 interface CategorySummary {
   name: string;
   color: string;
+  icon?: string | null;
 }
 
 export interface Transaction {
@@ -43,6 +45,7 @@ interface TransactionsTableProps {
     id: string;
     name: string;
     color: string;
+    icon?: string | null;
     type: "expense" | "income";
   }>;
 }
@@ -57,13 +60,25 @@ export default function TransactionsTable({
 }: TransactionsTableProps) {
   const { fmt, fmtDate, t, language } = useI18n();
   const { plan } = usePrefs();
+  const [transactionOverrides, setTransactionOverrides] = React.useState<
+    Record<string, Transaction>
+  >({});
+  const displayedTransactions = React.useMemo(
+    () =>
+      transactions.map(
+        (transaction) => transactionOverrides[transaction.id] ?? transaction,
+      ),
+    [transactionOverrides, transactions],
+  );
   const historyDays = getPlanHistoryDays(plan);
   const limitedTransactions = React.useMemo(
     () =>
-      transactions.filter((tx) => isWithinHistoryLimit(tx.date, historyDays)),
-    [historyDays, transactions],
+      displayedTransactions.filter((tx) =>
+        isWithinHistoryLimit(tx.date, historyDays),
+      ),
+    [displayedTransactions, historyDays],
   );
-  const hiddenCount = transactions.length - limitedTransactions.length;
+  const hiddenCount = displayedTransactions.length - limitedTransactions.length;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_COUNT);
   const [selectedTransaction, setSelectedTransaction] =
     React.useState<Transaction | null>(null);
@@ -116,12 +131,19 @@ export default function TransactionsTable({
             onClick={() => setSelectedTransaction(tx)}
             className="flex min-h-[4.35rem] w-full items-center gap-3 border-b border-slate-200/70 px-3 text-left last:border-b-0 active:bg-slate-100/70 dark:border-white/[0.055] dark:active:bg-white/[0.045]"
           >
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
-            </span>
+            <CategoryArtwork
+              icon={cat?.icon}
+              name={cat?.name}
+              className="h-10 w-10 rounded-xl"
+              fallback={
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
+                </span>
+              }
+            />
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2">
                 <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{tx.description}</span>
@@ -264,13 +286,18 @@ export default function TransactionsTable({
                     <td className="py-3.5">
                       {cat ? (
                         <span
-                          className="text-xs px-2.5 py-1 rounded-lg border font-semibold inline-flex items-center"
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-semibold"
                           style={{
                             backgroundColor: `${cat.color}15`,
                             borderColor: `${cat.color}35`,
                             color: cat.color,
                           }}
                         >
+                          <CategoryArtwork
+                            icon={cat.icon}
+                            name={cat.name}
+                            className="h-5 w-5 rounded-md"
+                          />
                           {cat.name}
                         </span>
                       ) : (
@@ -308,6 +335,12 @@ export default function TransactionsTable({
           transaction={selectedTransaction}
           categories={categories}
           onClose={() => setSelectedTransaction(null)}
+          onUpdated={(updated) => {
+            setTransactionOverrides((current) => ({
+              ...current,
+              [updated.id]: updated,
+            }));
+          }}
         />
       )}
     </div>

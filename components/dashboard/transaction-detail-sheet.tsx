@@ -26,11 +26,13 @@ import type { Transaction } from "@/components/dashboard/transactions-table";
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface CategoryOption {
   id: string;
   name: string;
   color: string;
+  icon?: string | null;
   type: "expense" | "income";
 }
 
@@ -44,10 +46,12 @@ export function TransactionDetailSheet({
   transaction,
   categories,
   onClose,
+  onUpdated,
 }: {
   transaction: Transaction;
   categories: CategoryOption[];
   onClose: () => void;
+  onUpdated?: (transaction: Transaction) => void;
 }) {
   const router = useRouter();
   const { t, fmtDate } = useI18n();
@@ -119,7 +123,30 @@ export function TransactionDetailSheet({
     const formData = new FormData(event.currentTarget);
     formData.set("currency", currency);
     formData.set("type", selectedType);
-    await run(() => updateTransaction(transaction.id, formData));
+    setPending(true);
+    setError(null);
+    try {
+      const result = await updateTransaction(transaction.id, formData);
+      if (!result.success || !result.transaction) {
+        setError(t("genericError"));
+        return;
+      }
+      const category = categories.find(
+        (item) => item.id === result.transaction.category_id,
+      );
+      onUpdated?.({
+        ...transaction,
+        ...result.transaction,
+        categories: category
+          ? { name: category.name, color: category.color, icon: category.icon }
+          : null,
+      });
+      finish();
+    } catch {
+      setError(t("genericError"));
+    } finally {
+      setPending(false);
+    }
   };
 
   const handleSplit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -199,9 +226,16 @@ export function TransactionDetailSheet({
             <>
               <div className="sm:hidden">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white" style={{ backgroundColor: categoryColor }}>
-                    {transaction.description.trim().charAt(0).toUpperCase() || (transaction.type === "income" ? "+" : "−")}
-                  </span>
+                  <CategoryArtwork
+                    icon={transactionCategory?.icon}
+                    name={transactionCategory?.name}
+                    className="h-12 w-12 rounded-2xl"
+                    fallback={
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white" style={{ backgroundColor: categoryColor }}>
+                        {transaction.description.trim().charAt(0).toUpperCase() || (transaction.type === "income" ? "+" : "−")}
+                      </span>
+                    }
+                  />
                   <div className="min-w-0 flex-1">
                     <h2 id="transaction-detail-title" className="truncate text-base font-bold text-slate-950 dark:text-white">{transaction.description}</h2>
                     <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{transactionCategory?.name ?? t("uncategorized")}</p>

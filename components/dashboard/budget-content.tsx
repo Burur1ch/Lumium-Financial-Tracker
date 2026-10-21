@@ -12,12 +12,14 @@ import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { getPlanBudgetLimit } from "@/utils/monetization/limits";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface Category {
   id: string;
   name: string;
   color: string;
   type?: string;
+  icon?: string | null;
 }
 
 interface BudgetItem {
@@ -30,7 +32,7 @@ interface BudgetItem {
   alert_threshold?: number;
   current_spent: number;
   category_id: string;
-  categories?: { name: string; color: string }[] | null;
+  categories?: { name: string; color: string; icon?: string | null }[] | null;
 }
 
 function getCat(b: BudgetItem) {
@@ -191,15 +193,19 @@ export default function BudgetContent({
                 {/* Card header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: `${catColor}20`,
-                        color: catColor,
-                      }}
-                    >
-                      <Wallet className="w-4 h-4" />
-                    </div>
+                    <CategoryArtwork
+                      icon={cat?.icon}
+                      name={cat?.name}
+                      className="h-9 w-9 rounded-xl"
+                      fallback={
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                        >
+                          <Wallet className="h-4 w-4" />
+                        </div>
+                      }
+                    />
                     <div>
                       <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
                         {cat?.name || t("uncategorized")}
