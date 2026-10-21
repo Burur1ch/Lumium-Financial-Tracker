@@ -8,7 +8,10 @@ const CURRENCY_LOCALES: Record<string, string> = {
   GBP: "en-GB",
   JPY: "ja-JP",
   CNY: "zh-CN",
-  BYN: "be-BY",
+  // Keep the ISO-code presentation used by the product design. Some browser
+  // ICU builds render be-BY as `BYN 0.00`, while Node renders `0,00 Br`, which
+  // makes otherwise identical SSR and client renders fail hydration.
+  BYN: "en-US",
 };
 
 const LANGUAGE_LOCALES: Record<string, string> = {
