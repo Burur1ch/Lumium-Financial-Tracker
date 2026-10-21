@@ -152,7 +152,8 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
 
-  // Pending (unsaved) prefs — initialized from store (already hydrated on client)
+  // Pending (unsaved) prefs. On a hard load the persisted store is hydrated
+  // after mount so that its first client snapshot matches SSR.
   const [pendingCurrency, setPendingCurrency] = useState<Currency>(
     () => usePrefs.getState().currency,
   );
@@ -172,6 +173,22 @@ export default function SettingsPage() {
     () => usePrefs.getState().avatarPreset,
   );
   const activePlan = getPlan(plan);
+
+  useEffect(() => {
+    const syncPendingPrefs = () => {
+      const prefs = usePrefs.getState();
+      setPendingCurrency(prefs.currency);
+      setPendingLanguage(prefs.language);
+      setPendingDateFormat(prefs.dateFormat);
+      setPendingColor(prefs.avatarColor);
+      setPendingIcon(prefs.avatarIcon);
+      setPendingAvatarPreset(prefs.avatarPreset);
+    };
+
+    const unsubscribe = usePrefs.persist.onFinishHydration(syncPendingPrefs);
+    if (usePrefs.persist.hasHydrated()) syncPendingPrefs();
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     getProfile().then((p) => {

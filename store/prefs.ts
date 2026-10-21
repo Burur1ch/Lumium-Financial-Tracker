@@ -60,7 +60,12 @@ export const useNotifStore = create<NotifState>()(
           notifications: s.notifications.filter((n) => n.id !== id),
         })),
     }),
-    { name: "lumium_notifs" },
+    {
+      name: "lumium_notifs",
+      // Keep the server snapshot and the first client snapshot identical.
+      // StoreHydration starts the localStorage rehydration after React mounts.
+      skipHydration: true,
+    },
   ),
 );
 interface ProfileState {
@@ -137,6 +142,11 @@ export const usePrefs = create<PrefsState>()(
           exchangeRateDate,
         }),
     }),
-    { name: "lumium_prefs" },
+    {
+      name: "lumium_prefs",
+      // Reading localStorage while the client store is being created makes its
+      // first render differ from SSR. Rehydrate explicitly after mount instead.
+      skipHydration: true,
+    },
   ),
 );

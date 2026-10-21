@@ -200,7 +200,10 @@ export function MobileAppChrome() {
           className="mobile-add-button"
           aria-label={t("addTransaction")}
         >
-          <Plus className="h-6 w-6" strokeWidth={2.2} />
+          <span className="mobile-add-button-circle">
+            <Plus className="h-6 w-6" strokeWidth={2.15} />
+          </span>
+          <span>{t("addNew")}</span>
         </button>
         <Link className={`mobile-nav-item ${primaryItems[2].active ? "is-active" : ""}`} href={primaryItems[2].href} aria-current={primaryItems[2].active ? "page" : undefined}>
           <BarChart3 className="h-5 w-5" strokeWidth={1.8} />

@@ -88,7 +88,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
 };
 
-export function CategoryIcon({
+function CategoryIcon({
   icon,
   name,
   className,
@@ -383,14 +383,19 @@ export default function CategoriesPage() {
                       type="button"
                       onClick={() => setIcon(key)}
                       title={key}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                      className={`relative flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-xl border transition-all ${
                         selected
-                          ? "text-white shadow-sm"
-                          : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          ? "scale-[1.04] border-red-500 bg-red-50 shadow-sm ring-2 ring-red-500/15 dark:bg-red-950/25"
+                          : "border-slate-200/70 bg-slate-50 text-slate-400 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500 dark:hover:border-slate-700 dark:hover:bg-slate-800"
                       }`}
-                      style={selected ? { backgroundColor: color } : undefined}
+                      aria-pressed={selected}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <CategoryArtwork
+                        icon={key}
+                        className="h-full w-full rounded-[0.65rem]"
+                        imageClassName="h-full w-full object-contain p-0.5"
+                        fallback={<Icon className="h-4 w-4" />}
+                      />
                     </button>
                   );
                 })}
