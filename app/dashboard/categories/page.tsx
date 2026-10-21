@@ -51,6 +51,7 @@ import {
   Stethoscope,
   type LucideIcon,
 } from "lucide-react";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   tag: Tag,
@@ -89,13 +90,22 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 export function CategoryIcon({
   icon,
+  name,
   className,
 }: {
   icon?: string | null;
+  name?: string | null;
   className?: string;
 }) {
   const Icon = (icon && ICON_MAP[icon]) || Tag;
-  return <Icon className={className ?? "w-4 h-4"} />;
+  return (
+    <CategoryArtwork
+      icon={icon}
+      name={name}
+      className="h-9 w-9"
+      fallback={<Icon className={className ?? "w-4 h-4"} />}
+    />
+  );
 }
 
 interface Category {
@@ -172,7 +182,7 @@ function CategoryGroup({
                     color: cat.color,
                   }}
                 >
-                  <CategoryIcon icon={cat.icon} />
+                  <CategoryIcon icon={cat.icon} name={cat.name} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
@@ -416,7 +426,7 @@ export default function CategoriesPage() {
                 className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                 style={{ backgroundColor: `${color}20`, color }}
               >
-                <CategoryIcon icon={icon} />
+                <CategoryIcon icon={icon} name={name} />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">

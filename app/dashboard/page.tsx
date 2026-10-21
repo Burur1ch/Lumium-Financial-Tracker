@@ -76,18 +76,19 @@ export default async function DashboardPage({
     amount: number;
     type: "expense" | "income";
     icon: string;
-    category: { id: string; name: string; color: string } | null;
+    category: { id: string; name: string; color: string; icon: string } | null;
   }> = [];
   let quickCategories: Array<{
     id: string;
     name: string;
     type: "expense" | "income";
     color: string;
+    icon: string;
   }> = [];
   let dashboardBudgets: Array<{
     monthly_limit: number;
     current_spent: number;
-    categories: { name: string; color: string } | null;
+    categories: { name: string; color: string; icon: string | null } | null;
   }> = [];
   const chartDataMap: { [key: string]: { income: number; expense: number } } =
     {};
@@ -117,7 +118,11 @@ export default async function DashboardPage({
           amount: transactions.amount,
           type: transactions.type,
           date: transactions.date,
-          categories: { name: categories.name, color: categories.color },
+          categories: {
+            name: categories.name,
+            color: categories.color,
+            icon: categories.icon,
+          },
         })
         .from(transactions)
         .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -152,7 +157,11 @@ export default async function DashboardPage({
           category_id: transactions.category_id,
           recurring_transaction_id: transactions.recurring_transaction_id,
           date: transactions.date,
-          categories: { name: categories.name, color: categories.color },
+          categories: {
+            name: categories.name,
+            color: categories.color,
+            icon: categories.icon,
+          },
         })
         .from(transactions)
         .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -175,6 +184,7 @@ export default async function DashboardPage({
           categoryId: quickTransactionPresets.category_id,
           categoryName: categories.name,
           categoryColor: categories.color,
+          categoryIcon: categories.icon,
         })
         .from(quickTransactionPresets)
         .leftJoin(
@@ -193,6 +203,7 @@ export default async function DashboardPage({
           name: categories.name,
           type: categories.type,
           color: categories.color,
+          icon: categories.icon,
         })
         .from(categories)
         .where(eq(categories.user_id, user.id))
@@ -218,6 +229,7 @@ export default async function DashboardPage({
               id: preset.categoryId,
               name: preset.categoryName,
               color: preset.categoryColor,
+              icon: preset.categoryIcon ?? "tag",
             }
           : null,
     }));
@@ -288,6 +300,7 @@ export default async function DashboardPage({
       .map((budget) => ({
         name: budget.categories?.name ?? "Other",
         color: budget.categories?.color ?? "#64748b",
+        icon: budget.categories?.icon ?? null,
         limit: budget.monthly_limit,
       })),
   };

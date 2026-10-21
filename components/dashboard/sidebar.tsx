@@ -218,7 +218,7 @@ function buildDynamicNotifications(
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const { avatarColor, avatarIcon, plan, setPlan } = usePrefs();
+  const { avatarColor, avatarIcon, avatarPreset, plan, setPlan } = usePrefs();
   const [profile, setProfile] = useState<{
     name: string | null;
     email: string;
@@ -483,7 +483,12 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {/* Avatar */}
           <Link href="/dashboard/settings" className="shrink-0">
             <div className="hover:opacity-80 transition-opacity">
-              <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
+              <UserAvatar
+                color={avatarColor}
+                iconKey={avatarIcon}
+                imageKey={avatarPreset}
+                size="sm"
+              />
             </div>
           </Link>
 

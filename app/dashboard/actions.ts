@@ -968,11 +968,36 @@ export async function updateTransaction(id: string, formData: FormData) {
       date: transactionDate,
     })
     .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
-    .returning({ id: transactions.id });
+    .returning({
+      id: transactions.id,
+      description: transactions.description,
+      amount: transactions.amount,
+      type: transactions.type,
+      status: transactions.status,
+      note: transactions.note,
+      reviewStatus: transactions.review_status,
+      categoryId: transactions.category_id,
+      recurringTransactionId: transactions.recurring_transaction_id,
+      date: transactions.date,
+    });
 
   if (!updated) return { success: false, error: "TRANSACTION_NOT_FOUND" };
   revalidateFinancialViews();
-  return { success: true };
+  return {
+    success: true,
+    transaction: {
+      id: updated.id,
+      description: updated.description,
+      amount: Number(updated.amount),
+      type: updated.type as "income" | "expense",
+      status: updated.status as "completed" | "pending",
+      note: updated.note,
+      review_status: updated.reviewStatus as "reviewed" | "needs_review",
+      category_id: updated.categoryId,
+      recurring_transaction_id: updated.recurringTransactionId,
+      date: updated.date.toISOString(),
+    },
+  };
 }
 
 export async function duplicateTransaction(id: string) {
@@ -1713,7 +1738,11 @@ export async function getFilteredTransactions(filters: {
       recurring_transaction_id: transactions.recurring_transaction_id,
       date: transactions.date,
       category_id: transactions.category_id,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -1799,7 +1828,11 @@ export async function exportTransactionsWorkbook(filters: {
       type: transactions.type,
       status: transactions.status,
       date: transactions.date,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -1978,7 +2011,11 @@ export async function getBudgetsWithProgress(month?: string) {
       rollover_enabled: budgets.rollover_enabled,
       alert_threshold: budgets.alert_threshold,
       category_id: budgets.category_id,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(budgets)
     .leftJoin(categories, eq(budgets.category_id, categories.id))

@@ -46,7 +46,7 @@ export function MobileAppChrome() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const { avatarColor, avatarIcon, language } = usePrefs();
+  const { avatarColor, avatarIcon, avatarPreset, language } = usePrefs();
   const { notifications, markAllRead, markRead } = useNotifStore();
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -155,7 +155,12 @@ export function MobileAppChrome() {
             className="flex h-10 w-10 items-center justify-center rounded-full active:scale-[0.96]"
             aria-label={t("settings")}
           >
-            <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
+            <UserAvatar
+              color={avatarColor}
+              iconKey={avatarIcon}
+              imageKey={avatarPreset}
+              size="sm"
+            />
           </Link>
           <button
             type="button"

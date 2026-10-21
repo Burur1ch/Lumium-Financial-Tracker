@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import {
   User,
   Star,
@@ -56,9 +57,20 @@ export const AVATAR_ICONS: { key: string; icon: React.ElementType }[] = [
   { key: "Gem", icon: Gem },
 ];
 
+export const PROFILE_AVATARS = Array.from({ length: 8 }, (_, index) => {
+  const number = String(index + 1).padStart(2, "0");
+  return { key: `avatar-${number}`, src: `/avatars/avatar-${number}.png` };
+});
+
+const DEFAULT_AVATAR = {
+  key: "avatar-default",
+  src: "/avatars/avatar-default.png",
+};
+
 interface UserAvatarProps {
   color: string;
   iconKey: string;
+  imageKey?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -72,18 +84,34 @@ const SIZE_MAP = {
 export function UserAvatar({
   color,
   iconKey,
+  imageKey,
   size = "md",
   className = "",
 }: UserAvatarProps) {
   const entry = AVATAR_ICONS.find((i) => i.key === iconKey) ?? AVATAR_ICONS[0];
   const Icon = entry.icon;
   const s = SIZE_MAP[size];
+  const image =
+    imageKey === "classic"
+      ? undefined
+      : PROFILE_AVATARS.find((item) => item.key === imageKey) ?? DEFAULT_AVATAR;
   return (
     <div
-      className={`${s.wrapper} rounded-full flex items-center justify-center shrink-0 ${className}`}
+      className={`${s.wrapper} relative overflow-hidden rounded-full flex items-center justify-center shrink-0 ${className}`}
       style={{ backgroundColor: color }}
     >
-      <Icon className={`${s.icon} text-white`} strokeWidth={2} />
+      {image ? (
+        <Image
+          src={image.src}
+          alt=""
+          fill
+          sizes="64px"
+          className="object-cover"
+          aria-hidden="true"
+        />
+      ) : (
+        <Icon className={`${s.icon} text-white`} strokeWidth={2} />
+      )}
     </div>
   );
 }
