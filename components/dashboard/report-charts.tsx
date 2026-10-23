@@ -134,7 +134,7 @@ export default function ReportCharts({
   return (
     <div className="space-y-6">
       {/* Main trend chart */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -188,7 +188,7 @@ export default function ReportCharts({
                 <Bar
                   dataKey="income"
                   name="income"
-                  fill="#10b981"
+                  fill="#24845C"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={24}
                   opacity={0.85}
@@ -196,7 +196,7 @@ export default function ReportCharts({
                 <Bar
                   dataKey="expense"
                   name="expense"
-                  fill="#ef4444"
+                  fill="#D92D3A"
                   radius={[4, 4, 0, 0]}
                   maxBarSize={24}
                   opacity={0.85}
@@ -204,7 +204,7 @@ export default function ReportCharts({
                 <Line
                   type="monotone"
                   dataKey="expenseTrend"
-                  stroke="#ef4444"
+                  stroke="#D92D3A"
                   strokeWidth={2}
                   dot={false}
                   strokeDasharray="4 3"
@@ -220,7 +220,7 @@ export default function ReportCharts({
       {/* Net balance + Pie charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Net balance area */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
             {t("netBalance")}
           </h3>
@@ -248,10 +248,10 @@ export default function ReportCharts({
                     >
                       <stop
                         offset="5%"
-                        stopColor="#3b82f6"
+                        stopColor="#3478C8"
                         stopOpacity={isDark ? 0.3 : 0.15}
                       />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <stop offset="95%" stopColor="#3478C8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -277,7 +277,7 @@ export default function ReportCharts({
                     type="monotone"
                     dataKey="net"
                     name="net"
-                    stroke="#3b82f6"
+                    stroke="#3478C8"
                     strokeWidth={2}
                     fill="url(#netGradient)"
                   />
@@ -288,7 +288,7 @@ export default function ReportCharts({
         </div>
 
         {/* Expense donut */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
             {t("expensesByCategory")}
           </h3>
@@ -299,7 +299,7 @@ export default function ReportCharts({
         </div>
 
         {/* Income donut */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
             {t("incomeByCategory")}
           </h3>

@@ -31,14 +31,21 @@ interface AddExpenseModalProps {
   hideTrigger?: boolean;
 }
 
+interface TransactionDraft {
+  amount?: number;
+  description?: string;
+  note?: string;
+  currency?: string;
+}
+
 const PRESET_COLORS = [
-  "#EF4444",
+  "#D92D3A",
   "#F97316",
   "#EAB308",
-  "#22C55E",
+  "#24845C",
   "#06B6D4",
-  "#3B82F6",
-  "#8B5CF6",
+  "#3478C8",
+  "#287D91",
   "#EC4899",
 ];
 
@@ -56,7 +63,7 @@ function FieldLabel({
 }) {
   return (
     <div className="flex items-center justify-between mb-2">
-      <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
         <Icon className="w-3.5 h-3.5" />
         {label}
       </label>
@@ -78,6 +85,7 @@ export default function AddExpenseModal({
     "expense",
   );
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [draft, setDraft] = useState<TransactionDraft>({});
   const { t } = useI18n();
   const { currency } = usePrefs();
   const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -89,7 +97,8 @@ export default function AddExpenseModal({
     JPY: "¥",
     CNY: "¥",
   };
-  const currencySymbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  const draftCurrency = draft.currency ?? currency;
+  const currencySymbol = CURRENCY_SYMBOLS[draftCurrency] ?? draftCurrency;
   const [catOpen, setCatOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const catRef = useRef<HTMLDivElement>(null);
@@ -110,7 +119,8 @@ export default function AddExpenseModal({
     (c) => c.id === selectedCategoryId,
   );
 
-  const openModal = useCallback(() => {
+  const openModal = useCallback((nextDraft: TransactionDraft = {}) => {
+    setDraft(nextDraft);
     setIsOpen(true);
     setSuccess(false);
     setError(null);
@@ -158,7 +168,10 @@ export default function AddExpenseModal({
   }, [isOpen]);
 
   useEffect(() => {
-    const handler = () => openModal();
+    const handler = (event: Event) => {
+      const nextDraft = (event as CustomEvent<TransactionDraft>).detail;
+      openModal(nextDraft ?? {});
+    };
     window.addEventListener("lumium:open-add-transaction", handler);
     return () =>
       window.removeEventListener("lumium:open-add-transaction", handler);
@@ -219,8 +232,8 @@ export default function AddExpenseModal({
     <>
       {!hideTrigger && (
         <button
-          onClick={openModal}
-          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-600 active:scale-[0.98] transition-all duration-150"
+          onClick={() => openModal()}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
           {t("addTransaction")}
@@ -299,7 +312,7 @@ export default function AddExpenseModal({
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <input type="hidden" name="currency" value={currency} />
+                  <input type="hidden" name="currency" value={draftCurrency} />
                   {error && (
                     <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-2 text-xs font-semibold text-red-500">
                       {error}
@@ -318,11 +331,11 @@ export default function AddExpenseModal({
                           setShowNewCat(false);
                           setCatOpen(false);
                         }}
-                        className={`flex min-h-11 items-center justify-center gap-2 rounded-lg text-xs font-bold transition-all duration-150 ${
+                        className={`flex min-h-11 items-center justify-center gap-2 rounded-lg text-xs font-bold transition-[color,background-color,transform] duration-150 ${
                           selectedType === txType
                             ? txType === "expense"
-                              ? "bg-white dark:bg-slate-800 text-red-500 shadow-sm"
-                              : "bg-white dark:bg-slate-800 text-emerald-500 shadow-sm"
+                              ? "bg-white dark:bg-slate-800 text-red-500"
+                              : "bg-white dark:bg-slate-800 text-emerald-500"
                             : "text-slate-500 dark:text-slate-400"
                         }`}
                       >
@@ -346,12 +359,14 @@ export default function AddExpenseModal({
                       </span>
                       <input
                         ref={amountRef}
+                        key={`amount-${draft.amount ?? "empty"}`}
                         type="number"
                         name="amount"
                         step="0.01"
                         min="0.01"
                         required
                         placeholder="0.00"
+                        defaultValue={draft.amount?.toFixed(2)}
                         className={
                           inputCls + " pl-7 text-lg font-bold tabular-nums"
                         }
@@ -363,10 +378,12 @@ export default function AddExpenseModal({
                   <div>
                     <FieldLabel icon={FileText} label={t("description")} />
                     <input
+                      key={`description-${draft.description ?? "empty"}`}
                       type="text"
                       name="description"
                       required
                       placeholder={t("transactionDescriptionPlaceholder")}
+                      defaultValue={draft.description}
                       className={inputCls}
                     />
                   </div>
@@ -374,8 +391,10 @@ export default function AddExpenseModal({
                   <div>
                     <FieldLabel icon={FileText} label={t("transactionNote")} />
                     <textarea
+                      key={`note-${draft.note ?? "empty"}`}
                       name="note"
                       placeholder={t("transactionNotePlaceholder")}
+                      defaultValue={draft.note}
                       className={inputCls + " min-h-20 py-3"}
                     />
                   </div>
@@ -400,13 +419,8 @@ export default function AddExpenseModal({
                       }
                     />
 
-                    <div
-                      className="overflow-hidden transition-all duration-200"
-                      style={{
-                        maxHeight: showNewCat ? "220px" : "0",
-                        opacity: showNewCat ? 1 : 0,
-                      }}
-                    >
+                    {showNewCat && (
+                    <div className="mobile-inline-reveal">
                       <div className="mb-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2">
                         {catError && (
                           <p className="text-xs text-red-500 font-semibold">
@@ -465,6 +479,7 @@ export default function AddExpenseModal({
                         </button>
                       </div>
                     </div>
+                    )}
 
                     {filteredCategories.length === 0 && !showNewCat ? (
                       <button
@@ -515,18 +530,8 @@ export default function AddExpenseModal({
                           />
                         </button>
 
-                        <div
-                          className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl z-20"
-                          style={{
-                            maxHeight: catOpen ? "224px" : "0",
-                            opacity: catOpen ? 1 : 0,
-                            pointerEvents: catOpen ? "auto" : "none",
-                            overflowY: catOpen ? "auto" : "hidden",
-                            overflowX: "hidden",
-                            transition:
-                              "max-height 180ms ease, opacity 180ms ease",
-                          }}
-                        >
+                        {catOpen && (
+                        <div className="mobile-inline-popover absolute left-0 right-0 top-full z-20 mt-1.5 max-h-56 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
                           <button
                             type="button"
                             onClick={() => {
@@ -571,6 +576,7 @@ export default function AddExpenseModal({
                             </button>
                           ))}
                         </div>
+                        )}
                         <input
                           type="hidden"
                           name="category_id"
@@ -605,7 +611,7 @@ export default function AddExpenseModal({
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition-[background-color,transform] duration-150 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${
                         selectedType === "expense"
                           ? "bg-red-500 hover:bg-red-600"
                           : "bg-emerald-500 hover:bg-emerald-600"

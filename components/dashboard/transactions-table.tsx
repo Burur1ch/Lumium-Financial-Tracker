@@ -123,7 +123,7 @@ export default function TransactionsTable({
         const meta = showViewAll
           ? `${cat?.name ?? t("uncategorized")} · ${relativeDate}, ${time}`
           : `${cat?.name ?? t("uncategorized")} · ${time}`;
-        const avatarColor = cat?.color ?? (isExpense ? "#ef4444" : "#10b981");
+        const avatarColor = cat?.color ?? (isExpense ? "#D92D3A" : "#24845C");
         return (
           <button
             key={tx.id}
@@ -137,7 +137,7 @@ export default function TransactionsTable({
               className="h-10 w-10 rounded-xl"
               fallback={
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
                   style={{ backgroundColor: avatarColor }}
                 >
                   {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
@@ -164,7 +164,7 @@ export default function TransactionsTable({
   );
 
   return (
-    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-900">
+    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:dark:border-slate-800 sm:dark:bg-slate-900">
       <div className={`mb-2.5 flex items-center justify-between sm:mb-6 ${showViewAll ? "" : "max-sm:hidden"}`}>
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
@@ -226,7 +226,7 @@ export default function TransactionsTable({
       <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-125">
           <thead>
-            <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <th className="pb-3 pl-2">{t("description")}</th>
               <th className="pb-3">{t("category")}</th>
               <th className="pb-3 text-right pr-2">{t("amount")}</th>

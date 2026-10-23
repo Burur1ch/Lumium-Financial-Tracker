@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local agent skills and generated visual-audit artifacts are tooling,
+    // not application source.
+    ".agents/**",
+    ".taste-skill/**",
   ]),
 ]);
 

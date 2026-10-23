@@ -11,10 +11,11 @@ interface SearchParams {
   type?: string;
   categoryId?: string;
   reviewStatus?: string;
+  month?: string;
 }
 
 interface TransactionsPageProps {
-  searchParams: Promise<SearchParams>; // В Next.js 15+ searchParams — это Promise
+  searchParams: Promise<SearchParams>; // В Next.js 15+ searchParams возвращает Promise.
 }
 
 export default async function TransactionsPage({
@@ -25,11 +26,14 @@ export default async function TransactionsPage({
   const categories = await getCategories();
 
   // Извлекаем чистые данные фильтров
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const filters = {
     search: resolvedParams.search,
     type: resolvedParams.type,
     categoryId: resolvedParams.categoryId,
     reviewStatus: resolvedParams.reviewStatus,
+    month: resolvedParams.month ?? currentMonth,
   };
 
   // Получаем отфильтрованный массив транзакций из PostgreSQL
@@ -38,13 +42,13 @@ export default async function TransactionsPage({
   return (
     <div className="mobile-finance-page mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
       {/* Шапка страницы транзакций */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-sm:[&_p]:hidden">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
           <DashboardPageTitle titleKey="transactions" subtitleKey="transactionsSubtitle" />
         </div>
-        <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+        <div className="hidden gap-3 lg:flex">
           <ExportTransactionsButton filters={filters} />
-          <AddTransactionButton className="hidden w-full sm:inline-flex sm:w-auto" />
+          <AddTransactionButton />
         </div>
       </div>
 

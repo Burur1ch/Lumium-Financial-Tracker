@@ -9,6 +9,7 @@ import {
   Activity,
   Receipt,
   Sparkles,
+  Plus,
 } from "lucide-react";
 import PeriodSelector from "@/components/dashboard/period-selector";
 import ReportCharts from "@/components/dashboard/report-charts";
@@ -68,10 +69,10 @@ const COLOR_MAP = {
     icon: "text-blue-500",
     border: "border-blue-100 dark:border-blue-900/40",
   },
-  violet: {
-    bg: "bg-violet-50 dark:bg-violet-950/30",
-    icon: "text-violet-500",
-    border: "border-violet-100 dark:border-violet-900/40",
+  cyan: {
+    bg: "bg-cyan-50 dark:bg-cyan-950/30",
+    icon: "text-cyan-700 dark:text-cyan-300",
+    border: "border-cyan-100 dark:border-cyan-900/40",
   },
 } as const;
 
@@ -90,7 +91,7 @@ function StatCard({
 }) {
   const colors = COLOR_MAP[color];
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-3 shadow-sm flex items-center gap-4 md:p-5">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-3 flex items-center gap-4 md:p-5">
       <div
         className={`w-11 h-11 rounded-xl ${colors.bg} ${colors.border} border flex items-center justify-center shrink-0`}
       >
@@ -137,7 +138,7 @@ export default function ReportContent({
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="hidden lg:block">
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("reports")}
           </h1>
@@ -155,13 +156,24 @@ export default function ReportContent({
       </div>
 
       {!data ? (
-        <div className="text-center py-24 text-slate-400 dark:text-slate-500 text-sm">
-          {t("noData")}
-        </div>
+        <section className="mx-auto flex min-h-72 max-w-lg flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-950/30">
+            <Receipt className="h-6 w-6" strokeWidth={1.8} />
+          </span>
+          <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">{t("noDataPeriod")}</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">{t("transactionsSubtitle")}</p>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("lumium:open-add-transaction"))}
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.97]"
+          >
+            <Plus className="h-4 w-4" /> {t("addTransaction")}
+          </button>
+        </section>
       ) : !hasReportsAccess ? (
-        <div className="rounded-[28px] border border-red-100 dark:border-red-900/40 bg-linear-to-br from-white to-red-50 dark:from-slate-900 dark:to-red-950/10 p-8 md:p-10 shadow-sm">
+        <div className="rounded-[28px] bg-red-50 p-8 dark:bg-red-950/10 md:p-10">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 dark:bg-red-950/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-red-500">
+            <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-300">
               <Sparkles className="w-3.5 h-3.5" />
               Pro
             </div>
@@ -219,7 +231,7 @@ export default function ReportContent({
               value={`${data.savingsRate}%`}
               sub={`${t("avgPerDay")}: ${fmt(data.avgDailyExpense)}`}
               icon={PiggyBank}
-              color="violet"
+              color="cyan"
             />
           </div>
 
@@ -236,7 +248,7 @@ export default function ReportContent({
           {/* Two columns: largest transactions + category breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Largest transactions */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Receipt className="w-4 h-4 text-slate-400" />
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -288,7 +300,7 @@ export default function ReportContent({
             </div>
 
             {/* Category breakdown */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Activity className="w-4 h-4 text-slate-400" />
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -329,9 +341,9 @@ export default function ReportContent({
                         </div>
                         <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full rounded-full transition-all duration-500"
+                            className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                             style={{
-                              width: `${pct}%`,
+                              transform: `scaleX(${pct / 100})`,
                               backgroundColor: cat.color,
                             }}
                           />

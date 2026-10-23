@@ -2,7 +2,7 @@ import React from 'react'
 
 export default function DashboardLoading() {
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto animate-pulse select-none">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto select-none">
       
       {/* 1. Скелетон Шапки */}
       <div className="hidden flex-col justify-between gap-4 lg:flex lg:flex-row lg:items-center">

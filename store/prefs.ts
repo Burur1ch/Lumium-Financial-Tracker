@@ -7,7 +7,7 @@ export { RATES } from "@/utils/currency";
 export type { Currency } from "@/utils/currency";
 
 // ── Notifications store (persisted to localStorage) ─────────────────────────
-// Icons are NOT stored — they are mapped by iconType at render time.
+// Icons are not stored. They are mapped by iconType at render time.
 export type NotifIconType = "warning" | "over-limit" | "income" | "on-track";
 
 export interface Notification {
@@ -119,7 +119,7 @@ export const usePrefs = create<PrefsState>()(
       currency: "BYN",
       language: "en",
       dateFormat: "MMM D, YYYY",
-      avatarColor: "#EF4444",
+      avatarColor: "#D92D3A",
       avatarIcon: "User",
       avatarPreset: null,
       balanceHidden: false,

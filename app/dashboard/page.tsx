@@ -96,11 +96,11 @@ export default async function DashboardPage({
     {};
 
   const COLORS = [
-    "#EF4444",
-    "#3B82F6",
-    "#10B981",
-    "#F59E0B",
-    "#8B5CF6",
+    "#D92D3A",
+    "#3478C8",
+    "#24845C",
+    "#B8791D",
+    "#287D91",
     "#EC4899",
   ];
   if (user) {

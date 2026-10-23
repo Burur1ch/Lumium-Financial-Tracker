@@ -24,13 +24,13 @@ import {
 } from "lucide-react";
 
 export const AVATAR_COLORS = [
-  "#EF4444",
+  "#D92D3A",
   "#F97316",
   "#EAB308",
-  "#22C55E",
+  "#24845C",
   "#06B6D4",
-  "#3B82F6",
-  "#8B5CF6",
+  "#3478C8",
+  "#287D91",
   "#EC4899",
   "#14B8A6",
   "#64748B",

@@ -260,7 +260,7 @@ export default function PricingPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:rounded-[32px] md:p-8">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:rounded-[32px] md:p-8">
         <div className="absolute inset-y-0 right-0 w-1/2 opacity-60 pointer-events-none">
           <div className="absolute right-[-10%] top-[-10%] h-56 w-56 rounded-full bg-red-200/30 blur-3xl dark:bg-red-700/10" />
           <div className="absolute right-[10%] bottom-[-20%] h-64 w-64 rounded-full bg-orange-200/30 blur-3xl dark:bg-orange-700/10" />
@@ -268,7 +268,7 @@ export default function PricingPage() {
 
         <div className="relative grid gap-6 xl:grid-cols-[1.35fr_0.9fr] xl:items-end">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-100 dark:border-red-900/40 bg-white/85 dark:bg-slate-900/80 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-red-500">
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-slate-900 dark:text-red-300">
               <Zap className="w-3.5 h-3.5" />
               {t("pricing")}
             </div>
@@ -281,10 +281,10 @@ export default function PricingPage() {
             </p>
 
             <div className="mt-6 hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/70 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 p-4 backdrop-blur-sm">
+              <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-red-500">
                   <TrendingUp className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-xs font-semibold">
                     Insight
                   </span>
                 </div>
@@ -292,21 +292,21 @@ export default function PricingPage() {
                   From basic budgets to forecast-driven decisions.
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/70 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 p-4 backdrop-blur-sm">
+              <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-red-500">
                   <Sparkles className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-xs font-semibold">
                     Automation
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Unlock imports, rules, and AI summaries in higher tiers.
+                  Use imports, rules, and AI summaries in higher tiers.
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/70 dark:border-slate-800 bg-white/75 dark:bg-slate-900/75 p-4 backdrop-blur-sm">
+              <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-red-500">
                   <ShieldCheck className="w-4 h-4" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                  <span className="text-xs font-semibold">
                     Control
                   </span>
                 </div>
@@ -317,8 +317,8 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-5 md:rounded-[28px]">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5 md:rounded-[28px]">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               Billing
             </p>
             <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
@@ -354,7 +354,7 @@ export default function PricingPage() {
               {t("saveYearly")}
             </p>
             <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 Active choice
               </p>
               <p className="mt-1 text-lg font-bold capitalize text-slate-900 dark:text-slate-100">
@@ -377,9 +377,9 @@ export default function PricingPage() {
       </section>
 
       {paymentForm ? (
-        <section className="rounded-[28px] border border-red-100 dark:border-red-900/40 bg-white dark:bg-slate-900 p-6 md:p-7 shadow-sm space-y-4">
+        <section className="rounded-[28px] border border-red-100 dark:border-red-900/40 bg-white dark:bg-slate-900 p-6 md:p-7 space-y-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">
+            <p className="text-xs font-semibold text-red-600 dark:text-red-400">
               {t("paymentFormTitle")}
             </p>
             <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100 capitalize">
@@ -415,14 +415,14 @@ export default function PricingPage() {
           return (
             <div
               key={plan.key}
-              className={`relative overflow-hidden rounded-[28px] border p-6 shadow-sm transition-all ${
+              className={`relative overflow-hidden rounded-[28px] border p-6 transition-[border-color,transform] duration-200 ${
                 plan.highlighted
-                  ? "border-red-200 dark:border-red-900/40 bg-linear-to-b from-white to-red-50/40 dark:from-slate-900 dark:to-red-950/10 shadow-red-100/50"
+                  ? "border-red-200 bg-red-50/40 dark:border-red-900/40 dark:bg-red-950/10"
                   : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900"
               }`}
             >
               {plan.highlighted && (
-                <div className="absolute right-[-36px] top-5 rotate-12 rounded-full bg-red-500 px-10 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-white shadow-sm">
+                <div className="absolute right-[-36px] top-5 rotate-12 rounded-full bg-[var(--app-accent)] px-10 py-1 text-xs font-semibold text-white">
                   {t("popular")}
                 </div>
               )}
@@ -443,7 +443,7 @@ export default function PricingPage() {
                 </div>
                 <div className="flex flex-col items-end gap-1 pt-8">
                   {isCurrent && (
-                    <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                       {t("currentPlan")}
                     </span>
                   )}
@@ -492,7 +492,7 @@ export default function PricingPage() {
 
               <div className="mt-6 space-y-5">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {t("includedFeatures")}
                   </p>
                   <div className="mt-3 space-y-2.5">
@@ -511,12 +511,12 @@ export default function PricingPage() {
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     {t("usageLimits")}
                   </p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("membersCount")}
                       </p>
                       <p className="mt-1 text-base font-bold text-slate-800 dark:text-slate-100">
@@ -524,7 +524,7 @@ export default function PricingPage() {
                       </p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("budgetsCount")}
                       </p>
                       <p className="mt-1 text-base font-bold text-slate-800 dark:text-slate-100">
@@ -532,7 +532,7 @@ export default function PricingPage() {
                       </p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("categoriesCount")}
                       </p>
                       <p className="mt-1 text-base font-bold text-slate-800 dark:text-slate-100">
@@ -540,7 +540,7 @@ export default function PricingPage() {
                       </p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("history")}
                       </p>
                       <p className="mt-1 text-base font-bold text-slate-800 dark:text-slate-100">
@@ -557,9 +557,9 @@ export default function PricingPage() {
         })}
       </section>
 
-      <section className="rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <section className="rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
         <div className="grid grid-cols-[1.2fr_repeat(3,minmax(0,1fr))] border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50">
-          <div className="px-5 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <div className="px-5 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
             Compare
           </div>
           {PLAN_ORDER.map((key) => (
@@ -594,7 +594,7 @@ export default function PricingPage() {
         ))}
       </section>
 
-      <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-xs text-slate-500 dark:text-slate-400 shadow-sm">
+      <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
         {t("pricingFootnote")}
       </div>
     </div>

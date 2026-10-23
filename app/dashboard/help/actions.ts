@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { Resend } from "resend";
 import { auth } from "@/utils/auth/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@lumium.app";
 
 function escapeHtml(value: string) {
@@ -63,6 +62,12 @@ export async function sendSupportEmail(payload: {
   }
 
   try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY is not configured");
+      return { success: false, error: "Support email is not configured." };
+    }
+    const resend = new Resend(apiKey);
     const { data, error } = await resend.emails.send({
       from: "Lumium Support <onboarding@resend.dev>",
       to: [SUPPORT_EMAIL],
