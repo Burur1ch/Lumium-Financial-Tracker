@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# local design audit output
+/.taste-skill/*
+!/.taste-skill/direction.json
+
 # next.js
 /.next/
 /out/

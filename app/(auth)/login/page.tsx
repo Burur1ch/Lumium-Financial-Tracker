@@ -40,7 +40,7 @@ export default function LoginPage() {
       <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))]">
         <ThemeToggle compact />
       </div>
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 sm:p-8">
         <Link href="/" className="mx-auto flex min-h-11 w-fit items-center rounded-xl px-2 active:scale-[0.98]" aria-label="Lumium">
           <BrandLogo size="md" wordmarkClassName="text-xl" />
         </Link>
@@ -52,7 +52,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-xs font-medium text-red-500">
+          <div className="rounded-lg bg-red-50 p-3 text-xs font-medium text-red-700">
             {error}
           </div>
         )}
@@ -67,7 +67,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
+              placeholder="alex@company.by"
               className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             />
           </div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="min-h-12 w-full rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 active:scale-[0.98] disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-[var(--app-accent)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--app-accent-strong)] active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? t("signingIn") : t("signIn")}
           </button>
@@ -99,7 +99,7 @@ export default function LoginPage() {
           {t("noAccount")}{" "}
           <Link
             href="/register"
-            className="font-semibold text-red-500 hover:underline"
+            className="font-semibold text-[var(--app-accent-strong)] hover:underline dark:text-red-400"
           >
             {t("signUp")}
           </Link>

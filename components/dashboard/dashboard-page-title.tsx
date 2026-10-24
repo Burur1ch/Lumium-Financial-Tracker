@@ -13,7 +13,7 @@ export function DashboardPageTitle({
   const { t } = useI18n();
 
   return (
-    <div>
+    <div className="hidden lg:block">
       <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
         {t(titleKey)}
       </h1>

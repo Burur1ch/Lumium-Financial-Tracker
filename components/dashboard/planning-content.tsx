@@ -155,7 +155,7 @@ export function PlanningContent({
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-7 md:p-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="hidden lg:block">
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">{t("planning")}</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("planningSubtitle")}</p>
         </div>
@@ -166,7 +166,7 @@ export function PlanningContent({
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {tabs.map(({ key, label, icon: Icon, count }) => (
-          <button key={key} type="button" onClick={() => { setTab(key); setShowForm(false); setError(null); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-bold ${tab === key ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950" : "bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800"}`}>
+          <button key={key} type="button" onClick={() => { setTab(key); setShowForm(false); setError(null); }} className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-bold ${tab === key ? "bg-[var(--app-text)] text-[var(--app-canvas)]" : "bg-white text-slate-500 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:ring-slate-800"}`}>
             <Icon className="h-4 w-4" /> {label} <span className="opacity-60">{count}</span>
           </button>
         ))}
@@ -175,7 +175,7 @@ export function PlanningContent({
       {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-400">{error}</p>}
 
       {showForm && tab === "recurring" && (
-        <form onSubmit={(event) => void submitForm(event, createRecurringTransaction)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
+        <form onSubmit={(event) => void submitForm(event, createRecurringTransaction)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
           <input name="name" required placeholder={t("recurringNamePlaceholder")} className={inputClass} />
           <input name="amount" type="number" min="0.01" step="0.01" required placeholder={t("amount")} className={inputClass} />
           <select name="type" value={recurringType} onChange={(event) => setRecurringType(event.target.value as "expense" | "income")} className={inputClass}><option value="expense">{t("expense")}</option><option value="income">{t("income")}</option></select>
@@ -188,7 +188,7 @@ export function PlanningContent({
       )}
 
       {showForm && tab === "rules" && (
-        <form onSubmit={(event) => void submitForm(event, createTransactionRule)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
+        <form onSubmit={(event) => void submitForm(event, createTransactionRule)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
           <input name="name" required placeholder={t("ruleNamePlaceholder")} className={inputClass} />
           <input name="match_text" required minLength={2} placeholder={t("matchTextPlaceholder")} className={inputClass} />
           <select name="type" value={ruleType} onChange={(event) => setRuleType(event.target.value as "expense" | "income")} className={inputClass}><option value="expense">{t("expense")}</option><option value="income">{t("income")}</option></select>
@@ -199,12 +199,12 @@ export function PlanningContent({
       )}
 
       {showForm && tab === "goals" && (
-        <form onSubmit={(event) => void submitForm(event, createSavingsGoal)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
+        <form onSubmit={(event) => void submitForm(event, createSavingsGoal)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
           <input name="name" required placeholder={t("goalNamePlaceholder")} className={inputClass} />
           <input name="target_amount" type="number" min="0.01" step="0.01" required placeholder={t("targetAmount")} className={inputClass} />
           <input name="current_amount" type="number" min="0" step="0.01" placeholder={t("savedAlready")} className={inputClass} />
           <input name="target_date" type="date" className={inputClass} />
-          <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{t("goalColor")}<input name="color" type="color" defaultValue="#ef4444" className="ml-auto h-8 w-10" /></label>
+          <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">{t("goalColor")}<input name="color" type="color" defaultValue="#D92D3A" className="ml-auto h-8 w-10" /></label>
           <button type="submit" disabled={saving} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}{t("createGoal")}</button>
         </form>
       )}
@@ -212,8 +212,8 @@ export function PlanningContent({
       {tab === "recurring" && (
         <section className="space-y-3">
           {recurring.length === 0 ? <EmptyState icon={CalendarClock} title={t("noRecurringTransactions")} description={t("noRecurringTransactionsHint")} /> : recurring.map((item) => (
-            <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: item.categoryColor ?? "#ef4444" }}><Repeat2 className="h-5 w-5" /></span>
+            <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: item.categoryColor ?? "#D92D3A" }}><Repeat2 className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{item.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.categoryName ?? t("uncategorized")} · {t(item.frequency)} · {t("nextPayment")}: {fmtDate(item.nextDate)}</p></div>
               <strong className={item.type === "income" ? "text-emerald-500" : "text-slate-900 dark:text-slate-100"}>{item.type === "income" ? "+" : "-"}<Money amount={item.amount} decimals /></strong>
               <div className="flex gap-1"><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => materializeRecurringTransaction(item.id))} className="min-h-11 rounded-xl bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-50">{pendingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("createNow")}</button><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => deleteRecurringTransaction(item.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
@@ -225,7 +225,7 @@ export function PlanningContent({
       {tab === "rules" && (
         <section className="space-y-3">
           {rules.length === 0 ? <EmptyState icon={WandSparkles} title={t("noAutomationRules")} description={t("noAutomationRulesHint")} /> : rules.map((rule) => (
-            <article key={rule.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
+            <article key={rule.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30"><WandSparkles className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{rule.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t("containsText")}: “{rule.matchText}” → {rule.categoryName ?? t("uncategorized")}</p></div>
               <div className="flex gap-1"><button type="button" disabled={pendingId === rule.id} onClick={() => void run(rule.id, () => applyTransactionRule(rule.id))} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300">{pendingId === rule.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("applyToExisting")}</button><button type="button" disabled={pendingId === rule.id} onClick={() => void run(rule.id, () => deleteTransactionRule(rule.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
@@ -238,7 +238,7 @@ export function PlanningContent({
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {goals.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={Target} title={t("noSavingsGoals")} description={t("noSavingsGoalsHint")} /></div> : goals.map((goal) => {
             const percentage = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
-            return <article key={goal.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            return <article key={goal.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{goal.name}</h3><p className="mt-1 text-xs text-slate-500">{goal.targetDate ? `${t("targetDate")}: ${fmtDate(goal.targetDate)}` : t("withoutDeadline")}</p></div><button type="button" onClick={() => void run(goal.id, () => deleteSavingsGoal(goal.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
               <div className="mt-4 flex items-end justify-between"><strong className="text-xl text-slate-900 dark:text-slate-100"><Money amount={goal.currentAmount} /></strong><span className="text-xs text-slate-500">{t("of")} <Money amount={goal.targetAmount} /></span></div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full" style={{ width: `${percentage}%`, backgroundColor: goal.color }} /></div>

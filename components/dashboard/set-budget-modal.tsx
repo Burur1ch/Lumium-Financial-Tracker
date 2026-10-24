@@ -78,7 +78,7 @@ export default function SetBudgetModal({
           }
           setIsOpen(true);
         }}
-        className={`w-full sm:w-auto px-4 py-2.5 text-white font-medium text-sm rounded-xl inline-flex items-center justify-center gap-2 transition-all shadow-sm shadow-red-500/10 active:scale-98 ${
+        className={`w-full sm:w-auto px-4 py-2.5 text-white font-medium text-sm rounded-xl inline-flex items-center justify-center gap-2 transition-[background-color,transform] duration-150 active:scale-98 ${
           hasReachedLimit
             ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
             : "bg-red-500 hover:bg-red-600"
@@ -113,7 +113,7 @@ export default function SetBudgetModal({
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/65"
             onClick={() => setIsOpen(false)}
           />
 
@@ -134,7 +134,7 @@ export default function SetBudgetModal({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {t("category")}
                 </label>
                 <select
@@ -155,7 +155,7 @@ export default function SetBudgetModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {t("budgetAlertThreshold")}
                 </label>
                 <select
@@ -185,7 +185,7 @@ export default function SetBudgetModal({
               </label>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {t("monthlyLimitLabel")} ({currency})
                 </label>
                 <input
@@ -203,7 +203,7 @@ export default function SetBudgetModal({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-medium text-sm rounded-xl transition-all shadow-sm"
+                className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-medium text-sm rounded-xl transition-[background-color,transform] duration-150 active:scale-[0.98]"
               >
                 {isPending ? t("savingEllipsis") : t("saveLimit")}
               </button>

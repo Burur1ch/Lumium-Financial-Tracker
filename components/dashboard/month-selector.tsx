@@ -84,7 +84,7 @@ export function MonthSelector({
 
   if (variant === "stepper") {
     return (
-      <div className="flex min-h-11 items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex min-h-11 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
         <button
           type="button"
           onClick={() => select(previousMonth)}
@@ -154,7 +154,7 @@ export function MonthSelector({
               disabled={isPending}
               className={`min-h-12 rounded-xl px-2 text-xs font-bold capitalize transition-colors disabled:cursor-wait ${
                 selected
-                  ? "bg-red-500 text-white shadow-sm shadow-red-500/25"
+                  ? "bg-red-500 text-white"
                   : "border border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:text-red-500 dark:border-white/[0.06] dark:bg-white/[0.035] dark:text-slate-300"
               }`}
             >

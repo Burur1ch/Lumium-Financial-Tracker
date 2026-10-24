@@ -38,5 +38,12 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
   },
+  advanced: {
+    ipAddress: {
+      // Railway overwrites this single-value header at its public edge.
+      // Better Auth uses it for per-client rate limiting and session metadata.
+      ipAddressHeaders: ["x-real-ip"],
+    },
+  },
   plugins: [nextCookies()],
 });

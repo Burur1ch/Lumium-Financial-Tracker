@@ -88,7 +88,7 @@ const menuItemDefs = [
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
 ] as const;
 
-// Sample notifications — in a real app these would come from the DB
+// Sample notifications. In a real app these would come from the DB.
 // (moved to useNotifStore in store/prefs.ts)
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -341,11 +341,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <Link
           href="/dashboard/pricing"
           onClick={onNavigate}
-          className="rounded-2xl border border-red-100 dark:border-red-900/40 bg-linear-to-br from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 p-4 shadow-sm hover:shadow-md transition-all"
+          className="rounded-2xl bg-red-50 p-4 dark:bg-red-950/20"
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500">
+              <p className="text-xs font-semibold text-red-600 dark:text-red-400">
                 {t("currentPlan")}
               </p>
               <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100 capitalize">
@@ -387,14 +387,9 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
             />
           </button>
 
-          {/* Popover — inline below button, not absolute/fixed to avoid clipping */}
-          <div
-            className={`overflow-hidden transition-all duration-200 ${
-              showNotifs
-                ? "max-h-96 opacity-100 mt-2"
-                : "max-h-0 opacity-0 pointer-events-none"
-            }`}
-          >
+          {/* Popover stays inline below the button to avoid clipping. */}
+          {showNotifs && (
+          <div className="mobile-inline-reveal mt-2 overflow-hidden">
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-lg overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
@@ -476,6 +471,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Profile card */}

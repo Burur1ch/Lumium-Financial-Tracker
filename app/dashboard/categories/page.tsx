@@ -49,6 +49,7 @@ import {
   Pizza,
   Wine,
   Stethoscope,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
@@ -117,18 +118,18 @@ interface Category {
 }
 
 const PRESET_COLORS = [
-  "#EF4444",
+  "#D92D3A",
   "#F97316",
   "#EAB308",
-  "#22C55E",
+  "#24845C",
   "#06B6D4",
-  "#3B82F6",
-  "#8B5CF6",
+  "#3478C8",
+  "#287D91",
   "#EC4899",
   "#14B8A6",
   "#F43F5E",
   "#84CC16",
-  "#A855F7",
+  "#9A6A3A",
 ];
 
 const ICON_KEYS = Object.keys(ICON_MAP);
@@ -154,7 +155,7 @@ function CategoryGroup({
         ) : (
           <TrendingUp className="w-4 h-4 text-emerald-500" />
         )}
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
           {type === "expense" ? t("expense") : t("income")}
           <span className="ml-2 text-xs font-semibold text-slate-400 dark:text-slate-500 normal-case tracking-normal">
             {items.length}{" "}
@@ -172,7 +173,7 @@ function CategoryGroup({
           {items.map((cat) => (
             <div
               key={cat.id}
-              className="group flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm hover:shadow-md transition-all duration-200"
+              className="group flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-700"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
@@ -193,7 +194,7 @@ function CategoryGroup({
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: cat.color }}
                     />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {cat.type === "expense" ? t("expense") : t("income")}
                     </span>
                   </div>
@@ -203,7 +204,8 @@ function CategoryGroup({
               <button
                 onClick={() => onDelete(cat.id)}
                 disabled={deletingId === cat.id}
-                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150 shrink-0 disabled:opacity-30"
+                className="shrink-0 rounded-lg p-2 text-slate-400 transition-[color,background-color,opacity,transform] duration-150 active:scale-[0.96] disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/30"
+                aria-label={`${t("deleteCategory")} ${cat.name}`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -227,6 +229,8 @@ export default function CategoriesPage() {
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [showAllIcons, setShowAllIcons] = useState(false);
   const { plan } = usePrefs();
 
   useEffect(() => {
@@ -265,6 +269,7 @@ export default function CategoriesPage() {
       const fresh = await getCategories();
       setCategories(fresh as Category[]);
       setName("");
+      setCreateOpen(false);
     });
   };
 
@@ -283,8 +288,8 @@ export default function CategoriesPage() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="hidden lg:block">
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("categories")}
           </h1>
@@ -292,10 +297,19 @@ export default function CategoriesPage() {
             {t("manageCategoriesDesc")}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
-          <Shapes className="w-4 h-4" />
-          {categories.length}
-          {categoryLimit !== null ? ` / ${categoryLimit}` : ""}
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+            <Shapes className="w-4 h-4" />
+            {categories.length}
+            {categoryLimit !== null ? ` / ${categoryLimit}` : ""}
+          </div>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white transition-[background-color,transform] duration-150 active:scale-[0.97] lg:hidden"
+          >
+            <Plus className="h-4 w-4" /> {t("createCategory")}
+          </button>
         </div>
       </div>
 
@@ -313,12 +327,26 @@ export default function CategoriesPage() {
         </div>
       )}
 
+      {createOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-[89] bg-slate-950/65 lg:hidden"
+          onClick={() => setCreateOpen(false)}
+          aria-label={t("close")}
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Create form */}
-        <div className="h-fit space-y-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-            {t("createCategory")}
-          </h3>
+        <div className={`${createOpen ? "fixed" : "hidden"} mobile-inline-sheet inset-x-0 bottom-0 z-[90] max-h-[88dvh] space-y-5 overflow-y-auto rounded-t-[1.75rem] border border-slate-200/80 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:static lg:block lg:max-h-none lg:rounded-2xl lg:shadow-none`}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              {t("createCategory")}
+            </h3>
+            <button type="button" onClick={() => setCreateOpen(false)} className="icon-button lg:hidden" aria-label={t("close")}>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -332,9 +360,9 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={() => setSelectedType("expense")}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-[color,background-color,transform] duration-150 ${
                   selectedType === "expense"
-                    ? "bg-white dark:bg-slate-800 text-red-500 shadow-sm"
+                    ? "bg-white dark:bg-slate-800 text-red-500"
                     : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
                 }`}
               >
@@ -343,9 +371,9 @@ export default function CategoriesPage() {
               <button
                 type="button"
                 onClick={() => setSelectedType("income")}
-                className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-[color,background-color,transform] duration-150 ${
                   selectedType === "income"
-                    ? "bg-white dark:bg-slate-800 text-emerald-500 shadow-sm"
+                    ? "bg-white dark:bg-slate-800 text-emerald-500"
                     : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
                 }`}
               >
@@ -355,7 +383,7 @@ export default function CategoriesPage() {
 
             {/* Name */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {t("categoryName")}
               </label>
               <input
@@ -370,11 +398,11 @@ export default function CategoriesPage() {
 
             {/* Icon picker */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+              <label className="mb-2 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {t("selectIcon")}
               </label>
               <div className="grid grid-cols-8 gap-1.5">
-                {ICON_KEYS.map((key) => {
+                {(showAllIcons ? ICON_KEYS : ICON_KEYS.slice(0, 12)).map((key) => {
                   const Icon = ICON_MAP[key];
                   const selected = icon === key;
                   return (
@@ -383,12 +411,13 @@ export default function CategoriesPage() {
                       type="button"
                       onClick={() => setIcon(key)}
                       title={key}
-                      className={`relative flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-xl border transition-all ${
+                      className={`relative flex aspect-square min-w-0 items-center justify-center overflow-hidden rounded-xl border transition-[border-color,background-color,transform] duration-150 active:scale-[0.96] ${
                         selected
-                          ? "scale-[1.04] border-red-500 bg-red-50 shadow-sm ring-2 ring-red-500/15 dark:bg-red-950/25"
+                          ? "scale-[1.04] border-red-500 bg-red-50 ring-2 ring-red-500/15 dark:bg-red-950/25"
                           : "border-slate-200/70 bg-slate-50 text-slate-400 hover:border-slate-300 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500 dark:hover:border-slate-700 dark:hover:bg-slate-800"
                       }`}
                       aria-pressed={selected}
+                      aria-label={`${t("selectIcon")} ${key}`}
                     >
                       <CategoryArtwork
                         icon={key}
@@ -400,11 +429,16 @@ export default function CategoriesPage() {
                   );
                 })}
               </div>
+              {!showAllIcons && ICON_KEYS.length > 12 && (
+                <button type="button" onClick={() => setShowAllIcons(true)} className="mt-2 min-h-10 w-full rounded-xl text-xs font-bold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20">
+                  {t("showMore")}
+                </button>
+              )}
             </div>
 
             {/* Color presets */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+              <label className="mb-2 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {t("selectColor")}
               </label>
               <div className="flex flex-wrap gap-2">
@@ -420,6 +454,8 @@ export default function CategoriesPage() {
                       outline: color === c ? `2px solid ${c}` : undefined,
                       outlineOffset: "2px",
                     }}
+                    aria-label={`${t("selectColor")} ${c}`}
+                    aria-pressed={color === c}
                   />
                 ))}
               </div>
@@ -435,12 +471,12 @@ export default function CategoriesPage() {
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  {name || "Category name"}
+                  {name || t("categoryName")}
                 </p>
                 <p
-                  className={`text-[10px] font-bold uppercase tracking-wider ${selectedType === "expense" ? "text-red-500" : "text-emerald-500"}`}
+                  className={`text-xs font-semibold ${selectedType === "expense" ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
                 >
-                  {selectedType}
+                  {selectedType === "expense" ? t("expense") : t("income")}
                 </p>
               </div>
             </div>
@@ -448,7 +484,7 @@ export default function CategoriesPage() {
             <button
               type="submit"
               disabled={isPending || !name.trim()}
-              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
+              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
                 hasReachedCategoryLimit
                   ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
                   : "bg-red-500 hover:bg-red-600"
@@ -465,7 +501,7 @@ export default function CategoriesPage() {
         </div>
 
         {/* Categories list */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="space-y-8 lg:col-span-2">
           <CategoryGroup
             type="expense"
             items={expenseCategories}

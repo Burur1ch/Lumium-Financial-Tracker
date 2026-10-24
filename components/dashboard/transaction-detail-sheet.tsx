@@ -182,7 +182,7 @@ export function TransactionDetailSheet({
   const transactionCategory = Array.isArray(transaction.categories)
     ? transaction.categories[0]
     : transaction.categories;
-  const categoryColor = transactionCategory?.color ?? (transaction.type === "income" ? "#10b981" : "#ef4444");
+  const categoryColor = transactionCategory?.color ?? (transaction.type === "income" ? "#24845C" : "#D92D3A");
 
   return (
     <div

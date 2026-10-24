@@ -1526,7 +1526,7 @@ export async function createSavingsGoal(formData: FormData) {
   const color =
     typeof colorInput === "string" && /^#[0-9a-f]{6}$/i.test(colorInput)
       ? colorInput
-      : "#ef4444";
+      : "#D92D3A";
   if (
     !name ||
     !Number.isFinite(target) ||
@@ -1686,6 +1686,7 @@ export async function getFilteredTransactions(filters: {
   type?: string;
   categoryId?: string;
   reviewStatus?: string;
+  month?: string;
 }) {
   const user = await getCurrentUser();
 
@@ -1700,6 +1701,14 @@ export async function getFilteredTransactions(filters: {
     cutoff.setHours(0, 0, 0, 0);
     cutoff.setDate(cutoff.getDate() - historyDays);
     conditions.push(gte(transactions.date, cutoff));
+  }
+
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(filters.month ?? "");
+  if (monthMatch) {
+    const year = Number(monthMatch[1]);
+    const monthIndex = Number(monthMatch[2]) - 1;
+    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
+    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
   }
 
   // Фильтр по поисковому слову (регистронезависимый поиск)
@@ -1795,6 +1804,7 @@ export async function exportTransactionsWorkbook(filters: {
   search?: string;
   type?: string;
   categoryId?: string;
+  month?: string;
 }) {
   const { user, plan, profileName } = await getExportUserContext();
 
@@ -1807,6 +1817,14 @@ export async function exportTransactionsWorkbook(filters: {
   }
 
   const conditions = [eq(transactions.user_id, user.id)];
+
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(filters.month ?? "");
+  if (monthMatch) {
+    const year = Number(monthMatch[1]);
+    const monthIndex = Number(monthMatch[2]) - 1;
+    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
+    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
+  }
 
   if (filters.search) {
     conditions.push(ilike(transactions.description, `%${filters.search}%`));
@@ -2397,7 +2415,7 @@ export async function getReportData(period: string = "30d") {
     ...v,
   }));
 
-  // Daily trend — only for short periods
+  // Daily trend is only useful for short periods.
   const dailyTrend = Object.entries(byDay).map(([label, v]) => ({
     label,
     ...v,

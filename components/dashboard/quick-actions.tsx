@@ -70,13 +70,14 @@ const ICONS: Array<{ key: string; icon: LucideIcon }> = [
 const STARTER_EXPENSES: Array<{
   nameKey: TranslationKey;
   icon: string;
+  color: string;
 }> = [
-  { nameKey: "expenseGroceries", icon: "shopping" },
-  { nameKey: "expenseTransport", icon: "bus" },
-  { nameKey: "expenseCoffee", icon: "coffee" },
-  { nameKey: "expenseDining", icon: "utensils" },
-  { nameKey: "expenseFuel", icon: "fuel" },
-  { nameKey: "expenseHome", icon: "home" },
+  { nameKey: "expenseGroceries", icon: "shopping", color: "#24845C" },
+  { nameKey: "expenseTransport", icon: "bus", color: "#3478C8" },
+  { nameKey: "expenseCoffee", icon: "coffee", color: "#9A6A3A" },
+  { nameKey: "expenseDining", icon: "utensils", color: "#C45A24" },
+  { nameKey: "expenseFuel", icon: "fuel", color: "#B8791D" },
+  { nameKey: "expenseHome", icon: "home", color: "#287D91" },
 ];
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -347,12 +348,12 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         type="button"
         disabled={Boolean(pendingPresetId)}
         onClick={() => void handleQuickAdd(preset)}
-        className={`flex items-center gap-2.5 border text-left active:scale-[0.98] disabled:opacity-60 ${mobile ? "min-h-[4.15rem] min-w-0 rounded-xl border-slate-200/80 bg-white/80 px-2.5 dark:border-white/[0.055] dark:bg-white/[0.035]" : "min-h-16 min-w-36 rounded-2xl border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950"}`}
+        className={`flex items-center gap-2.5 text-left active:scale-[0.98] disabled:opacity-60 ${mobile ? "min-h-[4.15rem] min-w-0 rounded-xl bg-white px-2.5 dark:bg-neutral-800" : "min-h-16 min-w-36 rounded-2xl bg-slate-50 px-3 dark:bg-neutral-900"}`}
       >
         {pending ? (
           <span
-            className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
-            style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+            className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700 ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
+            style={{ color: preset.category?.color || "var(--app-accent)" }}
           >
             <Loader2 className="h-5 w-5 animate-spin" />
           </span>
@@ -360,11 +361,11 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           <CategoryArtwork
             icon={preset.category?.icon}
             name={preset.category?.name}
-            className={`${mobile ? "h-9 w-9" : "h-10 w-10"} rounded-xl`}
+            className={`${mobile ? "h-9 w-9" : "h-10 w-10"} rounded-xl bg-slate-100 p-0.5 dark:bg-neutral-700`}
             fallback={
               <span
-                className={`flex shrink-0 items-center justify-center rounded-xl text-white ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
-                style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+                className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700 ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
+                style={{ color: preset.category?.color || "var(--app-accent)" }}
               >
                 <Icon className="h-5 w-5" strokeWidth={2} />
               </span>
@@ -386,7 +387,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
 
   return (
     <>
-      <section className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:shadow-sm sm:dark:bg-slate-900">
+      <section className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
@@ -426,9 +427,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     key={starter.nameKey}
                     type="button"
                     onClick={() => openStarterExpense(starter)}
-                    className="flex min-h-[4.6rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-center text-[11px] font-semibold leading-tight text-slate-700 hover:border-red-300 hover:bg-red-50 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-200 dark:hover:border-red-900 dark:hover:bg-red-950/20"
+                    className="flex min-h-[4.6rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-center text-[11px] font-semibold leading-tight text-slate-700 hover:bg-slate-50 active:scale-[0.98] dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/40">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700" style={{ color: starter.color }}>
                       <Icon className="h-5 w-5" strokeWidth={1.9} />
                     </span>
                     <span className="max-w-full truncate">
@@ -441,7 +442,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
             <button
               type="button"
               onClick={openCreate}
-              className="mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 text-xs font-bold text-slate-500 hover:border-red-400 hover:text-red-500 active:scale-[0.99] dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-700 dark:hover:text-red-400 sm:w-auto sm:px-4"
+              className="mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-100 text-xs font-bold text-slate-600 hover:text-slate-900 active:scale-[0.99] dark:bg-neutral-800 dark:text-neutral-300 dark:hover:text-white sm:w-auto sm:px-4"
             >
               <Plus className="h-4 w-4" />
               {t("createCustomQuickAction")}
@@ -455,7 +456,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                 <button
                   type="button"
                   onClick={openCreate}
-                  className="flex min-h-[4.15rem] min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/80 px-2 text-xs font-semibold text-slate-500 active:scale-[0.98] dark:border-white/[0.055] dark:bg-white/[0.035] dark:text-slate-300"
+                  className="flex min-h-[4.15rem] min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-xs font-semibold text-slate-500 active:scale-[0.98] dark:bg-neutral-800 dark:text-neutral-300"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-200">
                     <Plus className="h-5 w-5" />
@@ -548,7 +549,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                         fallback={
                           <span
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                            style={{ backgroundColor: preset.category?.color || "#ef4444" }}
+                            style={{ backgroundColor: preset.category?.color || "#D92D3A" }}
                           >
                             <Icon className="h-5 w-5" />
                           </span>
@@ -614,7 +615,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                         setSelectedType(type);
                         setSelectedCategoryId("");
                       }}
-                      className={`min-h-11 rounded-lg text-xs font-bold ${selectedType === type ? "bg-white text-red-500 shadow-sm dark:bg-slate-800" : "text-slate-500 dark:text-slate-400"}`}
+                      className={`min-h-11 rounded-lg text-xs font-bold ${selectedType === type ? "bg-white text-red-500 dark:bg-slate-800" : "text-slate-500 dark:text-slate-400"}`}
                     >
                       {type === "expense" ? t("expense") : t("income")}
                     </button>

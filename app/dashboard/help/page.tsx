@@ -295,7 +295,7 @@ export default function HelpPage() {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
-      <div>
+      <div className="hidden lg:block">
         <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
           {t("helpTitle")}
         </h1>
@@ -310,7 +310,7 @@ export default function HelpPage() {
           <a
             key={titleKey}
             href={href}
-            className="group flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4"
+            className="group flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4"
           >
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <Icon className="w-4 h-4 text-red-500" />
@@ -324,7 +324,7 @@ export default function HelpPage() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
         {/* Tab bar */}
         <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800">
           {tabs.map(({ key, label, icon: Icon }) => (
@@ -399,13 +399,13 @@ export default function HelpPage() {
                 <form onSubmit={handleSend} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                         {t("yourName")}
                       </label>
                       <input
                         required
                         className={inputCls}
-                        placeholder="John Doe"
+                        placeholder="Alex Morgan"
                         value={form.name}
                         onChange={(e) =>
                           setForm({ ...form, name: e.target.value })
@@ -413,14 +413,14 @@ export default function HelpPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                         {t("yourEmail")}
                       </label>
                       <input
                         required
                         type="email"
                         className={inputCls}
-                        placeholder="john@example.com"
+                        placeholder="alex@company.by"
                         value={form.email}
                         onChange={(e) =>
                           setForm({ ...form, email: e.target.value })
@@ -429,7 +429,7 @@ export default function HelpPage() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {t("subject")}
                     </label>
                     <input
@@ -443,7 +443,7 @@ export default function HelpPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {t("message")}
                     </label>
                     <textarea
@@ -536,7 +536,7 @@ export default function HelpPage() {
                   key={title}
                   className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:border-red-200 dark:hover:border-red-900/40 transition-colors cursor-default"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shrink-0">
                     <Icon className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" />
                   </div>
                   <div className="flex-1 min-w-0">

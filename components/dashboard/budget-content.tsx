@@ -66,7 +66,7 @@ export default function BudgetContent({
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="hidden lg:block">
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("budgetsLimits")}
           </h1>
@@ -85,7 +85,7 @@ export default function BudgetContent({
       {/* Summary row */}
       {b.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4 text-slate-400" />
             </div>
@@ -98,7 +98,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <TrendingDown className="w-4 h-4 text-red-500" />
             </div>
@@ -111,7 +111,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
@@ -127,7 +127,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
@@ -173,7 +173,7 @@ export default function BudgetContent({
             const isOver = spent >= limit;
             const isWarning =
               percentage >= (budget.alert_threshold ?? 75) && !isOver;
-            const catColor = cat?.color || "#ef4444";
+            const catColor = cat?.color || "#D92D3A";
             const today = new Date();
             const daysInMonth = new Date(
               today.getFullYear(),
@@ -188,7 +188,7 @@ export default function BudgetContent({
             return (
               <div
                 key={budget.id}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between">
@@ -251,13 +251,13 @@ export default function BudgetContent({
                   ) : null}
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-500"
+                      className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                       style={{
-                        width: `${percentage}%`,
+                        transform: `scaleX(${percentage / 100})`,
                         backgroundColor: isOver
-                          ? "#ef4444"
+                          ? "#D92D3A"
                           : isWarning
-                            ? "#f59e0b"
+                            ? "#B8791D"
                             : catColor,
                       }}
                     />
