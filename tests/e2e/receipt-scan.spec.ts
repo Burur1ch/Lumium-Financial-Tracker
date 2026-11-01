@@ -11,7 +11,8 @@ async function createReceiptPng() {
   const lines = [
     "TEST MARKET",
     "01.11.2026",
-    "MILK 3.80 USD",
+    "MILK 2.5%",
+    "1 x 3.80 3.80 USD",
     "USB CABLE 19.90 USD",
     "TOTAL 23.70 USD",
   ];
@@ -56,6 +57,8 @@ test("receipt OCR creates categorized transaction splits", async ({ page }) => {
     await expect(page.getByTestId("save-scanned-receipt")).toBeEnabled({ timeout: 30_000 });
     const categorySelects = page.locator('[data-testid^="receipt-item-category-"]');
     await expect(categorySelects).toHaveCount(2);
+    await expect(page.getByTestId("receipt-item-name-0")).toHaveValue("MILK 2.5%");
+    await expect(page.getByTestId("receipt-item-price-0")).toHaveValue("3.8");
     const selectedLabels = await categorySelects.evaluateAll((selects) =>
       selects.map((select) => {
         const element = select as HTMLSelectElement;

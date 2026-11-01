@@ -10,6 +10,7 @@ import {
   Flashlight,
   Image as ImageIcon,
   Loader2,
+  Plus,
   QrCode,
   ReceiptText,
   ScanLine,
@@ -26,11 +27,15 @@ import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import {
   allocateReceiptCategorySplits,
+  chooseBestReceiptResult,
+  inferReceiptCategory,
   inferReceiptCategoryKey,
   parseReceiptQr,
   parseReceiptText,
+  receiptRecognitionNeedsRetry,
   type ReceiptScanResult,
 } from "@/utils/receipt-scanner";
+import { prepareReceiptImages, reconstructReceiptText } from "@/utils/receipt-image";
 
 type ExpenseCategory = {
   id: string;
@@ -105,13 +110,14 @@ export function MobileReceiptScanner() {
     setResult(null);
     setScanError(null);
     setScannerHelpOpen(false);
+    setExpenseCategories([]);
     setItemCategoryIds([]);
     setSaving(false);
     setScreen("closed");
   }, [clearPreview, releaseCamera]);
 
   useEffect(() => {
-    if (screen !== "review" || !result) return;
+    if (screen !== "review" || !result || expenseCategories.length > 0) return;
     let cancelled = false;
     void getCategories()
       .then((rows) => {
@@ -144,7 +150,7 @@ export function MobileReceiptScanner() {
     return () => {
       cancelled = true;
     };
-  }, [result, scanFailedMessage, screen]);
+  }, [expenseCategories.length, result, scanFailedMessage, screen]);
 
   const acceptQrValue = useCallback(
     (rawValue: string) => {
@@ -284,29 +290,85 @@ export function MobileReceiptScanner() {
     setScanError(null);
     setScreen("processing");
 
+    let worker: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>> | null = null;
     try {
-      const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker(["rus", "eng"], undefined, {
+      const prepared = await prepareReceiptImages(file);
+      if (runId !== runIdRef.current) return;
+      setProgress(0.07);
+
+      const { createWorker, PSM } = await import("tesseract.js");
+      let recognitionPass = 0;
+      worker = await createWorker(["rus", "eng"], undefined, {
         logger(message) {
           if (runId !== runIdRef.current) return;
           if (message.status === "recognizing text") {
-            setProgress(Math.max(0.08, message.progress));
+            const start = recognitionPass === 0 ? 0.1 : 0.62;
+            const share = recognitionPass === 0 ? 0.5 : 0.33;
+            setProgress(Math.max(start, start + message.progress * share));
           }
         },
       });
       workerRef.current = worker;
-      const recognized = await worker.recognize(file, { rotateAuto: true });
-      await worker.terminate();
-      workerRef.current = null;
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "300",
+      });
+      const firstRecognition = await worker.recognize(
+        prepared.enhanced,
+        { rotateAuto: true },
+        { text: true, blocks: true },
+      );
       if (runId !== runIdRef.current) return;
-      setResult(parseReceiptText(recognized.data.text, recognized.data.confidence));
+      const firstText = reconstructReceiptText(
+        firstRecognition.data.blocks,
+        firstRecognition.data.text,
+      );
+      const candidates = [parseReceiptText(firstText, firstRecognition.data.confidence)];
+
+      if (receiptRecognitionNeedsRetry(candidates[0])) {
+        recognitionPass = 1;
+        setProgress(0.62);
+        await worker.setParameters({
+          tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+          preserve_interword_spaces: "1",
+          user_defined_dpi: "300",
+        });
+        const secondRecognition = await worker.recognize(
+          prepared.binary,
+          { rotateAuto: true },
+          { text: true, blocks: true },
+        );
+        if (runId !== runIdRef.current) return;
+        candidates.push(parseReceiptText(
+          reconstructReceiptText(secondRecognition.data.blocks, secondRecognition.data.text),
+          secondRecognition.data.confidence,
+        ));
+      }
+
+      const bestResult = chooseBestReceiptResult(candidates);
+      setResult(bestResult);
+      if (expenseCategories.length > 0) {
+        const fallback =
+          expenseCategories.find((category) => category.system_key === "other-expense")?.id ??
+          expenseCategories[0]?.id ??
+          "";
+        setItemCategoryIds(bestResult.items.map((item) => {
+          const inferredKey = inferReceiptCategoryKey(item.name);
+          return expenseCategories.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+        }));
+      }
       setProgress(1);
       setScreen("review");
     } catch {
       if (runId !== runIdRef.current) return;
-      workerRef.current = null;
       setScanError(t("scanFailed"));
       setProgress(0);
+    } finally {
+      if (worker && workerRef.current === worker) {
+        await worker.terminate().catch(() => undefined);
+        workerRef.current = null;
+      }
     }
   };
 
@@ -359,9 +421,49 @@ export function MobileReceiptScanner() {
     setResult((current) => (current ? { ...current, ...patch } : current));
   };
 
+  const updateReceiptItem = (
+    index: number,
+    patch: Partial<ReceiptScanResult["items"][number]>,
+  ) => {
+    setResult((current) => current ? {
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item),
+    } : current);
+  };
+
+  const removeReceiptItem = (index: number) => {
+    setResult((current) => current ? {
+      ...current,
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
+    } : current);
+    setItemCategoryIds((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const recategorizeReceiptItem = (index: number, name: string) => {
+    const inferredKey = inferReceiptCategoryKey(name);
+    const inferredCategory = expenseCategories.find((category) =>
+      category.system_key === inferredKey);
+    if (!inferredCategory) return;
+    setItemCategoryIds((current) => current.map((categoryId, itemIndex) =>
+      itemIndex === index ? inferredCategory.id : categoryId));
+  };
+
+  const addReceiptItem = () => {
+    setResult((current) => current ? {
+      ...current,
+      items: [...current.items, { name: "", price: 0, confidence: 1 }],
+    } : current);
+    setItemCategoryIds((current) => [...current, fallbackCategoryId]);
+  };
+
   const saveScannedReceipt = async () => {
     if (!result?.amount) {
       setScanError(t("receiptAmountMissing"));
+      return;
+    }
+    if (result.items.some((item) => !item.name.trim() || !Number.isFinite(item.price) || item.price <= 0)) {
+      setScanError(t("receiptItemsInvalid"));
       return;
     }
     if (expenseCategories.length === 0) {
@@ -523,6 +625,8 @@ export function MobileReceiptScanner() {
   if (!result) return null;
   const reviewCurrency = result.currency || currency;
   const hasLowConfidence = result.source === "receipt" && (result.confidence < 0.55 || result.amount === null);
+  const hasInvalidReceiptItems = result.items.some((item) =>
+    !item.name.trim() || !Number.isFinite(item.price) || item.price <= 0);
 
   return (
     <section className="mobile-review-screen lg:hidden" role="dialog" aria-modal="true" aria-label={t("checkPurchase")}>
@@ -564,23 +668,67 @@ export function MobileReceiptScanner() {
           )}
         </section>
 
-        {result.items.length > 0 && (
+        {result.source === "receipt" && (
           <section className="mobile-receipt-group" style={{ "--category-color": "#31d49d" } as CSSProperties}>
             <header><span><ReceiptText className="h-5 w-5" />{t("detectedItems")}</span><strong>{result.items.length}</strong></header>
-            {result.items.map((item, index) => (
-              <div key={`${item.name}-${index}`} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-t border-[#2a2a2a] px-3 py-3">
-                <span className="min-w-0"><span className="block truncate text-sm font-semibold">{item.name}</span><b className="block whitespace-nowrap text-xs text-[#aeb9c3]">{formatAmount(item.price, reviewCurrency)}</b></span>
-                <select
-                  data-testid={`receipt-item-category-${index}`}
-                  aria-label={`${t("category")}: ${item.name}`}
-                  className="min-h-10 rounded-lg border border-[#333] bg-[#111] px-2 text-xs font-semibold text-white outline-none focus:border-[#ff5964]"
-                  value={itemCategoryIds[index] ?? ""}
-                  onChange={(event) => setItemCategoryIds((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
-                >
-                  {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                </select>
-              </div>
-            ))}
+            <p className="border-t border-[#2a2a2a] px-3 py-2.5 text-xs leading-5 text-[#aeb9c3]">{t("receiptItemsHint")}</p>
+            {result.items.map((item, index) => {
+              const inference = inferReceiptCategory(item.name);
+              return (
+                <div data-testid={`receipt-item-row-${index}`} key={index} className="relative space-y-2.5 border-t border-[#2a2a2a] px-3 py-3">
+                  <button
+                    type="button"
+                    onClick={() => removeReceiptItem(index)}
+                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg text-[#8d99a5] hover:bg-red-950/40 hover:text-red-300"
+                    aria-label={t("removeReceiptItem")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-2 pr-9">
+                    <label className="block text-[0.68rem] font-bold text-[#8d99a5]">{t("receiptItemName")}
+                      <input
+                        data-testid={`receipt-item-name-${index}`}
+                        className="mt-1 min-h-10 w-full rounded-lg border border-[#333] bg-[#111] px-2.5 text-sm font-semibold text-white outline-none focus:border-[#ff5964]"
+                        value={item.name}
+                        onChange={(event) => updateReceiptItem(index, { name: event.target.value })}
+                        onBlur={(event) => recategorizeReceiptItem(index, event.target.value)}
+                      />
+                    </label>
+                    <label className="block text-[0.68rem] font-bold text-[#8d99a5]">{t("receiptItemPrice")}
+                      <input
+                        data-testid={`receipt-item-price-${index}`}
+                        className="mt-1 min-h-10 w-full rounded-lg border border-[#333] bg-[#111] px-2.5 text-sm font-bold tabular-nums text-white outline-none focus:border-[#ff5964]"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={item.price || ""}
+                        onChange={(event) => updateReceiptItem(index, { price: Number(event.target.value) || 0 })}
+                      />
+                    </label>
+                  </div>
+                  {item.quantity && item.unitPrice && (
+                    <p className="text-[0.68rem] text-[#8d99a5]">{item.quantity} × {formatAmount(item.unitPrice, reviewCurrency)}</p>
+                  )}
+                  <div className="space-y-1.5">
+                    <select
+                      data-testid={`receipt-item-category-${index}`}
+                      aria-label={`${t("category")}: ${item.name}`}
+                      className="min-h-10 w-full rounded-lg border border-[#333] bg-[#111] px-2 text-xs font-semibold text-white outline-none focus:border-[#ff5964]"
+                      value={itemCategoryIds[index] ?? ""}
+                      onChange={(event) => setItemCategoryIds((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
+                    >
+                      {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                    <span className={`block text-[0.65rem] font-bold ${inference.confidence >= 0.7 ? "text-emerald-400" : "text-amber-300"}`}>
+                      {inference.confidence >= 0.7 ? t("categoryMatched") : t("categoryNeedsCheck")}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <button type="button" onClick={addReceiptItem} className="flex min-h-11 w-full items-center justify-center gap-2 border-t border-[#2a2a2a] text-xs font-bold text-[#9fb0bf] hover:bg-white/5 hover:text-white">
+              <Plus className="h-4 w-4" /> {t("addReceiptItem")}
+            </button>
           </section>
         )}
 
@@ -595,7 +743,7 @@ export function MobileReceiptScanner() {
         {hasLowConfidence && <div className="mobile-confidence-warning"><span>!</span>{t("lowConfidenceHint")}</div>}
       </div>
       <footer className="mobile-review-footer">
-        <button data-testid="save-scanned-receipt" type="button" onClick={() => void saveScannedReceipt()} disabled={!result.amount || saving || expenseCategories.length === 0}>
+        <button data-testid="save-scanned-receipt" type="button" onClick={() => void saveScannedReceipt()} disabled={!result.amount || saving || hasInvalidReceiptItems || expenseCategories.length === 0}>
           {saving ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <>{t("save")} · {formatAmount(result.amount, reviewCurrency)}</>}
         </button>
         <p>{t("receiptDeletedAfterSave")}</p>
