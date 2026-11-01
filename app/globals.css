@@ -669,6 +669,7 @@ html.dark body::before {
 .mobile-confidence-warning span { display: flex; width: 1.6rem; height: 1.6rem; align-items: center; justify-content: center; border-radius: 999px; background: #ffbf40; color: #332100; font-weight: 900; }
 .mobile-review-footer { position: absolute; right: 0; bottom: 0; left: 0; border-top: 1px solid #2a2a2a; background: #000000; padding: 0.75rem 1rem max(env(safe-area-inset-bottom), 0.7rem); }
 .mobile-review-footer button { display: block; width: min(100%, 36rem); min-height: 3.35rem; margin: 0 auto; border-radius: 1rem; background: var(--app-accent); padding: 0 0.8rem; color: white; font-size: 0.86rem; font-weight: 800; }
+.mobile-review-footer button:disabled { cursor: not-allowed; opacity: 0.45; }
 .mobile-review-footer p { margin-top: 0.4rem; text-align: center; color: #b4b4b4; font-size: 0.68rem; }
 
 @media (max-width: 370px) {

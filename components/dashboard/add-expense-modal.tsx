@@ -36,6 +36,7 @@ interface TransactionDraft {
   description?: string;
   note?: string;
   currency?: string;
+  date?: string;
 }
 
 const PRESET_COLORS = [
@@ -121,6 +122,7 @@ export default function AddExpenseModal({
 
   const openModal = useCallback((nextDraft: TransactionDraft = {}) => {
     setDraft(nextDraft);
+    setDate(nextDraft.date ?? today);
     setIsOpen(true);
     setSuccess(false);
     setError(null);
@@ -135,7 +137,7 @@ export default function AddExpenseModal({
       });
     }
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-  }, [categories.length, t]);
+  }, [categories.length, t, today]);
 
   const closeModal = () => {
     setVisible(false);

@@ -10,7 +10,7 @@ import { MobileAppChrome } from "@/components/dashboard/mobile-app-chrome";
 import AddExpenseModal from "@/components/dashboard/add-expense-modal";
 import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
 import { CurrencyRateSync } from "@/components/currency-rate-sync";
-import { MobileReceiptFlow } from "@/components/dashboard/mobile-receipt-flow";
+import { MobileReceiptScanner } from "@/components/dashboard/mobile-receipt-scanner";
 
 export default function DashboardLayout({
   children,
@@ -38,7 +38,7 @@ export default function DashboardLayout({
           </Suspense>
         </main>
       </div>
-      <MobileReceiptFlow />
+      <MobileReceiptScanner />
       <AddExpenseModal hideTrigger />
     </div>
   );
