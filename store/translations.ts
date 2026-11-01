@@ -92,6 +92,10 @@ export const translations = {
     deleteCategory: "Delete category",
     noCategories: "No categories yet",
     yourCategories: "Your Categories",
+    baseCategory: "Base",
+    confirmDeleteCategory: "Delete custom category",
+    categoryAlreadyExists: "A category with this name already exists.",
+    categoryCreateFailed: "Could not create the category. Try again.",
 
     // Budget
     budgetsLimits: "Budgets & Limits",
@@ -103,6 +107,10 @@ export const translations = {
     totalLimit: "Total Limit",
     totalSpent: "Total Spent",
     overLimitCount: "Over Limit",
+    editLimit: "Edit limit",
+    openBudgetSettings: "Open limit settings for",
+    limitNotBalance: "Limits are spending plans, not money in your account.",
+    budgetSaveFailed: "Could not save the limit. Try again.",
 
     // Reports
     cashFlow: "Cash Flow",
@@ -214,15 +222,15 @@ export const translations = {
       "Pro includes trend analysis, category breakdowns, longer reporting windows, and detailed financial insights.",
     unlockAdvancedReports: "See advanced reports",
     planLimitReached: "Plan limit reached",
-    categoryPlanLimitHint: "Your current plan limits custom categories.",
+    categoryPlanLimitHint: "Custom categories are unlimited on every plan.",
     budgetPlanLimitHint: "Your current plan limits active monthly budgets.",
     periodLockedTitle: "Longer reporting periods need Pro.",
     periodLockedDesc:
       "Pro adds 3-month, yearly, and all-time views to your dashboard and reports.",
     unlockLongerPeriods: "See longer periods",
-    categoryLockedTitle: "More categories need Pro.",
+    categoryLockedTitle: "Categories are unlimited.",
     categoryLockedDesc:
-      "Free includes up to 10 custom categories. Upgrade to keep creating and organizing more spending groups.",
+      "Every plan includes the base categories and unlimited custom categories.",
     budgetLockedTitle: "More budgets need Pro.",
     budgetLockedDesc:
       "Free includes up to 5 active monthly budgets. Upgrade to manage more category limits.",
@@ -551,6 +559,10 @@ export const translations = {
     noCategories: "Пока нет категорий",
     manageCategoriesDesc: "Управляйте категориями расходов и доходов",
     yourCategories: "Ваши категории",
+    baseCategory: "Базовая",
+    confirmDeleteCategory: "Удалить пользовательскую категорию",
+    categoryAlreadyExists: "Категория с таким названием уже существует.",
+    categoryCreateFailed: "Не удалось создать категорию. Попробуйте ещё раз.",
 
     budgetsLimits: "Бюджеты и лимиты",
     monthlyLimit: "Месячный лимит",
@@ -561,6 +573,10 @@ export const translations = {
     totalLimit: "Общий лимит",
     totalSpent: "Потрачено",
     overLimitCount: "Превышено",
+    editLimit: "Изменить лимит",
+    openBudgetSettings: "Открыть настройки лимита для",
+    limitNotBalance: "Лимит — это план расходов, а не деньги на вашем счёте.",
+    budgetSaveFailed: "Не удалось сохранить лимит. Попробуйте ещё раз.",
 
     cashFlow: "Денежный поток",
     netBalance: "Чистый баланс",
@@ -670,16 +686,16 @@ export const translations = {
     unlockAdvancedReports: "Открыть расширенные отчёты",
     planLimitReached: "Лимит тарифа достигнут",
     categoryPlanLimitHint:
-      "Текущий тариф ограничивает число пользовательских категорий.",
+      "Пользовательские категории не ограничены ни на одном тарифе.",
     budgetPlanLimitHint:
       "Текущий тариф ограничивает число активных месячных бюджетов.",
     periodLockedTitle: "Длинные периоды доступны только в Pro.",
     periodLockedDesc:
       "Перейдите на Pro, чтобы открыть периоды 3 месяца, год и всё время в дашборде и отчётах.",
     unlockLongerPeriods: "Открыть длинные периоды",
-    categoryLockedTitle: "Больше категорий доступно в Pro.",
+    categoryLockedTitle: "Категории не ограничены.",
     categoryLockedDesc:
-      "Free включает до 10 пользовательских категорий. Перейдите на Pro, чтобы создавать и структурировать больше категорий расходов.",
+      "На каждом тарифе доступны базовые и неограниченные пользовательские категории.",
     budgetLockedTitle: "Больше бюджетов доступно в Pro.",
     budgetLockedDesc:
       "Free включает до 5 активных месячных бюджетов. Перейдите на Pro, чтобы управлять большим числом лимитов.",
@@ -1006,6 +1022,10 @@ export const translations = {
     noCategories: "Noch keine Kategorien",
     manageCategoriesDesc: "Verwalten Sie Ihre Ausgaben- und Einnahmekategorien",
     yourCategories: "Ihre Kategorien",
+    baseCategory: "Basis",
+    confirmDeleteCategory: "Benutzerdefinierte Kategorie löschen",
+    categoryAlreadyExists: "Eine Kategorie mit diesem Namen existiert bereits.",
+    categoryCreateFailed: "Die Kategorie konnte nicht erstellt werden. Versuchen Sie es erneut.",
 
     budgetsLimits: "Budgets & Limits",
     monthlyLimit: "Monatslimit",
@@ -1016,6 +1036,10 @@ export const translations = {
     totalLimit: "Gesamtlimit",
     totalSpent: "Ausgegeben",
     overLimitCount: "Überschritten",
+    editLimit: "Limit bearbeiten",
+    openBudgetSettings: "Limiteinstellungen öffnen für",
+    limitNotBalance: "Limits sind Ausgabenpläne, kein Geld auf Ihrem Konto.",
+    budgetSaveFailed: "Das Limit konnte nicht gespeichert werden. Versuchen Sie es erneut.",
 
     cashFlow: "Cashflow",
     netBalance: "Nettosaldo",
@@ -1128,15 +1152,15 @@ export const translations = {
     unlockAdvancedReports: "Erweiterte Berichte freischalten",
     planLimitReached: "Planlimit erreicht",
     categoryPlanLimitHint:
-      "Ihr aktueller Plan begrenzt benutzerdefinierte Kategorien.",
+      "Benutzerdefinierte Kategorien sind in jedem Plan unbegrenzt.",
     budgetPlanLimitHint: "Ihr aktueller Plan begrenzt aktive Monatsbudgets.",
     periodLockedTitle: "Längere Zeiträume benötigen Pro.",
     periodLockedDesc:
       "Upgraden Sie auf Pro, um 3 Monate, Jahr und Gesamtzeit im Dashboard und in Berichten freizuschalten.",
     unlockLongerPeriods: "Längere Zeiträume freischalten",
-    categoryLockedTitle: "Mehr Kategorien benötigen Pro.",
+    categoryLockedTitle: "Kategorien sind unbegrenzt.",
     categoryLockedDesc:
-      "Free enthält bis zu 10 benutzerdefinierte Kategorien. Wechseln Sie zu Pro, um mehr Ausgabengruppen zu erstellen und zu organisieren.",
+      "Jeder Plan enthält Basiskategorien und unbegrenzt viele benutzerdefinierte Kategorien.",
     budgetLockedTitle: "Mehr Budgets benötigen Pro.",
     budgetLockedDesc:
       "Free enthält bis zu 5 aktive Monatsbudgets. Wechseln Sie zu Pro, um mehr Limits zu verwalten.",
@@ -1426,6 +1450,10 @@ export const translations = {
     noCategories: "Pas encore de catégories",
     manageCategoriesDesc: "Gérez vos catégories de dépenses et de revenus",
     yourCategories: "Vos catégories",
+    baseCategory: "De base",
+    confirmDeleteCategory: "Supprimer la catégorie personnalisée",
+    categoryAlreadyExists: "Une catégorie portant ce nom existe déjà.",
+    categoryCreateFailed: "Impossible de créer la catégorie. Réessayez.",
 
     budgetsLimits: "Budgets & Limites",
     monthlyLimit: "Limite mensuelle",
@@ -1436,6 +1464,10 @@ export const translations = {
     totalLimit: "Limite totale",
     totalSpent: "Dépensé",
     overLimitCount: "Dépassé",
+    editLimit: "Modifier la limite",
+    openBudgetSettings: "Ouvrir les réglages de limite pour",
+    limitNotBalance: "Les limites sont des plans de dépenses, pas l’argent de votre compte.",
+    budgetSaveFailed: "Impossible d’enregistrer la limite. Réessayez.",
 
     cashFlow: "Flux de trésorerie",
     netBalance: "Solde net",
@@ -1548,16 +1580,16 @@ export const translations = {
     unlockAdvancedReports: "Débloquer les rapports avancés",
     planLimitReached: "Limite du plan atteinte",
     categoryPlanLimitHint:
-      "Votre plan actuel limite le nombre de catégories personnalisées.",
+      "Les catégories personnalisées sont illimitées avec tous les forfaits.",
     budgetPlanLimitHint:
       "Votre plan actuel limite le nombre de budgets mensuels actifs.",
     periodLockedTitle: "Les périodes plus longues nécessitent Pro.",
     periodLockedDesc:
       "Passez à Pro pour débloquer les vues 3 mois, annuelle et tout l'historique dans le tableau de bord et les rapports.",
     unlockLongerPeriods: "Débloquer les longues périodes",
-    categoryLockedTitle: "Plus de catégories nécessitent Pro.",
+    categoryLockedTitle: "Les catégories sont illimitées.",
     categoryLockedDesc:
-      "Free inclut jusqu'à 10 catégories personnalisées. Passez à Pro pour en créer et organiser davantage.",
+      "Chaque forfait inclut les catégories de base et des catégories personnalisées illimitées.",
     budgetLockedTitle: "Plus de budgets nécessitent Pro.",
     budgetLockedDesc:
       "Free inclut jusqu'à 5 budgets mensuels actifs. Passez à Pro pour gérer davantage de limites.",

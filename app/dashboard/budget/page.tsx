@@ -8,6 +8,5 @@ export default async function BudgetPage() {
     getBudgetsWithProgress(),
   ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <BudgetContent categories={categories} budgets={budgets as any} />;
+  return <BudgetContent categories={categories} budgets={budgets} />;
 }

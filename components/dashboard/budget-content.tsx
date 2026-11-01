@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Wallet,
   AlertTriangle,
@@ -14,7 +14,7 @@ import { usePrefs } from "@/store/prefs";
 import { getPlanBudgetLimit } from "@/utils/monetization/limits";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
-interface Category {
+export interface BudgetCategory {
   id: string;
   name: string;
   color: string;
@@ -22,7 +22,7 @@ interface Category {
   icon?: string | null;
 }
 
-interface BudgetItem {
+export interface BudgetItem {
   id: string;
   monthly_limit: number;
   base_limit?: number;
@@ -32,7 +32,10 @@ interface BudgetItem {
   alert_threshold?: number;
   current_spent: number;
   category_id: string;
-  categories?: { name: string; color: string; icon?: string | null }[] | null;
+  categories?:
+    | { name: string; color: string; icon?: string | null }
+    | { name: string; color: string; icon?: string | null }[]
+    | null;
 }
 
 function getCat(b: BudgetItem) {
@@ -43,11 +46,12 @@ export default function BudgetContent({
   categories,
   budgets,
 }: {
-  categories: Category[];
+  categories: BudgetCategory[];
   budgets: BudgetItem[];
 }) {
   const { t } = useI18n();
   const { plan } = usePrefs();
+  const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
   const b = budgets as BudgetItem[];
   const budgetLimit = getPlanBudgetLimit(plan);
@@ -79,8 +83,16 @@ export default function BudgetContent({
             </p>
           )}
         </div>
-        <SetBudgetModal categories={categories} currentBudgetCount={b.length} />
+        <SetBudgetModal
+          categories={categories}
+          currentBudgetCount={b.length}
+          budgetedCategoryIds={b.map((budget) => budget.category_id)}
+        />
       </div>
+
+      <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        {t("limitNotBalance")}
+      </p>
 
       {/* Summary row */}
       {b.length > 0 && (
@@ -186,9 +198,12 @@ export default function BudgetContent({
                 : spent;
 
             return (
-              <div
+              <button
+                type="button"
                 key={budget.id}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+                onClick={() => setEditingBudget(budget)}
+                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 hover:bg-slate-50/70 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-900/80 sm:p-5"
+                aria-label={`${t("openBudgetSettings")} ${cat?.name || t("uncategorized")}`}
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between">
@@ -217,20 +232,25 @@ export default function BudgetContent({
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`text-xs px-2.5 py-1 font-bold rounded-xl ${
-                      isOver
-                        ? "bg-red-50 dark:bg-red-950/30 text-red-500"
+                  <span className="flex flex-col items-end gap-1">
+                    <span
+                      className={`text-xs px-2.5 py-1 font-bold rounded-xl ${
+                        isOver
+                          ? "bg-red-50 dark:bg-red-950/30 text-red-500"
+                          : isWarning
+                            ? "bg-amber-50 dark:bg-amber-950/30 text-amber-500"
+                            : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"
+                      }`}
+                    >
+                      {isOver
+                        ? t("overLimit")
                         : isWarning
-                          ? "bg-amber-50 dark:bg-amber-950/30 text-amber-500"
-                          : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"
-                    }`}
-                  >
-                    {isOver
-                      ? t("overLimit")
-                      : isWarning
-                        ? t("warning")
-                        : t("onTrack")}
+                          ? t("warning")
+                          : t("onTrack")}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {t("editLimit")}
+                    </span>
                   </span>
                 </div>
 
@@ -241,7 +261,7 @@ export default function BudgetContent({
                       <Money amount={spent} />
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
-                      of <Money amount={limit} />
+                      {t("of")} <Money amount={limit} />
                     </span>
                   </div>
                   {budget.rollover_amount && budget.rollover_amount > 0 ? (
@@ -295,11 +315,33 @@ export default function BudgetContent({
                     </span>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       )}
+
+      {editingBudget ? (
+        <SetBudgetModal
+          key={editingBudget.id}
+          categories={categories}
+          currentBudgetCount={b.length}
+          budgetedCategoryIds={b.map((budget) => budget.category_id)}
+          initialBudget={{
+            categoryId: editingBudget.category_id,
+            limitAmountUsd: Number(
+              editingBudget.base_limit ?? editingBudget.monthly_limit,
+            ),
+            rolloverEnabled: Boolean(editingBudget.rollover_enabled),
+            alertThreshold: editingBudget.alert_threshold ?? 75,
+          }}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditingBudget(null);
+          }}
+          hideTrigger
+        />
+      ) : null}
     </div>
   );
 }

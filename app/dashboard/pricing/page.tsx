@@ -44,7 +44,7 @@ function getPlanHighlights(plan: PlanKey, t: (key: never) => string) {
     case "free":
       return [
         "30 days history",
-        `10 ${t("categoriesCount" as never)}`,
+        `∞ ${t("categoriesCount" as never)}`,
         `5 ${t("budgetsCount" as never)}`,
       ];
     case "pro":

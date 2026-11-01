@@ -17,7 +17,7 @@ import { AddTransactionButton } from "@/components/dashboard/add-transaction-but
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Suspense } from "react";
-import { getBudgetsWithProgress } from "./actions";
+import { getBudgetsWithProgress, getCategories } from "./actions";
 import { MobileDashboardOverview } from "@/components/dashboard/mobile-dashboard-overview";
 import { MonthSelector } from "@/components/dashboard/month-selector";
 
@@ -197,17 +197,7 @@ export default async function DashboardPage({
           asc(quickTransactionPresets.created_at),
         )
         .limit(8),
-      db
-        .select({
-          id: categories.id,
-          name: categories.name,
-          type: categories.type,
-          color: categories.color,
-          icon: categories.icon,
-        })
-        .from(categories)
-        .where(eq(categories.user_id, user.id))
-        .orderBy(asc(categories.name)),
+      getCategories(),
       getBudgetsWithProgress(monthRange.key),
     ]);
 

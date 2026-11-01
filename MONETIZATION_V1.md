@@ -13,8 +13,8 @@ Create a simple pricing structure that matches the current product maturity and 
 - Limits:
 - 1 workspace
 - 1 member
-- 90 days of transaction history
-- up to 15 custom categories
+- 30 days of transaction history
+- unlimited custom categories
 - up to 5 monthly budgets
 - no exports
 - no automation rules

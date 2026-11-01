@@ -47,7 +47,8 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 3. Categories
 
-- Create and delete custom categories for income/expense.
+- Every user receives a protected set of base income/expense categories on first category access.
+- Create and delete additional custom categories without a plan-based category count limit.
 - Color and icon metadata is supported in UI.
 
 4. Budgets
@@ -108,7 +109,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - `transaction_splits`: per-category allocations owned by the transaction owner.
 - `recurring_transactions`: schedules and automatic-materialization state.
 - `transaction_rules`: description matching, target category, and review behavior.
-- `budgets`: monthly limits, rollover setting, and alert threshold.
+- `budgets`: monthly spending limits (planning caps, not account balances), rollover setting, and alert threshold.
 - `savings_goals`: target/current amounts, deadline, color, and completion state.
 
 ## Internationalization
