@@ -16,6 +16,134 @@ export interface ReceiptScanResult {
   confidence: number;
 }
 
+export type ReceiptExpenseCategoryKey =
+  | "groceries"
+  | "transport"
+  | "housing"
+  | "utilities"
+  | "health"
+  | "shopping"
+  | "eating-out"
+  | "entertainment"
+  | "education"
+  | "subscriptions"
+  | "other-expense";
+
+const CATEGORY_KEYWORDS: Array<{
+  key: ReceiptExpenseCategoryKey;
+  words: string[];
+}> = [
+  {
+    key: "health",
+    words: [
+      "аптек", "лекар", "таблет", "витамин", "шампун", "мыло", "зубн", "pharmacy",
+      "medicine", "medical", "vitamin", "toothpaste", "shampoo",
+    ],
+  },
+  {
+    key: "transport",
+    words: [
+      "бензин", "дизел", "топлив", "такси", "проезд", "метро", "билет", "fuel", "diesel",
+      "petrol", "gasoline", "taxi", "metro", "bus ticket", "parking",
+    ],
+  },
+  {
+    key: "eating-out",
+    words: [
+      "кафе", "ресторан", "бургер", "пицц", "суши", "кофейня", "латте", "капучино", "cafe",
+      "restaurant", "burger", "pizza", "sushi", "latte", "cappuccino",
+    ],
+  },
+  {
+    key: "education",
+    words: [
+      "книг", "учеб", "курс", "тетрад", "канцеляр", "book", "course", "textbook", "notebook",
+      "stationery",
+    ],
+  },
+  {
+    key: "entertainment",
+    words: [
+      "кино", "театр", "игр", "боулинг", "музей", "cinema", "movie", "theatre", "game", "museum",
+    ],
+  },
+  {
+    key: "utilities",
+    words: ["электр", "вода", "газ", "интернет", "телефон", "electricity", "water bill", "internet"],
+  },
+  {
+    key: "housing",
+    words: ["аренд", "квартир", "ремонт", "мебел", "rent", "apartment", "furniture", "repair"],
+  },
+  {
+    key: "subscriptions",
+    words: ["подписк", "spotify", "netflix", "youtube premium", "subscription"],
+  },
+  {
+    key: "shopping",
+    words: [
+      "usb", "кабель", "заряд", "телефон", "наушник", "одежд", "футболк", "обув", "носк", "игрушк",
+      "батарей", "ламп", "чехол", "cable", "charger", "phone", "headphone", "shirt", "shoes", "socks",
+      "toy", "battery", "adapter", "case",
+    ],
+  },
+  {
+    key: "groceries",
+    words: [
+      "молок", "хлеб", "сыр", "масло", "мяс", "куриц", "рыб", "колбас", "яйц", "овощ", "фрукт",
+      "яблок", "банан", "картоф", "сок", "вода", "чай", "кофе", "сахар", "рис", "макарон", "йогурт",
+      "milk", "bread", "cheese", "butter", "meat", "chicken", "fish", "sausage", "egg", "vegetable",
+      "fruit", "apple", "banana", "potato", "juice", "water", "tea", "coffee", "sugar", "rice", "pasta",
+      "yogurt", "yoghurt",
+    ],
+  },
+];
+
+export function inferReceiptCategoryKey(value: string): ReceiptExpenseCategoryKey {
+  const normalized = value.toLocaleLowerCase().replace(/ё/g, "е");
+  return CATEGORY_KEYWORDS.find(({ words }) => words.some((word) => normalized.includes(word)))?.key
+    ?? "other-expense";
+}
+
+export function allocateReceiptCategorySplits(
+  items: ReceiptScanItem[],
+  categoryIds: string[],
+  total: number,
+) {
+  const grouped = new Map<string, { sourceAmount: number; names: string[] }>();
+  items.forEach((item, index) => {
+    const categoryId = categoryIds[index];
+    if (!categoryId || !Number.isFinite(item.price) || item.price <= 0) return;
+    const group = grouped.get(categoryId) ?? { sourceAmount: 0, names: [] };
+    group.sourceAmount += item.price;
+    group.names.push(item.name);
+    grouped.set(categoryId, group);
+  });
+
+  const groups = [...grouped.entries()];
+  const sourceTotal = groups.reduce((sum, [, group]) => sum + group.sourceAmount, 0);
+  const targetCents = Math.round(total * 100);
+  if (groups.length === 0 || sourceTotal <= 0 || targetCents <= 0) return [];
+
+  const allocated = groups.map(([categoryId, group]) => {
+    const exactCents = (group.sourceAmount / sourceTotal) * targetCents;
+    const cents = Math.floor(exactCents);
+    return { categoryId, group, cents, remainder: exactCents - cents };
+  });
+  let missingCents = targetCents - allocated.reduce((sum, item) => sum + item.cents, 0);
+  allocated.sort((left, right) => right.remainder - left.remainder);
+  for (let index = 0; missingCents > 0; index = (index + 1) % allocated.length) {
+    allocated[index].cents += 1;
+    missingCents -= 1;
+  }
+
+  return allocated.map(({ categoryId, group, cents }) => ({
+    categoryId,
+    amount: cents / 100,
+    note: group.names.join(", ").slice(0, 500),
+  }));
+}
+
 const TOTAL_MARKERS = [
   "итог",
   "всего",

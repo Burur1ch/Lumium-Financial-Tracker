@@ -794,6 +794,101 @@ export async function createTransaction(formData: FormData) {
   return { success: true, transactionId: created.id };
 }
 
+export async function createScannedTransaction(input: {
+  description: string;
+  amount: number;
+  currency: string;
+  date?: string | null;
+  note?: string;
+  categoryId?: string | null;
+  splits: Array<{ categoryId: string; amount: number; note?: string }>;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+
+  const description = input.description.trim();
+  const transactionDate = parseTransactionDate(input.date ?? null);
+  if (
+    !description ||
+    description.length > 200 ||
+    !Number.isFinite(input.amount) ||
+    input.amount <= 0 ||
+    !isCurrency(input.currency) ||
+    !transactionDate ||
+    input.splits.length > 12
+  ) {
+    return { success: false, error: "INVALID_RECEIPT" };
+  }
+
+  const categoryIds = new Set(
+    [input.categoryId, ...input.splits.map((split) => split.categoryId)].filter(
+      (value): value is string => Boolean(value),
+    ),
+  );
+  for (const categoryId of categoryIds) {
+    if (
+      !UUID_PATTERN.test(categoryId) ||
+      !(await categoryBelongsToUser(user.id, categoryId, "expense"))
+    ) {
+      return { success: false, error: "INVALID_CATEGORY" };
+    }
+  }
+
+  for (const split of input.splits) {
+    if (!Number.isFinite(split.amount) || split.amount <= 0) {
+      return { success: false, error: "INVALID_SPLITS" };
+    }
+  }
+  const splitTotal = input.splits.reduce((sum, split) => sum + split.amount, 0);
+  if (input.splits.length > 0 && Math.abs(splitTotal - input.amount) > 0.011) {
+    return { success: false, error: "SPLIT_TOTAL_MISMATCH" };
+  }
+
+  const currencyRate = await getCurrencyRate(input.currency);
+  const amountInUsd = input.amount / currencyRate;
+  const normalizedSplits = input.splits.map((split) => ({
+    ...split,
+    amountInUsd: split.amount / currencyRate,
+  }));
+  const primaryCategoryId =
+    input.categoryId ??
+    [...normalizedSplits].sort((left, right) => right.amountInUsd - left.amountInUsd)[0]?.categoryId ??
+    null;
+
+  const transactionId = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(transactions)
+      .values({
+        user_id: user.id,
+        category_id: primaryCategoryId,
+        description,
+        amount: amountInUsd.toFixed(2),
+        type: "expense",
+        status: "completed",
+        note: input.note?.trim().slice(0, 1000) || null,
+        review_status: "reviewed",
+        date: transactionDate,
+      })
+      .returning({ id: transactions.id });
+
+    if (normalizedSplits.length >= 2) {
+      await tx.insert(transactionSplits).values(
+        normalizedSplits.map((split) => ({
+          transaction_id: created.id,
+          user_id: user.id,
+          category_id: split.categoryId,
+          amount: split.amountInUsd.toFixed(2),
+          note: split.note?.trim().slice(0, 500) || null,
+        })),
+      );
+    }
+    return created.id;
+  });
+
+  revalidateFinancialViews();
+  return { success: true, transactionId };
+}
+
 export async function createQuickPreset(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "UNAUTHORIZED" };

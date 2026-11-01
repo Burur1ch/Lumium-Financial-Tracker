@@ -9,6 +9,7 @@ import {
   FilePenLine,
   Flashlight,
   Image as ImageIcon,
+  Loader2,
   QrCode,
   ReceiptText,
   ScanLine,
@@ -19,13 +20,24 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ElementType } from "react";
 import type { IScannerControls } from "@zxing/browser";
+import { useRouter } from "next/navigation";
+import { createScannedTransaction, getCategories } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import {
+  allocateReceiptCategorySplits,
+  inferReceiptCategoryKey,
   parseReceiptQr,
   parseReceiptText,
   type ReceiptScanResult,
 } from "@/utils/receipt-scanner";
+
+type ExpenseCategory = {
+  id: string;
+  name: string;
+  color: string;
+  system_key: string | null;
+};
 
 type FlowScreen = "closed" | "chooser" | "scanner" | "processing" | "review";
 type ScanMode = "photo" | "qr";
@@ -44,6 +56,7 @@ function formatAmount(value: number | null, currency: string) {
 export function MobileReceiptScanner() {
   const { t } = useI18n();
   const { currency } = usePrefs();
+  const router = useRouter();
   const [screen, setScreen] = useState<FlowScreen>("closed");
   const [scanMode, setScanMode] = useState<ScanMode>("photo");
   const [cameraActive, setCameraActive] = useState(false);
@@ -53,6 +66,10 @@ export function MobileReceiptScanner() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [result, setResult] = useState<ReceiptScanResult | null>(null);
   const [scannerHelpOpen, setScannerHelpOpen] = useState(false);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [itemCategoryIds, setItemCategoryIds] = useState<string[]>([]);
+  const [fallbackCategoryId, setFallbackCategoryId] = useState("");
+  const [saving, setSaving] = useState(false);
   const scanFailedMessage = t("scanFailed");
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -88,8 +105,46 @@ export function MobileReceiptScanner() {
     setResult(null);
     setScanError(null);
     setScannerHelpOpen(false);
+    setItemCategoryIds([]);
+    setSaving(false);
     setScreen("closed");
   }, [clearPreview, releaseCamera]);
+
+  useEffect(() => {
+    if (screen !== "review" || !result) return;
+    let cancelled = false;
+    void getCategories()
+      .then((rows) => {
+        if (cancelled) return;
+        const expense = rows
+          .filter((category) => category.type === "expense")
+          .map((category) => ({
+            id: category.id,
+            name: category.name,
+            color: category.color,
+            system_key: category.system_key,
+          }));
+        setExpenseCategories(expense);
+        const fallback =
+          expense.find((category) => category.system_key === "other-expense")?.id ??
+          expense[0]?.id ??
+          "";
+        setFallbackCategoryId((current) => current || fallback);
+        setItemCategoryIds((current) => {
+          if (current.length === result.items.length && current.every(Boolean)) return current;
+          return result.items.map((item) => {
+            const inferredKey = inferReceiptCategoryKey(item.name);
+            return expense.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+          });
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setScanError(scanFailedMessage);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result, scanFailedMessage, screen]);
 
   const acceptQrValue = useCallback(
     (rawValue: string) => {
@@ -304,9 +359,13 @@ export function MobileReceiptScanner() {
     setResult((current) => (current ? { ...current, ...patch } : current));
   };
 
-  const continueManually = () => {
+  const saveScannedReceipt = async () => {
     if (!result?.amount) {
       setScanError(t("receiptAmountMissing"));
+      return;
+    }
+    if (expenseCategories.length === 0) {
+      setScanError(t("scanFailed"));
       return;
     }
     const itemSummary = result.items
@@ -316,17 +375,40 @@ export function MobileReceiptScanner() {
     const sourceSummary = result.source === "qr"
       ? `${t("qrCode")}: ${result.rawText}`
       : itemSummary;
-    const detail = {
-      amount: result.amount,
-      description: result.merchant || t("scannedReceipt"),
-      note: [t("receiptDraftNote"), sourceSummary].filter(Boolean).join(" ").slice(0, 1000),
-      currency: result.currency || currency,
-      date: result.date || undefined,
-    };
-    closeFlow();
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("lumium:open-add-transaction", { detail }));
-    }, 240);
+    const allocatedSplits = allocateReceiptCategorySplits(
+      result.items,
+      itemCategoryIds,
+      result.amount,
+    );
+    const categoryId = allocatedSplits.length === 1
+      ? allocatedSplits[0].categoryId
+      : allocatedSplits.length === 0
+        ? fallbackCategoryId
+        : null;
+
+    setSaving(true);
+    setScanError(null);
+    try {
+      const response = await createScannedTransaction({
+        amount: result.amount,
+        description: result.merchant || t("scannedReceipt"),
+        note: [t("receiptDraftNote"), sourceSummary].filter(Boolean).join(" ").slice(0, 1000),
+        currency: result.currency || currency,
+        date: result.date || undefined,
+        categoryId,
+        splits: allocatedSplits.length >= 2 ? allocatedSplits : [],
+      });
+      if (!response.success) {
+        setScanError(response.error || t("scanFailed"));
+        return;
+      }
+      closeFlow();
+      router.refresh();
+    } catch {
+      setScanError(t("scanFailed"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (screen === "closed") return null;
@@ -347,7 +429,7 @@ export function MobileReceiptScanner() {
             <button type="button" className="icon-button" onClick={closeFlow} aria-label={t("close")}><X className="h-5 w-5" /></button>
           </div>
           <div className="space-y-2.5 px-4 pb-4">
-            <AddChoice icon={Camera} title={t("photographReceipt")} description={t("photographReceiptHint")} onClick={() => startScanner("photo")} />
+            <AddChoice testId="receipt-photo-choice" icon={Camera} title={t("photographReceipt")} description={t("photographReceiptHint")} onClick={() => startScanner("photo")} />
             <AddChoice icon={QrCode} title={t("scanQr")} description={t("scanQrHint")} onClick={() => startScanner("qr")} />
             <AddChoice icon={FilePenLine} title={t("enterManually")} description={t("manualEntryHint")} onClick={() => {
               closeFlow();
@@ -396,7 +478,7 @@ export function MobileReceiptScanner() {
           window.setTimeout(() => window.dispatchEvent(new Event("lumium:open-add-transaction")), 240);
         }}>{t("enterManually")}</button>
         <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(event) => handleImage(event.target.files?.[0] ?? null)} />
-        <input ref={galleryInputRef} type="file" accept="image/*" className="sr-only" onChange={(event) => handleImage(event.target.files?.[0] ?? null)} />
+        <input data-testid="receipt-gallery-input" ref={galleryInputRef} type="file" accept="image/*" className="sr-only" onChange={(event) => handleImage(event.target.files?.[0] ?? null)} />
       </section>
     );
   }
@@ -473,15 +555,30 @@ export function MobileReceiptScanner() {
               <input className={`${reviewInputClass} mt-1.5`} type="date" value={result.date ?? ""} onChange={(event) => updateResult({ date: event.target.value || null })} />
             </label>
           </div>
+          {result.items.length === 0 && (
+            <label className="block text-xs font-bold text-[#aeb9c3]">{t("category")}
+              <select data-testid="receipt-fallback-category" className={`${reviewInputClass} mt-1.5`} value={fallbackCategoryId} onChange={(event) => setFallbackCategoryId(event.target.value)}>
+                {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+            </label>
+          )}
         </section>
 
         {result.items.length > 0 && (
           <section className="mobile-receipt-group" style={{ "--category-color": "#31d49d" } as CSSProperties}>
             <header><span><ReceiptText className="h-5 w-5" />{t("detectedItems")}</span><strong>{result.items.length}</strong></header>
             {result.items.map((item, index) => (
-              <div key={`${item.name}-${index}`} className="flex items-center gap-3 border-t border-[#2a2a2a] px-3 py-3">
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{item.name}</span>
-                <b className="whitespace-nowrap text-sm">{formatAmount(item.price, reviewCurrency)}</b>
+              <div key={`${item.name}-${index}`} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-t border-[#2a2a2a] px-3 py-3">
+                <span className="min-w-0"><span className="block truncate text-sm font-semibold">{item.name}</span><b className="block whitespace-nowrap text-xs text-[#aeb9c3]">{formatAmount(item.price, reviewCurrency)}</b></span>
+                <select
+                  data-testid={`receipt-item-category-${index}`}
+                  aria-label={`${t("category")}: ${item.name}`}
+                  className="min-h-10 rounded-lg border border-[#333] bg-[#111] px-2 text-xs font-semibold text-white outline-none focus:border-[#ff5964]"
+                  value={itemCategoryIds[index] ?? ""}
+                  onChange={(event) => setItemCategoryIds((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
+                >
+                  {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
               </div>
             ))}
           </section>
@@ -498,16 +595,18 @@ export function MobileReceiptScanner() {
         {hasLowConfidence && <div className="mobile-confidence-warning"><span>!</span>{t("lowConfidenceHint")}</div>}
       </div>
       <footer className="mobile-review-footer">
-        <button type="button" onClick={continueManually} disabled={!result.amount}>{t("verifyAndContinue")} · {formatAmount(result.amount, reviewCurrency)}</button>
+        <button data-testid="save-scanned-receipt" type="button" onClick={() => void saveScannedReceipt()} disabled={!result.amount || saving || expenseCategories.length === 0}>
+          {saving ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <>{t("save")} · {formatAmount(result.amount, reviewCurrency)}</>}
+        </button>
         <p>{t("receiptDeletedAfterSave")}</p>
       </footer>
     </section>
   );
 }
 
-function AddChoice({ icon: Icon, title, description, onClick }: { icon: ElementType; title: string; description: string; onClick: () => void }) {
+function AddChoice({ icon: Icon, title, description, onClick, testId }: { icon: ElementType; title: string; description: string; onClick: () => void; testId?: string }) {
   return (
-    <button type="button" onClick={onClick} className="mobile-add-choice">
+    <button data-testid={testId} type="button" onClick={onClick} className="mobile-add-choice">
       <span><Icon className="h-6 w-6" /></span>
       <span className="min-w-0 flex-1 text-left"><strong>{title}</strong><small>{description}</small></span>
       <ArrowLeft className="h-5 w-5 rotate-180 text-[var(--app-muted)]" />
