@@ -44,6 +44,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Save one-tap presets for common transactions and create entries with idempotency protection.
 - Filter by text, type, category, and review status.
 - View recent transactions in dashboard and full list in transactions page.
+- Scan receipt photos with authenticated server-side Gemini extraction for readable line items and category keys; local Tesseract OCR remains the automatic fallback when Gemini is unavailable.
 
 3. Categories
 

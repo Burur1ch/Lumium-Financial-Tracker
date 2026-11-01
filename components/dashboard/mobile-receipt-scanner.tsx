@@ -22,20 +22,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ElementType } from "react";
 import type { IScannerControls } from "@zxing/browser";
 import { useRouter } from "next/navigation";
-import { createScannedTransaction, getCategories } from "@/app/dashboard/actions";
+import {
+  createScannedTransaction,
+  getCategories,
+  scanReceiptWithGemini,
+} from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import {
   allocateReceiptCategorySplits,
   chooseBestReceiptResult,
   inferReceiptCategory,
-  inferReceiptCategoryKey,
   parseReceiptQr,
   parseReceiptText,
   receiptRecognitionNeedsRetry,
   type ReceiptScanResult,
 } from "@/utils/receipt-scanner";
-import { prepareReceiptImages, reconstructReceiptText } from "@/utils/receipt-image";
+import {
+  prepareReceiptImages,
+  prepareReceiptUpload,
+  reconstructReceiptText,
+} from "@/utils/receipt-image";
 
 type ExpenseCategory = {
   id: string;
@@ -56,6 +63,17 @@ function formatAmount(value: number | null, currency: string) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value)} ${currency}`;
+}
+
+function receiptItemInference(item: ReceiptScanResult["items"][number]) {
+  if (item.categoryKey) {
+    return {
+      key: item.categoryKey,
+      confidence: item.categoryConfidence ?? item.confidence ?? 0.5,
+      matched: [],
+    };
+  }
+  return inferReceiptCategory(item.name);
 }
 
 export function MobileReceiptScanner() {
@@ -139,7 +157,7 @@ export function MobileReceiptScanner() {
         setItemCategoryIds((current) => {
           if (current.length === result.items.length && current.every(Boolean)) return current;
           return result.items.map((item) => {
-            const inferredKey = inferReceiptCategoryKey(item.name);
+            const inferredKey = receiptItemInference(item).key;
             return expense.find((category) => category.system_key === inferredKey)?.id ?? fallback;
           });
         });
@@ -292,6 +310,36 @@ export function MobileReceiptScanner() {
 
     let worker: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>> | null = null;
     try {
+      try {
+        const upload = await prepareReceiptUpload(file);
+        if (runId !== runIdRef.current) return;
+        setProgress(0.14);
+        const formData = new FormData();
+        formData.set("image", new File([upload], "receipt.jpg", { type: upload.type }));
+        const aiResponse = await scanReceiptWithGemini(formData);
+        if (runId !== runIdRef.current) return;
+        if (aiResponse.success) {
+          const aiResult = aiResponse.result;
+          setResult(aiResult);
+          if (expenseCategories.length > 0) {
+            const fallback =
+              expenseCategories.find((category) => category.system_key === "other-expense")?.id ??
+              expenseCategories[0]?.id ??
+              "";
+            setItemCategoryIds(aiResult.items.map((item) => {
+              const inferredKey = receiptItemInference(item).key;
+              return expenseCategories.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+            }));
+          }
+          setProgress(1);
+          setScreen("review");
+          return;
+        }
+      } catch {
+        // Gemini is optional. Continue with the on-device OCR fallback.
+      }
+
+      setProgress(0.04);
       const prepared = await prepareReceiptImages(file);
       if (runId !== runIdRef.current) return;
       setProgress(0.07);
@@ -354,7 +402,7 @@ export function MobileReceiptScanner() {
           expenseCategories[0]?.id ??
           "";
         setItemCategoryIds(bestResult.items.map((item) => {
-          const inferredKey = inferReceiptCategoryKey(item.name);
+          const inferredKey = receiptItemInference(item).key;
           return expenseCategories.find((category) => category.system_key === inferredKey)?.id ?? fallback;
         }));
       }
@@ -441,10 +489,15 @@ export function MobileReceiptScanner() {
   };
 
   const recategorizeReceiptItem = (index: number, name: string) => {
-    const inferredKey = inferReceiptCategoryKey(name);
+    const inference = inferReceiptCategory(name);
+    const inferredKey = inference.key;
     const inferredCategory = expenseCategories.find((category) =>
       category.system_key === inferredKey);
     if (!inferredCategory) return;
+    updateReceiptItem(index, {
+      categoryKey: inferredKey,
+      categoryConfidence: inference.confidence,
+    });
     setItemCategoryIds((current) => current.map((categoryId, itemIndex) =>
       itemIndex === index ? inferredCategory.id : categoryId));
   };
@@ -673,7 +726,7 @@ export function MobileReceiptScanner() {
             <header><span><ReceiptText className="h-5 w-5" />{t("detectedItems")}</span><strong>{result.items.length}</strong></header>
             <p className="border-t border-[#2a2a2a] px-3 py-2.5 text-xs leading-5 text-[#aeb9c3]">{t("receiptItemsHint")}</p>
             {result.items.map((item, index) => {
-              const inference = inferReceiptCategory(item.name);
+              const inference = receiptItemInference(item);
               return (
                 <div data-testid={`receipt-item-row-${index}`} key={index} className="relative space-y-2.5 border-t border-[#2a2a2a] px-3 py-3">
                   <button

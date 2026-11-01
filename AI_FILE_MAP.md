@@ -9,6 +9,9 @@
 - db/migrations/: generated Drizzle migrations shared by local and Railway databases; `0001` adds quick presets/idempotency, `0002` adds planning, splits, review state, goals, and richer budgets, and `0003` marks protected base categories with stable system keys.
 - utils/auth/server.ts: Better Auth server configuration and cookie plugin.
 - utils/auth/client.ts: Better Auth browser client.
+- utils/gemini-receipt.ts: server-only Gemini receipt extraction, structured response schema, and untrusted model-output validation.
+- utils/receipt-image.ts: browser-side receipt resizing, enhancement, binarization, and upload compression.
+- utils/receipt-scanner.ts: shared receipt types, local OCR parsing, category inference, QR parsing, and split allocation.
 - app/api/auth/[...all]/route.ts: Better Auth API route.
 - next.config.ts: Next.js config placeholder.
 - eslint.config.mjs: lint setup using next core-web-vitals + typescript presets.
@@ -75,6 +78,7 @@
 - components/dashboard/set-budget-modal.tsx: category limit, alert threshold, and rollover controls.
 - components/dashboard/planning-content.tsx: recurring transaction, rule, and savings-goal forms/lists.
 - components/dashboard/recurring-processor.tsx: visit-driven processing of due automatic recurring transactions.
+- components/dashboard/mobile-receipt-scanner.tsx: mobile camera/gallery receipt flow using Gemini first and local Tesseract OCR as fallback.
 - components/dashboard/report-content.tsx: report page layout and section rendering.
 - components/dashboard/report-charts.tsx: report charts composition.
 

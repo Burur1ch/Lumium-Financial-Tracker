@@ -6,6 +6,8 @@ export interface ReceiptScanItem {
   quantity?: number;
   unitPrice?: number;
   confidence?: number;
+  categoryKey?: ReceiptExpenseCategoryKey;
+  categoryConfidence?: number;
 }
 
 export interface ReceiptScanResult {

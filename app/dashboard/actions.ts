@@ -39,6 +39,7 @@ import {
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
 import { isCurrency } from "@/utils/currency";
 import { getCurrencyRate } from "@/utils/currency-server";
+import { extractReceiptWithGemini } from "@/utils/gemini-receipt";
 import { revalidatePath } from "next/cache";
 import {
   getAppBaseUrl,
@@ -792,6 +793,37 @@ export async function createTransaction(formData: FormData) {
   // 4. Сбрасываем кэш страницы дашборда, чтобы графики и таблицы сразу обновились
   revalidateFinancialViews();
   return { success: true, transactionId: created.id };
+}
+
+export async function scanReceiptWithGemini(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false as const, error: "UNAUTHORIZED" };
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    return { success: false as const, error: "GEMINI_NOT_CONFIGURED" };
+  }
+
+  const image = formData.get("image");
+  if (
+    !image ||
+    typeof image === "string" ||
+    !["image/jpeg", "image/png", "image/webp"].includes(image.type) ||
+    image.size <= 0 ||
+    image.size > 2_800_000
+  ) {
+    return { success: false as const, error: "INVALID_RECEIPT_IMAGE" };
+  }
+
+  try {
+    const result = await extractReceiptWithGemini({
+      base64: Buffer.from(await image.arrayBuffer()).toString("base64"),
+      mimeType: image.type,
+    });
+    return { success: true as const, result };
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "GEMINI_UNKNOWN_ERROR";
+    console.error("Gemini receipt recognition failed:", code);
+    return { success: false as const, error: "GEMINI_SCAN_FAILED" };
+  }
 }
 
 export async function createScannedTransaction(input: {

@@ -7,6 +7,7 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
 - Income and expense tracking with categories, notes, editing, duplication, deletion, and review status.
 - One-tap quick transaction presets for repeated purchases such as transport or coffee.
 - Split transactions across multiple categories while preserving the original total.
+- Mobile receipt recognition with Gemini item extraction, category suggestions, and an on-device OCR fallback.
 - Recurring weekly, monthly, and yearly transactions with optional automatic materialization.
 - Description-based automation rules for categorization and review queues.
 - Monthly category budgets with custom alert thresholds, unused-budget rollover, historical averages, and month-end forecasts.
@@ -29,7 +30,7 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
    npm install
    ```
 
-2. Copy `.env.example` to `.env.local`. Set a unique `BETTER_AUTH_SECRET` of at least 32 characters.
+2. Copy `.env.example` to `.env.local`. Set a unique `BETTER_AUTH_SECRET` of at least 32 characters. To enable AI receipt recognition, also set `GEMINI_API_KEY`; without it the scanner automatically uses local OCR.
 
 3. Start the bundled PostgreSQL service:
 
@@ -107,6 +108,7 @@ Create a Railway PostgreSQL service and configure the web service with:
 - `NEXT_PUBLIC_APP_URL`
 - Stripe variables from `.env.example` when billing is enabled
 - Resend variables when the support form is enabled
+- `GEMINI_API_KEY` to enable AI receipt recognition (`GEMINI_RECEIPT_MODEL` optionally overrides the default model)
 
 Run `npm run db:migrate` against the Railway database before deploying the application. Prefer Railway's private database URL when the web service and database are in the same project.
 

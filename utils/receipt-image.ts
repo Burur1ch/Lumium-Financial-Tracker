@@ -17,6 +17,15 @@ function createCanvas(width: number, height: number) {
   return canvas;
 }
 
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("IMAGE_ENCODING_FAILED"));
+    }, type, quality);
+  });
+}
+
 async function loadReceiptImage(file: File) {
   if (typeof createImageBitmap === "function") {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -140,6 +149,35 @@ export async function prepareReceiptImages(file: File) {
   binaryContext.putImageData(binaryImage, 0, 0);
 
   return { enhanced, binary };
+}
+
+export async function prepareReceiptUpload(file: File) {
+  const imageSource = await loadReceiptImage(file);
+  const scale = Math.min(
+    1800 / imageSource.width,
+    3600 / imageSource.height,
+    1,
+  );
+  const width = Math.max(1, Math.round(imageSource.width * scale));
+  const height = Math.max(1, Math.round(imageSource.height * scale));
+  const canvas = createCanvas(width, height);
+  const context = canvas.getContext("2d");
+  if (!context) {
+    imageSource.close();
+    throw new Error("CANVAS_UNAVAILABLE");
+  }
+
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(imageSource.source, 0, 0, width, height);
+  imageSource.close();
+
+  for (const quality of [0.84, 0.72, 0.6]) {
+    const blob = await canvasToBlob(canvas, "image/jpeg", quality);
+    if (blob.size <= 2_700_000 || quality === 0.6) return blob;
+  }
+
+  throw new Error("IMAGE_ENCODING_FAILED");
 }
 
 export function reconstructReceiptText(
