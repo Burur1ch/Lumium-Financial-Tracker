@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -123,10 +124,15 @@ export const categories = pgTable(
     type: varchar("type", { length: 16 }).notNull(),
     color: varchar("color", { length: 32 }).notNull(),
     icon: varchar("icon", { length: 64 }).notNull().default("tag"),
+    system_key: varchar("system_key", { length: 64 }),
     created_at: createdAt(),
   },
   (table) => [
     index("categories_user_id_idx").on(table.user_id),
+    uniqueIndex("categories_user_system_key_unique").on(
+      table.user_id,
+      table.system_key,
+    ),
     check("categories_type_check", sql`${table.type} in ('expense', 'income')`),
   ],
 );

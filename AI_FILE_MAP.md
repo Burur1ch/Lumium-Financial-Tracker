@@ -2,11 +2,11 @@
 
 ## Root
 - .env.example: documented local environment variables with safe placeholder values.
-- compose.yaml: local PostgreSQL 17 service used by the default `DATABASE_URL`.
+- docker-compose.yml: local PostgreSQL 17 service used by the default `DATABASE_URL`.
 - proxy.ts: optimistic auth-page/dashboard redirects using Better Auth session cookie.
 - db/index.ts: server-only PostgreSQL connection and Drizzle instance.
-- db/schema.ts: Better Auth and application PostgreSQL schema, including transactions, presets, splits, recurring schedules, rules, budgets, and savings goals.
-- db/migrations/: generated Drizzle migrations shared by local and Railway databases; `0001` adds quick presets/idempotency and `0002` adds planning, splits, review state, goals, and richer budgets.
+- db/schema.ts: Better Auth and application PostgreSQL schema, including protected system category keys, transactions, presets, splits, recurring schedules, rules, budgets, and savings goals.
+- db/migrations/: generated Drizzle migrations shared by local and Railway databases; `0001` adds quick presets/idempotency, `0002` adds planning, splits, review state, goals, and richer budgets, and `0003` marks protected base categories with stable system keys.
 - utils/auth/server.ts: Better Auth server configuration and cookie plugin.
 - utils/auth/client.ts: Better Auth browser client.
 - app/api/auth/[...all]/route.ts: Better Auth API route.

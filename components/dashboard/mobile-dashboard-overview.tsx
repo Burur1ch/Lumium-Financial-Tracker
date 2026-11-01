@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Eye, EyeOff, Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
@@ -120,13 +121,13 @@ export function MobileDashboardOverview({
   const compactMax = compactFormatter.format(Math.max(...convertedTrend, 0));
   const compactMin = compactFormatter.format(Math.min(...convertedTrend, 0));
   const hasActivity = trend.length > 1 && trend.some((value) => value !== 0);
-  const available = budget.limit > 0 ? budget.limit - budget.spent : balance;
+  const remainingBudget = budget.limit - budget.spent;
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
   const now = new Date();
   const isCurrentMonth = now.getFullYear() === monthYear && now.getMonth() + 1 === monthNumber;
   const isFutureMonth = new Date(monthYear, monthNumber - 1, 1).getTime() > new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const remainingDays = isCurrentMonth ? Math.max(daysInMonth - now.getDate() + 1, 1) : isFutureMonth ? daysInMonth : 0;
-  const dailyAvailable = remainingDays > 0 ? available / remainingDays : null;
+  const dailyAvailable = remainingDays > 0 ? remainingBudget / remainingDays : null;
 
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
@@ -145,8 +146,8 @@ export function MobileDashboardOverview({
                 {balanceHidden ? <EyeOff className="h-4 w-4" strokeWidth={1.8} /> : <Eye className="h-4 w-4" strokeWidth={1.8} />}
               </button>
             </div>
-            <p className={`mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.4rem,6.6vw,2.15rem)] font-extrabold leading-none tracking-[-0.045em] ${available < 0 ? "text-red-600 dark:text-red-400" : "text-slate-950 dark:text-white"}`}>
-              {balanceHidden ? "••••••" : fmt(available)}
+            <p className={`mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.4rem,6.6vw,2.15rem)] font-extrabold leading-none tracking-[-0.045em] ${balance < 0 ? "text-red-600 dark:text-red-400" : "text-slate-950 dark:text-white"}`}>
+              {balanceHidden ? "••••••" : fmt(balance)}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
               <span className="font-medium text-slate-500 dark:text-neutral-400">{t("currentBalance")}</span>
@@ -179,7 +180,11 @@ export function MobileDashboardOverview({
         </div>
       </div>
 
-      <div className="finance-panel px-4 py-3">
+      <Link
+        href="/dashboard/budget"
+        className="finance-panel block px-4 py-3 transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:hover:border-neutral-700"
+        aria-label={t("budgetsLimits")}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -233,7 +238,7 @@ export function MobileDashboardOverview({
             })}
           </div>
         ) : null}
-      </div>
+      </Link>
     </section>
   );
 }

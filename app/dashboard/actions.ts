@@ -1,6 +1,18 @@
 "use server";
 
-import { and, asc, count, desc, eq, gte, ilike, lt, lte } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNull,
+  lt,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import {
@@ -21,7 +33,6 @@ import {
   canAccessAdvancedReports,
   canAccessCsvExport,
   getPlanBudgetLimit,
-  getPlanCategoryLimit,
   getPlanHistoryDays,
   isLimitReached,
 } from "@/utils/monetization/limits";
@@ -59,6 +70,24 @@ const QUICK_PRESET_ICONS = new Set([
   "home",
   "other",
 ]);
+const CATEGORY_NAME_MAX_LENGTH = 60;
+const CATEGORY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+const DEFAULT_CATEGORIES = [
+  { key: "groceries", name: "Groceries", type: "expense", color: "#24845C", icon: "shoppingCart" },
+  { key: "transport", name: "Transport", type: "expense", color: "#3478C8", icon: "bus" },
+  { key: "housing", name: "Housing", type: "expense", color: "#9A6A3A", icon: "home" },
+  { key: "utilities", name: "Utilities", type: "expense", color: "#EAB308", icon: "zap" },
+  { key: "health", name: "Health", type: "expense", color: "#D92D3A", icon: "stethoscope" },
+  { key: "shopping", name: "Shopping", type: "expense", color: "#EC4899", icon: "shoppingBag" },
+  { key: "eating-out", name: "Eating out", type: "expense", color: "#F97316", icon: "utensils" },
+  { key: "entertainment", name: "Entertainment", type: "expense", color: "#287D91", icon: "gamepad" },
+  { key: "education", name: "Education", type: "expense", color: "#06B6D4", icon: "book" },
+  { key: "subscriptions", name: "Subscriptions", type: "expense", color: "#64748B", icon: "creditCard" },
+  { key: "other-expense", name: "Other expenses", type: "expense", color: "#737373", icon: "tag" },
+  { key: "salary", name: "Salary", type: "income", color: "#24845C", icon: "wallet" },
+  { key: "freelance", name: "Freelance", type: "income", color: "#3478C8", icon: "briefcase" },
+  { key: "other-income", name: "Other income", type: "income", color: "#14B8A6", icon: "banknote" },
+] as const;
 
 function isStripePlanActive(
   status: StripeSubscriptionStatus,
@@ -120,6 +149,62 @@ async function getCurrentPlanForUser(user: { id: string }): Promise<PlanKey> {
 async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
+}
+
+async function ensureDefaultCategories(userId: string) {
+  const existing = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      type: categories.type,
+      systemKey: categories.system_key,
+    })
+    .from(categories)
+    .where(eq(categories.user_id, userId));
+
+  const existingSystemKeys = new Set(
+    existing.flatMap((category) =>
+      category.systemKey ? [category.systemKey] : [],
+    ),
+  );
+
+  for (const category of DEFAULT_CATEGORIES) {
+    if (existingSystemKeys.has(category.key)) continue;
+
+    const matchingCustomCategory = existing.find(
+      (item) =>
+        item.systemKey === null &&
+        item.type === category.type &&
+        item.name.trim().toLocaleLowerCase("en") ===
+          category.name.toLocaleLowerCase("en"),
+    );
+
+    if (matchingCustomCategory) {
+      await db
+        .update(categories)
+        .set({ system_key: category.key })
+        .where(
+          and(
+            eq(categories.id, matchingCustomCategory.id),
+            eq(categories.user_id, userId),
+            isNull(categories.system_key),
+          ),
+        );
+      continue;
+    }
+
+    await db
+      .insert(categories)
+      .values({
+        user_id: userId,
+        name: category.name,
+        type: category.type,
+        color: category.color,
+        icon: category.icon,
+        system_key: category.key,
+      })
+      .onConflictDoNothing();
+  }
 }
 
 function revalidateFinancialViews() {
@@ -1616,6 +1701,8 @@ export async function getCategories() {
 
   if (!user) return [];
 
+  await ensureDefaultCategories(user.id);
+
   const rows = await db
     .select()
     .from(categories)
@@ -1633,25 +1720,34 @@ export async function createCategory(formData: FormData) {
 
   if (!user) return { success: false, error: "Неавторизован" };
 
-  const name = formData.get("name") as string;
+  const nameInput = formData.get("name");
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
   const type = formData.get("type") as "expense" | "income";
-  const color = formData.get("color") as string;
+  const color = String(formData.get("color") ?? "");
   const icon = (formData.get("icon") as string) || "tag";
 
-  if (!name || !color || (type !== "expense" && type !== "income")) {
+  if (
+    !name ||
+    name.length > CATEGORY_NAME_MAX_LENGTH ||
+    !CATEGORY_COLOR_PATTERN.test(color) ||
+    (type !== "expense" && type !== "income")
+  ) {
     return { success: false, error: "Заполните все поля" };
   }
 
-  const plan = await getCurrentPlanForUser(user);
-  const categoryLimit = getPlanCategoryLimit(plan);
-  if (categoryLimit !== null) {
-    const [result] = await db
-      .select({ count: count() })
-      .from(categories)
-      .where(eq(categories.user_id, user.id));
-    if (isLimitReached(categoryLimit, result.count)) {
-      return { success: false, error: "Plan limit reached for categories" };
-    }
+  const [duplicate] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        eq(categories.user_id, user.id),
+        eq(categories.type, type),
+        sql`lower(${categories.name}) = lower(${name})`,
+      ),
+    )
+    .limit(1);
+  if (duplicate) {
+    return { success: false, error: "DUPLICATE_CATEGORY" };
   }
 
   await db.insert(categories).values({
@@ -1662,7 +1758,7 @@ export async function createCategory(formData: FormData) {
     icon,
   });
 
-  revalidatePath("/dashboard/categories");
+  revalidateFinancialViews();
   return { success: true };
 }
 
@@ -1671,12 +1767,26 @@ export async function deleteCategory(id: string) {
   const user = await getCurrentUser();
 
   if (!user) return { success: false, error: "Неавторизован" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
 
-  await db
+  const deleted = await db
     .delete(categories)
-    .where(and(eq(categories.id, id), eq(categories.user_id, user.id)));
+    .where(
+      and(
+        eq(categories.id, id),
+        eq(categories.user_id, user.id),
+        isNull(categories.system_key),
+      ),
+    )
+    .returning({ id: categories.id });
 
-  revalidatePath("/dashboard/categories");
+  if (deleted.length === 0) {
+    return { success: false, error: "DEFAULT_CATEGORY" };
+  }
+
+  revalidateFinancialViews();
   return { success: true };
 }
 
@@ -2199,9 +2309,11 @@ export async function upsertBudget(formData: {
 
   // month_year хранит первый день текущего месяца
   const now = new Date();
-  const monthYear = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthYear = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  )
     .toISOString()
-    .split("T")[0];
+    .slice(0, 10);
 
   const budgetLimit = getPlanBudgetLimit(plan);
   if (budgetLimit !== null) {
@@ -2248,7 +2360,7 @@ export async function upsertBudget(formData: {
         alert_threshold: alertThreshold,
       },
     });
-  revalidatePath("/dashboard/budget");
+  revalidateFinancialViews();
 }
 
 // Получить профиль текущего пользователя

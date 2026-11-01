@@ -1,16 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { getCategories, createCategory, deleteCategory } from "../actions";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationKey } from "@/store/translations";
-import { usePrefs } from "@/store/prefs";
-import { PaywallModal } from "@/components/dashboard/paywall-modal";
-import {
-  getPlanCategoryLimit,
-  isLimitReached,
-} from "@/utils/monetization/limits";
 import {
   Tag,
   Plus,
@@ -115,6 +108,7 @@ interface Category {
   type: "expense" | "income";
   color: string;
   icon?: string | null;
+  system_key?: string | null;
 }
 
 const PRESET_COLORS = [
@@ -186,9 +180,16 @@ function CategoryGroup({
                   <CategoryIcon icon={cat.icon} name={cat.name} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
-                    {cat.name}
-                  </p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {cat.name}
+                    </p>
+                    {cat.system_key ? (
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        {t("baseCategory")}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
@@ -201,14 +202,20 @@ function CategoryGroup({
                 </div>
               </div>
 
-              <button
-                onClick={() => onDelete(cat.id)}
-                disabled={deletingId === cat.id}
-                className="shrink-0 rounded-lg p-2 text-slate-400 transition-[color,background-color,opacity,transform] duration-150 active:scale-[0.96] disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/30"
-                aria-label={`${t("deleteCategory")} ${cat.name}`}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {!cat.system_key ? (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`${t("confirmDeleteCategory")} “${cat.name}”?`)) {
+                      onDelete(cat.id);
+                    }
+                  }}
+                  disabled={deletingId === cat.id}
+                  className="shrink-0 rounded-lg p-2 text-slate-400 transition-[color,background-color,opacity,transform] duration-150 active:scale-[0.96] disabled:opacity-30 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:text-slate-500 dark:hover:bg-red-950/30"
+                  aria-label={`${t("deleteCategory")} ${cat.name}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
@@ -228,10 +235,8 @@ export default function CategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [showAllIcons, setShowAllIcons] = useState(false);
-  const { plan } = usePrefs();
 
   useEffect(() => {
     getCategories().then((data) => setCategories(data as Category[]));
@@ -239,20 +244,10 @@ export default function CategoriesPage() {
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const incomeCategories = categories.filter((c) => c.type === "income");
-  const categoryLimit = getPlanCategoryLimit(plan);
-  const hasReachedCategoryLimit = isLimitReached(
-    categoryLimit,
-    categories.length,
-  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    if (hasReachedCategoryLimit) {
-      setError(t("categoryPlanLimitHint"));
-      setShowPaywall(true);
-      return;
-    }
     setError(null);
 
     startTransition(async () => {
@@ -263,7 +258,11 @@ export default function CategoriesPage() {
       fd.append("icon", icon);
       const result = await createCategory(fd);
       if (!result.success) {
-        setError(result.error || "Error");
+        setError(
+          result.error === "DUPLICATE_CATEGORY"
+            ? t("categoryAlreadyExists")
+            : t("categoryCreateFailed"),
+        );
         return;
       }
       const fresh = await getCategories();
@@ -301,7 +300,6 @@ export default function CategoriesPage() {
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
             <Shapes className="w-4 h-4" />
             {categories.length}
-            {categoryLimit !== null ? ` / ${categoryLimit}` : ""}
           </div>
           <button
             type="button"
@@ -312,20 +310,6 @@ export default function CategoriesPage() {
           </button>
         </div>
       </div>
-
-      {categoryLimit !== null && (
-        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            {t("categoryPlanLimitHint")} {categories.length}/{categoryLimit}
-          </p>
-          <Link
-            href="/dashboard/pricing"
-            className="font-bold text-red-500 hover:text-red-600 transition-colors"
-          >
-            {t("upgradeToPro")}
-          </Link>
-        </div>
-      )}
 
       {createOpen && (
         <button
@@ -391,7 +375,7 @@ export default function CategoriesPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder="e.g. Subscriptions, Gym…"
+                placeholder={t("categoryNamePlaceholder")}
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
             </div>
@@ -484,11 +468,7 @@ export default function CategoriesPage() {
             <button
               type="submit"
               disabled={isPending || !name.trim()}
-              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50 ${
-                hasReachedCategoryLimit
-                  ? "bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700"
-                  : "bg-red-500 hover:bg-red-600"
-              }`}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
             >
               {isPending ? (
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -518,16 +498,6 @@ export default function CategoriesPage() {
           />
         </div>
       </div>
-
-      {showPaywall && (
-        <PaywallModal
-          isOpen={showPaywall}
-          onClose={() => setShowPaywall(false)}
-          title={t("categoryLockedTitle")}
-          description={t("categoryLockedDesc")}
-          featureLabel={t("category")}
-        />
-      )}
     </div>
   );
 }
