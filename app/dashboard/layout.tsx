@@ -11,6 +11,7 @@ import AddExpenseModal from "@/components/dashboard/add-expense-modal";
 import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
 import { CurrencyRateSync } from "@/components/currency-rate-sync";
 import { MobileReceiptScanner } from "@/components/dashboard/mobile-receipt-scanner";
+import { DashboardLaunchLoader } from "@/components/dashboard/dashboard-launch-loader";
 
 export default function DashboardLayout({
   children,
@@ -19,6 +20,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] w-full overflow-hidden bg-[var(--app-canvas)]">
+      <DashboardLaunchLoader />
       <StoreHydration />
       <CurrencyRateSync />
       <RecurringProcessor />

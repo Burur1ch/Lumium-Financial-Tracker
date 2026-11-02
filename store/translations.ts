@@ -36,6 +36,7 @@ export const translations = {
 
     // Dashboard
     welcomeBack: "Hello, welcome back to Lumium!",
+    loadingDashboard: "Loading Lumium dashboard",
     totalExpenses: "Total Expenses",
     totalIncome: "Total Income",
     noPreviousData: "No previous data",
@@ -527,6 +528,7 @@ export const translations = {
     signUpFailed: "Не удалось создать аккаунт",
 
     welcomeBack: "Привет, добро пожаловать в Lumium!",
+    loadingDashboard: "Загрузка дашборда Lumium",
     totalExpenses: "Расходы",
     totalIncome: "Доходы",
     noPreviousData: "Нет данных за прошлый период",
@@ -1012,6 +1014,7 @@ export const translations = {
     signUpFailed: "Konto konnte nicht erstellt werden",
 
     welcomeBack: "Hallo, willkommen zurück bei Lumium!",
+    loadingDashboard: "Lumium-Dashboard wird geladen",
     totalExpenses: "Gesamtausgaben",
     totalIncome: "Gesamteinkommen",
     noPreviousData: "Keine Vorperiodendaten",
@@ -1440,6 +1443,7 @@ export const translations = {
     signUpFailed: "Impossible de créer le compte",
 
     welcomeBack: "Bonjour, bienvenue sur Lumium !",
+    loadingDashboard: "Chargement du tableau de bord Lumium",
     totalExpenses: "Dépenses totales",
     totalIncome: "Revenus totaux",
     noPreviousData: "Pas de données précédentes",
