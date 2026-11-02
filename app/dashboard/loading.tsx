@@ -50,7 +50,22 @@ export default function DashboardLoading() {
             </div>
             <div className="h-7 w-24 bg-slate-100 dark:bg-slate-800/60 rounded-xl" />
           </div>
-          <div className="w-full h-48 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-dashed border-slate-100 dark:border-slate-800/80" />
+          <div
+            aria-hidden="true"
+            className="dashboard-loading-chart relative h-48 w-full overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800/80"
+          >
+            <div className="dashboard-loading-chart-grid absolute inset-0" />
+            <div className="absolute inset-x-0 bottom-0 flex h-full items-end gap-3 px-5 pb-3 sm:gap-6 sm:px-8">
+              {[34, 52, 43, 68, 58, 82, 72, 96].map((height, index) => (
+                <span
+                  key={index}
+                  className="dashboard-loading-bar min-w-0 flex-1 rounded-t-md"
+                  style={{ height: `${height}%` }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-x-4 bottom-3 h-px bg-slate-300/70 dark:bg-slate-700/70 sm:inset-x-6" />
+          </div>
         </div>
         
         <div className="flex min-h-64 flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 lg:h-[380px] lg:p-6">

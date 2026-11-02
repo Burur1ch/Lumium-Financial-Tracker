@@ -226,6 +226,51 @@ html.dark body::before {
   box-shadow: var(--app-shadow);
 }
 
+.dashboard-loading-chart {
+  background: color-mix(in srgb, var(--app-accent) 3%, var(--app-surface));
+}
+
+.dashboard-loading-chart-grid {
+  background-image:
+    linear-gradient(to bottom, color-mix(in srgb, var(--app-border) 52%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--app-border) 24%, transparent) 1px, transparent 1px);
+  background-size: 100% 25%, 12.5% 100%;
+}
+
+.dashboard-loading-bar {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-accent) 58%, white),
+    var(--app-accent)
+  );
+  box-shadow: 0 0 1rem color-mix(in srgb, var(--app-accent) 18%, transparent);
+  opacity: 0.72;
+  transform: scaleY(0.04);
+  transform-origin: bottom;
+  animation: dashboard-bar-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dashboard-loading-bar:nth-child(2) { animation-delay: 80ms; }
+.dashboard-loading-bar:nth-child(3) { animation-delay: 160ms; }
+.dashboard-loading-bar:nth-child(4) { animation-delay: 240ms; }
+.dashboard-loading-bar:nth-child(5) { animation-delay: 320ms; }
+.dashboard-loading-bar:nth-child(6) { animation-delay: 400ms; }
+.dashboard-loading-bar:nth-child(7) { animation-delay: 480ms; }
+.dashboard-loading-bar:nth-child(8) {
+  animation:
+    dashboard-bar-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) 560ms forwards,
+    dashboard-bar-glow 1.6s ease-in-out 1.4s infinite alternate;
+  opacity: 1;
+}
+
+@keyframes dashboard-bar-rise {
+  to { transform: scaleY(1); }
+}
+
+@keyframes dashboard-bar-glow {
+  to { box-shadow: 0 0 1.5rem color-mix(in srgb, var(--app-accent) 38%, transparent); }
+}
+
 .mobile-finance-page {
   color: var(--app-text);
 }

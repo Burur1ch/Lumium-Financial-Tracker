@@ -158,20 +158,31 @@ function addRecurringPeriod(
 ) {
   const [year, month, day] = dateValue.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day, 12));
-  if (frequency === "weekly") date.setUTCDate(date.getUTCDate() + 7);
+
+  if (frequency === "weekly") {
+    date.setUTCDate(date.getUTCDate() + 7);
+    return date.toISOString().slice(0, 10);
+  }
+
   if (frequency === "monthly") {
-    const targetMonth = month;
-    const targetYear = year + Math.floor(targetMonth / 12);
-    const normalizedMonth = targetMonth % 12;
+    const monthIndex = date.getUTCMonth();
+    const nextMonthIndex = monthIndex + 1;
+    const targetYear = year + Math.floor(nextMonthIndex / 12);
+    const normalizedMonth = nextMonthIndex % 12;
     const lastDay = new Date(
       Date.UTC(targetYear, normalizedMonth + 1, 0, 12),
     ).getUTCDate();
+
     date.setUTCFullYear(targetYear, normalizedMonth, Math.min(day, lastDay));
+    return date.toISOString().slice(0, 10);
   }
+
   if (frequency === "yearly") {
     const lastDay = new Date(Date.UTC(year + 1, month, 0, 12)).getUTCDate();
     date.setUTCFullYear(year + 1, month - 1, Math.min(day, lastDay));
+    return date.toISOString().slice(0, 10);
   }
+
   return date.toISOString().slice(0, 10);
 }
 
