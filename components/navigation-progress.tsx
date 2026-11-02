@@ -56,8 +56,8 @@ export function NavigationProgress() {
 
   return (
     <div
-      className="fixed top-0 left-0 z-9999 h-0.5 bg-red-500 transition-all duration-300 ease-out shadow-sm"
-      style={{ width: `${width}%`, opacity: loading || width < 100 ? 1 : 0 }}
+      className="fixed left-0 top-0 z-9999 h-0.5 w-full origin-left bg-red-500 transition-[transform,opacity] duration-200 ease-out"
+      style={{ transform: `scaleX(${width / 100})`, opacity: loading || width < 100 ? 1 : 0 }}
     />
   );
 }

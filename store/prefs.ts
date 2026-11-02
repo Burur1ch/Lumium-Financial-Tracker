@@ -7,7 +7,7 @@ export { RATES } from "@/utils/currency";
 export type { Currency } from "@/utils/currency";
 
 // ── Notifications store (persisted to localStorage) ─────────────────────────
-// Icons are NOT stored — they are mapped by iconType at render time.
+// Icons are not stored. They are mapped by iconType at render time.
 export type NotifIconType = "warning" | "over-limit" | "income" | "on-track";
 
 export interface Notification {
@@ -60,7 +60,12 @@ export const useNotifStore = create<NotifState>()(
           notifications: s.notifications.filter((n) => n.id !== id),
         })),
     }),
-    { name: "lumium_notifs" },
+    {
+      name: "lumium_notifs",
+      // Keep the server snapshot and the first client snapshot identical.
+      // StoreHydration starts the localStorage rehydration after React mounts.
+      skipHydration: true,
+    },
   ),
 );
 interface ProfileState {
@@ -87,6 +92,8 @@ interface PrefsState {
   dateFormat: DateFormat;
   avatarColor: string;
   avatarIcon: string;
+  avatarPreset: string | null;
+  balanceHidden: boolean;
   exchangeRates: Record<Currency, number>;
   exchangeRateSource: "nbrb" | "fallback";
   exchangeRateDate: string | null;
@@ -96,6 +103,8 @@ interface PrefsState {
   setDateFormat: (d: DateFormat) => void;
   setAvatarColor: (c: string) => void;
   setAvatarIcon: (i: string) => void;
+  setAvatarPreset: (preset: string | null) => void;
+  toggleBalanceHidden: () => void;
   setExchangeRates: (
     rates: Partial<Record<Currency, number>>,
     source: "nbrb" | "fallback",
@@ -107,11 +116,13 @@ export const usePrefs = create<PrefsState>()(
   persist(
     (set) => ({
       plan: "free",
-      currency: "USD",
+      currency: "BYN",
       language: "en",
       dateFormat: "MMM D, YYYY",
-      avatarColor: "#EF4444",
+      avatarColor: "#D92D3A",
       avatarIcon: "User",
+      avatarPreset: null,
+      balanceHidden: false,
       exchangeRates: { ...RATES },
       exchangeRateSource: "fallback",
       exchangeRateDate: null,
@@ -121,6 +132,9 @@ export const usePrefs = create<PrefsState>()(
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setAvatarColor: (avatarColor) => set({ avatarColor }),
       setAvatarIcon: (avatarIcon) => set({ avatarIcon }),
+      setAvatarPreset: (avatarPreset) => set({ avatarPreset }),
+      toggleBalanceHidden: () =>
+        set((state) => ({ balanceHidden: !state.balanceHidden })),
       setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>
         set({
           exchangeRates: { ...RATES, ...rates },
@@ -128,6 +142,11 @@ export const usePrefs = create<PrefsState>()(
           exchangeRateDate,
         }),
     }),
-    { name: "lumium_prefs" },
+    {
+      name: "lumium_prefs",
+      // Reading localStorage while the client store is being created makes its
+      // first render differ from SSR. Rehydrate explicitly after mount instead.
+      skipHydration: true,
+    },
   ),
 );

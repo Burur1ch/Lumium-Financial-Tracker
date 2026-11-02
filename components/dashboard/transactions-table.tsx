@@ -6,6 +6,7 @@ import { ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { TransactionDetailSheet } from "@/components/dashboard/transaction-detail-sheet";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 import {
   getPlanHistoryDays,
   isWithinHistoryLimit,
@@ -14,6 +15,7 @@ import {
 interface CategorySummary {
   name: string;
   color: string;
+  icon?: string | null;
 }
 
 export interface Transaction {
@@ -43,6 +45,7 @@ interface TransactionsTableProps {
     id: string;
     name: string;
     color: string;
+    icon?: string | null;
     type: "expense" | "income";
   }>;
 }
@@ -57,13 +60,25 @@ export default function TransactionsTable({
 }: TransactionsTableProps) {
   const { fmt, fmtDate, t, language } = useI18n();
   const { plan } = usePrefs();
+  const [transactionOverrides, setTransactionOverrides] = React.useState<
+    Record<string, Transaction>
+  >({});
+  const displayedTransactions = React.useMemo(
+    () =>
+      transactions.map(
+        (transaction) => transactionOverrides[transaction.id] ?? transaction,
+      ),
+    [transactionOverrides, transactions],
+  );
   const historyDays = getPlanHistoryDays(plan);
   const limitedTransactions = React.useMemo(
     () =>
-      transactions.filter((tx) => isWithinHistoryLimit(tx.date, historyDays)),
-    [historyDays, transactions],
+      displayedTransactions.filter((tx) =>
+        isWithinHistoryLimit(tx.date, historyDays),
+      ),
+    [displayedTransactions, historyDays],
   );
-  const hiddenCount = transactions.length - limitedTransactions.length;
+  const hiddenCount = displayedTransactions.length - limitedTransactions.length;
   const [visibleCount, setVisibleCount] = React.useState(INITIAL_COUNT);
   const [selectedTransaction, setSelectedTransaction] =
     React.useState<Transaction | null>(null);
@@ -108,7 +123,7 @@ export default function TransactionsTable({
         const meta = showViewAll
           ? `${cat?.name ?? t("uncategorized")} · ${relativeDate}, ${time}`
           : `${cat?.name ?? t("uncategorized")} · ${time}`;
-        const avatarColor = cat?.color ?? (isExpense ? "#ef4444" : "#10b981");
+        const avatarColor = cat?.color ?? (isExpense ? "#D92D3A" : "#24845C");
         return (
           <button
             key={tx.id}
@@ -116,12 +131,19 @@ export default function TransactionsTable({
             onClick={() => setSelectedTransaction(tx)}
             className="flex min-h-[4.35rem] w-full items-center gap-3 border-b border-slate-200/70 px-3 text-left last:border-b-0 active:bg-slate-100/70 dark:border-white/[0.055] dark:active:bg-white/[0.045]"
           >
-            <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white shadow-sm"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
-            </span>
+            <CategoryArtwork
+              icon={cat?.icon}
+              name={cat?.name}
+              className="h-10 w-10 rounded-xl"
+              fallback={
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-extrabold text-white"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  {tx.description.trim().charAt(0).toUpperCase() || (isExpense ? "−" : "+")}
+                </span>
+              }
+            />
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2">
                 <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{tx.description}</span>
@@ -131,7 +153,7 @@ export default function TransactionsTable({
               </span>
               <span className="mt-0.5 block truncate text-[11px] text-slate-400 dark:text-slate-500">{meta}</span>
             </span>
-            <span className={`shrink-0 text-sm font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
+            <span className={`max-w-[7.75rem] shrink-0 truncate text-right text-[13px] font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
               {isExpense ? "−" : "+"}{fmt(Number(tx.amount))}
             </span>
             {!showViewAll && <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.8} />}
@@ -142,7 +164,7 @@ export default function TransactionsTable({
   );
 
   return (
-    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:shadow-sm sm:dark:border-slate-800 sm:dark:bg-slate-900">
+    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:dark:border-slate-800 sm:dark:bg-slate-900">
       <div className={`mb-2.5 flex items-center justify-between sm:mb-6 ${showViewAll ? "" : "max-sm:hidden"}`}>
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
@@ -204,7 +226,7 @@ export default function TransactionsTable({
       <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-125">
           <thead>
-            <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <th className="pb-3 pl-2">{t("description")}</th>
               <th className="pb-3">{t("category")}</th>
               <th className="pb-3 text-right pr-2">{t("amount")}</th>
@@ -264,13 +286,18 @@ export default function TransactionsTable({
                     <td className="py-3.5">
                       {cat ? (
                         <span
-                          className="text-xs px-2.5 py-1 rounded-lg border font-semibold inline-flex items-center"
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-semibold"
                           style={{
                             backgroundColor: `${cat.color}15`,
                             borderColor: `${cat.color}35`,
                             color: cat.color,
                           }}
                         >
+                          <CategoryArtwork
+                            icon={cat.icon}
+                            name={cat.name}
+                            className="h-5 w-5 rounded-md"
+                          />
                           {cat.name}
                         </span>
                       ) : (
@@ -308,6 +335,12 @@ export default function TransactionsTable({
           transaction={selectedTransaction}
           categories={categories}
           onClose={() => setSelectedTransaction(null)}
+          onUpdated={(updated) => {
+            setTransactionOverrides((current) => ({
+              ...current,
+              [updated.id]: updated,
+            }));
+          }}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ import {
   Check,
   CreditCard,
   ArrowUpRight,
+  X,
 } from "lucide-react";
 import {
   getProfile,
@@ -36,6 +37,7 @@ import {
   UserAvatar,
   AVATAR_COLORS,
   AVATAR_ICONS,
+  PROFILE_AVATARS,
 } from "@/components/user-avatar";
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -54,13 +56,13 @@ interface Profile {
 }
 
 const CURRENCIES: { value: Currency; label: string }[] = [
-  { value: "USD", label: "$ USD — US Dollar" },
-  { value: "EUR", label: "€ EUR — Euro" },
-  { value: "BYN", label: "Br BYN — Белорусский рубль" },
-  { value: "RUB", label: "₽ RUB — Russian Ruble" },
-  { value: "GBP", label: "£ GBP — British Pound" },
-  { value: "JPY", label: "¥ JPY — Japanese Yen" },
-  { value: "CNY", label: "¥ CNY — Chinese Yuan" },
+  { value: "USD", label: "$ USD · US Dollar" },
+  { value: "EUR", label: "€ EUR · Euro" },
+  { value: "BYN", label: "Br BYN · Белорусский рубль" },
+  { value: "RUB", label: "₽ RUB · Russian Ruble" },
+  { value: "GBP", label: "£ GBP · British Pound" },
+  { value: "JPY", label: "¥ JPY · Japanese Yen" },
+  { value: "CNY", label: "¥ CNY · Chinese Yuan" },
 ];
 
 const LANGUAGES: { value: Language; label: string }[] = [
@@ -89,7 +91,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
         <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
           <Icon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -117,7 +119,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
-      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 sm:w-32">
+      <label className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400 sm:w-32">
         {label}
       </label>
       <div className="flex-1">{children}</div>
@@ -137,6 +139,7 @@ export default function SettingsPage() {
     setDateFormat,
     setAvatarColor,
     setAvatarIcon,
+    setAvatarPreset,
   } = usePrefs();
 
   const [mounted, setMounted] = useState(false);
@@ -149,8 +152,10 @@ export default function SettingsPage() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
-  // Pending (unsaved) prefs — initialized from store (already hydrated on client)
+  // Pending (unsaved) prefs. On a hard load the persisted store is hydrated
+  // after mount so that its first client snapshot matches SSR.
   const [pendingCurrency, setPendingCurrency] = useState<Currency>(
     () => usePrefs.getState().currency,
   );
@@ -166,7 +171,26 @@ export default function SettingsPage() {
   const [pendingIcon, setPendingIcon] = useState(
     () => usePrefs.getState().avatarIcon,
   );
+  const [pendingAvatarPreset, setPendingAvatarPreset] = useState(
+    () => usePrefs.getState().avatarPreset,
+  );
   const activePlan = getPlan(plan);
+
+  useEffect(() => {
+    const syncPendingPrefs = () => {
+      const prefs = usePrefs.getState();
+      setPendingCurrency(prefs.currency);
+      setPendingLanguage(prefs.language);
+      setPendingDateFormat(prefs.dateFormat);
+      setPendingColor(prefs.avatarColor);
+      setPendingIcon(prefs.avatarIcon);
+      setPendingAvatarPreset(prefs.avatarPreset);
+    };
+
+    const unsubscribe = usePrefs.persist.onFinishHydration(syncPendingPrefs);
+    if (usePrefs.persist.hasHydrated()) syncPendingPrefs();
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -185,6 +209,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setAvatarColor(pendingColor);
     setAvatarIcon(pendingIcon);
+    setAvatarPreset(pendingAvatarPreset);
     startTransition(async () => {
       const fd = new FormData();
       fd.append("name", name);
@@ -225,7 +250,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 p-4 md:space-y-6 md:p-8">
-      <div>
+      <div className="hidden lg:block">
         <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
           {t("settings")}
         </h1>
@@ -239,10 +264,10 @@ export default function SettingsPage() {
         title={t("pricing")}
         description={t("pricingSubtitle")}
       >
-        <div className="rounded-2xl border border-red-100 dark:border-red-900/40 bg-linear-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 p-5">
+        <div className="rounded-2xl bg-red-50 p-5 dark:bg-red-950/20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-red-500">
+              <p className="text-xs font-semibold text-red-600 dark:text-red-400">
                 {t("currentPlan")}
               </p>
               <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -270,69 +295,139 @@ export default function SettingsPage() {
         <div className="space-y-5">
           {/* Avatar picker */}
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
               <UserAvatar
                 color={pendingColor}
                 iconKey={pendingIcon}
+                imageKey={pendingAvatarPreset}
                 size="lg"
               />
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  Profile avatar
+                  {t("profileAvatar")}
                 </p>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  Choose a color and icon
+                  {t("chooseAvatar")}
                 </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAvatarPickerOpen(true)}
+                className="min-h-10 shrink-0 rounded-xl px-3 text-xs font-bold text-red-500 transition-[background-color,transform] duration-150 hover:bg-red-50 active:scale-[0.97] dark:hover:bg-red-950/25"
+                aria-haspopup="dialog"
+                aria-expanded={avatarPickerOpen}
+              >
+                {t("changeAvatar")}
+              </button>
+            </div>
+            {avatarPickerOpen && (
+              <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-labelledby="avatar-picker-title">
+                <button type="button" className="absolute inset-0 bg-slate-950/65" onClick={() => setAvatarPickerOpen(false)} aria-label={t("close")} />
+                <div className="mobile-inline-sheet relative z-10 max-h-[88dvh] w-full max-w-xl space-y-5 overflow-y-auto rounded-t-[1.75rem] bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl dark:bg-slate-900 lg:rounded-[1.75rem] lg:p-6">
+                  <div className="flex items-center justify-between">
+                    <h3 id="avatar-picker-title" className="text-base font-bold text-slate-900 dark:text-slate-100">{t("chooseAvatar")}</h3>
+                    <button type="button" className="icon-button" onClick={() => setAvatarPickerOpen(false)} aria-label={t("close")}><X className="h-5 w-5" /></button>
+                  </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {t("generatedAvatars")}
+              </p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {PROFILE_AVATARS.map((avatar) => (
+                  <button
+                    key={avatar.key}
+                    type="button"
+                    onClick={() => setPendingAvatarPreset(avatar.key)}
+                    className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-transform hover:scale-[1.04] ${
+                      pendingAvatarPreset === avatar.key
+                        ? "border-red-500 ring-2 ring-red-500/20"
+                        : "border-transparent"
+                    }`}
+                    aria-label={`${t("selectAvatar")} ${avatar.key.slice(-2)}`}
+                  >
+                    <UserAvatar
+                      color={pendingColor}
+                      iconKey={pendingIcon}
+                      imageKey={avatar.key}
+                      size="lg"
+                      className="h-full w-full"
+                    />
+                    {pendingAvatarPreset === avatar.key && (
+                      <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
             {/* Color swatches */}
             <div>
-              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Color
+              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {t("avatarColor")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {AVATAR_COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setPendingColor(c)}
+                    onClick={() => {
+                      setPendingColor(c);
+                      setPendingAvatarPreset("classic");
+                    }}
                     className="w-7 h-7 rounded-full transition-transform hover:scale-110"
                     style={{
                       backgroundColor: c,
-                      outline: pendingColor === c ? `3px solid ${c}` : "none",
+                      outline:
+                        pendingAvatarPreset === "classic" && pendingColor === c
+                          ? `3px solid ${c}`
+                          : "none",
                       outlineOffset: "2px",
                     }}
+                    aria-label={`${t("avatarColor")} ${c}`}
+                    aria-pressed={pendingAvatarPreset === "classic" && pendingColor === c}
                   />
                 ))}
               </div>
             </div>
             {/* Icon grid */}
             <div>
-              <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Icon
+              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {t("classicIcons")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {AVATAR_ICONS.map(({ key, icon: Icon }) => (
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setPendingIcon(key)}
+                    onClick={() => {
+                      setPendingIcon(key);
+                      setPendingAvatarPreset("classic");
+                    }}
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                      pendingIcon === key
+                      pendingAvatarPreset === "classic" && pendingIcon === key
                         ? "text-white"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                     style={
-                      pendingIcon === key
+                      pendingAvatarPreset === "classic" && pendingIcon === key
                         ? { backgroundColor: pendingColor }
                         : {}
                     }
+                    aria-label={`${t("classicIcons")} ${key}`}
+                    aria-pressed={pendingAvatarPreset === "classic" && pendingIcon === key}
                   >
                     <Icon className="w-4 h-4" />
                   </button>
                 ))}
               </div>
             </div>
+                  <button type="button" onClick={() => setAvatarPickerOpen(false)} className="min-h-11 w-full rounded-xl bg-red-500 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98]">
+                    {t("done")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Name + email */}
@@ -467,7 +562,7 @@ export default function SettingsPage() {
                       disableAutoTheme();
                       setTheme(value);
                     }}
-                    className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-xs font-semibold ${
+                    className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-[color,background-color,border-color,transform] duration-150 text-xs font-semibold ${
                       isActive
                         ? "border-red-500 bg-red-50 dark:bg-red-950/30 text-red-500"
                         : "border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
@@ -489,10 +584,10 @@ export default function SettingsPage() {
             </div>
 
             {/* Auto-schedule toggle */}
-            <div
-              role="button"
-              tabIndex={0}
-              className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer ${
+            <button
+              type="button"
+              aria-pressed={isAuto}
+              className={`flex items-center justify-between p-4 rounded-xl border-2 transition-[color,background-color,border-color,transform] duration-150 cursor-pointer ${
                 isAuto
                   ? "border-red-500 bg-red-50 dark:bg-red-950/20"
                   : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
@@ -507,7 +602,6 @@ export default function SettingsPage() {
                   enableAutoTheme(setTheme);
                 }
               }}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.click()}
             >
               <div className="flex items-center gap-3">
                 <div
@@ -541,12 +635,12 @@ export default function SettingsPage() {
                 }`}
               >
                 <span
-                  className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${
-                    isAuto ? "left-6" : "left-1"
+                  className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform duration-200 ${
+                    isAuto ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </div>
-            </div>
+            </button>
           </div>
         </Section>
       )}
@@ -599,7 +693,7 @@ export default function SettingsPage() {
               <div className="space-y-2 pt-1">
                 <p className="text-xs text-red-500 font-semibold">
                   Type{" "}
-                  <span className="font-mono bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded">
+                  <span className="rounded bg-red-100 px-1.5 py-0.5 font-semibold tabular-nums dark:bg-red-900/40">
                     DELETE
                   </span>{" "}
                   to confirm

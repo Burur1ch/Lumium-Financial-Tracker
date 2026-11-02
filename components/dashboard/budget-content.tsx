@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Wallet,
   AlertTriangle,
@@ -12,15 +12,17 @@ import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { getPlanBudgetLimit } from "@/utils/monetization/limits";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
-interface Category {
+export interface BudgetCategory {
   id: string;
   name: string;
   color: string;
   type?: string;
+  icon?: string | null;
 }
 
-interface BudgetItem {
+export interface BudgetItem {
   id: string;
   monthly_limit: number;
   base_limit?: number;
@@ -30,7 +32,10 @@ interface BudgetItem {
   alert_threshold?: number;
   current_spent: number;
   category_id: string;
-  categories?: { name: string; color: string }[] | null;
+  categories?:
+    | { name: string; color: string; icon?: string | null }
+    | { name: string; color: string; icon?: string | null }[]
+    | null;
 }
 
 function getCat(b: BudgetItem) {
@@ -41,11 +46,12 @@ export default function BudgetContent({
   categories,
   budgets,
 }: {
-  categories: Category[];
+  categories: BudgetCategory[];
   budgets: BudgetItem[];
 }) {
   const { t } = useI18n();
   const { plan } = usePrefs();
+  const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
   const b = budgets as BudgetItem[];
   const budgetLimit = getPlanBudgetLimit(plan);
@@ -64,7 +70,7 @@ export default function BudgetContent({
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-6 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="hidden lg:block">
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">
             {t("budgetsLimits")}
           </h1>
@@ -77,13 +83,21 @@ export default function BudgetContent({
             </p>
           )}
         </div>
-        <SetBudgetModal categories={categories} currentBudgetCount={b.length} />
+        <SetBudgetModal
+          categories={categories}
+          currentBudgetCount={b.length}
+          budgetedCategoryIds={b.map((budget) => budget.category_id)}
+        />
       </div>
+
+      <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        {t("limitNotBalance")}
+      </p>
 
       {/* Summary row */}
       {b.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4 text-slate-400" />
             </div>
@@ -96,7 +110,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <TrendingDown className="w-4 h-4 text-red-500" />
             </div>
@@ -109,7 +123,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
@@ -125,7 +139,7 @@ export default function BudgetContent({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
@@ -171,7 +185,7 @@ export default function BudgetContent({
             const isOver = spent >= limit;
             const isWarning =
               percentage >= (budget.alert_threshold ?? 75) && !isOver;
-            const catColor = cat?.color || "#ef4444";
+            const catColor = cat?.color || "#D92D3A";
             const today = new Date();
             const daysInMonth = new Date(
               today.getFullYear(),
@@ -184,22 +198,29 @@ export default function BudgetContent({
                 : spent;
 
             return (
-              <div
+              <button
+                type="button"
                 key={budget.id}
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+                onClick={() => setEditingBudget(budget)}
+                className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 hover:bg-slate-50/70 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-900/80 sm:p-5"
+                aria-label={`${t("openBudgetSettings")} ${cat?.name || t("uncategorized")}`}
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: `${catColor}20`,
-                        color: catColor,
-                      }}
-                    >
-                      <Wallet className="w-4 h-4" />
-                    </div>
+                    <CategoryArtwork
+                      icon={cat?.icon}
+                      name={cat?.name}
+                      className="h-9 w-9 rounded-xl"
+                      fallback={
+                        <div
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                        >
+                          <Wallet className="h-4 w-4" />
+                        </div>
+                      }
+                    />
                     <div>
                       <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
                         {cat?.name || t("uncategorized")}
@@ -211,20 +232,25 @@ export default function BudgetContent({
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`text-xs px-2.5 py-1 font-bold rounded-xl ${
-                      isOver
-                        ? "bg-red-50 dark:bg-red-950/30 text-red-500"
+                  <span className="flex flex-col items-end gap-1">
+                    <span
+                      className={`text-xs px-2.5 py-1 font-bold rounded-xl ${
+                        isOver
+                          ? "bg-red-50 dark:bg-red-950/30 text-red-500"
+                          : isWarning
+                            ? "bg-amber-50 dark:bg-amber-950/30 text-amber-500"
+                            : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"
+                      }`}
+                    >
+                      {isOver
+                        ? t("overLimit")
                         : isWarning
-                          ? "bg-amber-50 dark:bg-amber-950/30 text-amber-500"
-                          : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"
-                    }`}
-                  >
-                    {isOver
-                      ? t("overLimit")
-                      : isWarning
-                        ? t("warning")
-                        : t("onTrack")}
+                          ? t("warning")
+                          : t("onTrack")}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      {t("editLimit")}
+                    </span>
                   </span>
                 </div>
 
@@ -235,7 +261,7 @@ export default function BudgetContent({
                       <Money amount={spent} />
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
-                      of <Money amount={limit} />
+                      {t("of")} <Money amount={limit} />
                     </span>
                   </div>
                   {budget.rollover_amount && budget.rollover_amount > 0 ? (
@@ -245,13 +271,13 @@ export default function BudgetContent({
                   ) : null}
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-500"
+                      className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                       style={{
-                        width: `${percentage}%`,
+                        transform: `scaleX(${percentage / 100})`,
                         backgroundColor: isOver
-                          ? "#ef4444"
+                          ? "#D92D3A"
                           : isWarning
-                            ? "#f59e0b"
+                            ? "#B8791D"
                             : catColor,
                       }}
                     />
@@ -289,11 +315,33 @@ export default function BudgetContent({
                     </span>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       )}
+
+      {editingBudget ? (
+        <SetBudgetModal
+          key={editingBudget.id}
+          categories={categories}
+          currentBudgetCount={b.length}
+          budgetedCategoryIds={b.map((budget) => budget.category_id)}
+          initialBudget={{
+            categoryId: editingBudget.category_id,
+            limitAmountUsd: Number(
+              editingBudget.base_limit ?? editingBudget.monthly_limit,
+            ),
+            rolloverEnabled: Boolean(editingBudget.rollover_enabled),
+            alertThreshold: editingBudget.alert_threshold ?? 75,
+          }}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditingBudget(null);
+          }}
+          hideTrigger
+        />
+      ) : null}
     </div>
   );
 }

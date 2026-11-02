@@ -12,6 +12,12 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+
+# local design audit output
+/.taste-skill/*
+!/.taste-skill/direction.json
 
 # next.js
 /.next/
@@ -23,6 +29,7 @@
 # misc
 .DS_Store
 *.pem
+/.local/
 
 # debug
 npm-debug.log*

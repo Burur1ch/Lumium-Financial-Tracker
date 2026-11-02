@@ -22,6 +22,13 @@
       "when": 1792404729169,
       "tag": "0002_deep_colonel_america",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793500000000,
+      "tag": "0003_kind_dawn",
+      "breakpoints": true
     }
   ]
 }

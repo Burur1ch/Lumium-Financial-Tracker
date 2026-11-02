@@ -51,13 +51,13 @@ export function PaywallModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/65"
             onClick={close}
             aria-label="Close paywall"
           />
 
           <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
-            <div className="absolute inset-x-0 top-0 h-36 bg-linear-to-br from-red-50 via-orange-50 to-white dark:from-red-950/30 dark:via-orange-950/20 dark:to-slate-900" />
+            <div className="absolute inset-x-0 top-0 h-36 bg-red-50 dark:bg-red-950/20" />
             <div className="absolute right-[-10%] top-[-18%] h-40 w-40 rounded-full bg-red-200/30 blur-3xl dark:bg-red-700/10" />
 
             <div className="relative p-6 md:p-7">
@@ -69,7 +69,7 @@ export function PaywallModal({
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-100 dark:border-red-900/40 bg-white/90 dark:bg-slate-900/80 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-red-500">
+              <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-slate-900 dark:text-red-300">
                 <Lock className="w-3.5 h-3.5" />
                 {t("proAccess")}
               </div>
@@ -98,7 +98,7 @@ export function PaywallModal({
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Pro
                   </p>
                   <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -106,7 +106,7 @@ export function PaywallModal({
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Pro
                   </p>
                   <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -114,7 +114,7 @@ export function PaywallModal({
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Pro
                   </p>
                   <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -124,7 +124,7 @@ export function PaywallModal({
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {t("includedFeatures")}
                 </p>
                 <div className="mt-3 space-y-2.5 text-sm text-slate-700 dark:text-slate-300">

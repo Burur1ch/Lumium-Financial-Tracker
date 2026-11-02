@@ -53,7 +53,7 @@ export default function PeriodSelector({
     }
 
     if (rawPeriod) {
-      // URL already has a period — save it
+      // URL already has a period, so save it.
       if (isValidPeriod(rawPeriod)) {
         localStorage.setItem(STORAGE_KEY, rawPeriod);
       }
@@ -96,9 +96,9 @@ export default function PeriodSelector({
             key={p.value}
             onClick={() => select(p.value)}
             disabled={isPending}
-            className={`relative min-h-10 min-w-11 rounded-lg px-3 py-2 text-xs font-bold transition-all duration-150 disabled:cursor-wait ${
+            className={`relative min-h-10 min-w-11 rounded-lg px-3 py-2 text-xs font-bold transition-[color,background-color,transform] duration-150 disabled:cursor-wait ${
               current === p.value
-                ? "bg-red-500 text-white shadow-sm shadow-red-500/20"
+                ? "bg-red-500 text-white"
                 : locked
                   ? "text-slate-400 dark:text-slate-600 hover:text-red-500"
                   : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"

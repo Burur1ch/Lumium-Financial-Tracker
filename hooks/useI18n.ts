@@ -8,7 +8,10 @@ const CURRENCY_LOCALES: Record<string, string> = {
   GBP: "en-GB",
   JPY: "ja-JP",
   CNY: "zh-CN",
-  BYN: "be-BY",
+  // Keep the ISO-code presentation used by the product design. Some browser
+  // ICU builds render be-BY as `BYN 0.00`, while Node renders `0,00 Br`, which
+  // makes otherwise identical SSR and client renders fail hydration.
+  BYN: "en-US",
 };
 
 const LANGUAGE_LOCALES: Record<string, string> = {
@@ -36,10 +39,12 @@ export function useI18n() {
     const converted = opts?.noConvert
       ? amount
       : amount * (exchangeRates[currency] ?? 1);
+    const decimals = opts?.decimals ?? true;
     return new Intl.NumberFormat(CURRENCY_LOCALES[currency] ?? "en-US", {
       style: "currency",
       currency,
-      maximumFractionDigits: opts?.decimals ? 2 : 0,
+      minimumFractionDigits: decimals ? 2 : 0,
+      maximumFractionDigits: decimals ? 2 : 0,
     }).format(converted);
   };
 

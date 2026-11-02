@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, label, isDark, fmt, t }: any) => {
         borderColor: isDark ? "#1e293b" : "#e2e8f0",
       }}
     >
-      <p className="font-bold text-slate-400 dark:text-slate-500 mb-2.5 text-[11px] uppercase tracking-wider">
+      <p className="mb-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
         {label}
       </p>
       <div className="space-y-1.5">
@@ -114,7 +114,7 @@ export default function ExpenseChart({ data, periodKey }: ExpenseChartProps) {
       : "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/40";
 
   return (
-    <div className="flex h-80 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-5">
+    <div className="flex h-80 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -171,18 +171,18 @@ export default function ExpenseChart({ data, periodKey }: ExpenseChartProps) {
                 <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop
                     offset="5%"
-                    stopColor="#10b981"
+                    stopColor="#24845C"
                     stopOpacity={isDark ? 0.3 : 0.2}
                   />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  <stop offset="95%" stopColor="#24845C" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop
                     offset="5%"
-                    stopColor="#ef4444"
+                    stopColor="#D92D3A"
                     stopOpacity={isDark ? 0.3 : 0.2}
                   />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  <stop offset="95%" stopColor="#D92D3A" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -214,20 +214,20 @@ export default function ExpenseChart({ data, periodKey }: ExpenseChartProps) {
               <Area
                 type="monotone"
                 dataKey="income"
-                stroke="#10b981"
+                stroke="#24845C"
                 strokeWidth={2}
                 fill="url(#incomeGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
+                activeDot={{ r: 4, fill: "#24845C", strokeWidth: 0 }}
               />
               <Area
                 type="monotone"
                 dataKey="expense"
-                stroke="#ef4444"
+                stroke="#D92D3A"
                 strokeWidth={2}
                 fill="url(#expenseGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#ef4444", strokeWidth: 0 }}
+                activeDot={{ r: 4, fill: "#D92D3A", strokeWidth: 0 }}
               />
             </AreaChart>
           </ResponsiveContainer>

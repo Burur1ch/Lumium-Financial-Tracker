@@ -1,6 +1,18 @@
 "use server";
 
-import { and, asc, count, desc, eq, gte, ilike, lt, lte } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNull,
+  lt,
+  lte,
+  sql,
+} from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import {
@@ -21,13 +33,13 @@ import {
   canAccessAdvancedReports,
   canAccessCsvExport,
   getPlanBudgetLimit,
-  getPlanCategoryLimit,
   getPlanHistoryDays,
   isLimitReached,
 } from "@/utils/monetization/limits";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
 import { isCurrency } from "@/utils/currency";
 import { getCurrencyRate } from "@/utils/currency-server";
+import { extractReceiptWithGemini } from "@/utils/gemini-receipt";
 import { revalidatePath } from "next/cache";
 import {
   getAppBaseUrl,
@@ -59,6 +71,24 @@ const QUICK_PRESET_ICONS = new Set([
   "home",
   "other",
 ]);
+const CATEGORY_NAME_MAX_LENGTH = 60;
+const CATEGORY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+const DEFAULT_CATEGORIES = [
+  { key: "groceries", name: "Groceries", type: "expense", color: "#24845C", icon: "shoppingCart" },
+  { key: "transport", name: "Transport", type: "expense", color: "#3478C8", icon: "bus" },
+  { key: "housing", name: "Housing", type: "expense", color: "#9A6A3A", icon: "home" },
+  { key: "utilities", name: "Utilities", type: "expense", color: "#EAB308", icon: "zap" },
+  { key: "health", name: "Health", type: "expense", color: "#D92D3A", icon: "stethoscope" },
+  { key: "shopping", name: "Shopping", type: "expense", color: "#EC4899", icon: "shoppingBag" },
+  { key: "eating-out", name: "Eating out", type: "expense", color: "#F97316", icon: "utensils" },
+  { key: "entertainment", name: "Entertainment", type: "expense", color: "#287D91", icon: "gamepad" },
+  { key: "education", name: "Education", type: "expense", color: "#06B6D4", icon: "book" },
+  { key: "subscriptions", name: "Subscriptions", type: "expense", color: "#64748B", icon: "creditCard" },
+  { key: "other-expense", name: "Other expenses", type: "expense", color: "#737373", icon: "tag" },
+  { key: "salary", name: "Salary", type: "income", color: "#24845C", icon: "wallet" },
+  { key: "freelance", name: "Freelance", type: "income", color: "#3478C8", icon: "briefcase" },
+  { key: "other-income", name: "Other income", type: "income", color: "#14B8A6", icon: "banknote" },
+] as const;
 
 function isStripePlanActive(
   status: StripeSubscriptionStatus,
@@ -120,6 +150,62 @@ async function getCurrentPlanForUser(user: { id: string }): Promise<PlanKey> {
 async function getCurrentUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
+}
+
+async function ensureDefaultCategories(userId: string) {
+  const existing = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      type: categories.type,
+      systemKey: categories.system_key,
+    })
+    .from(categories)
+    .where(eq(categories.user_id, userId));
+
+  const existingSystemKeys = new Set(
+    existing.flatMap((category) =>
+      category.systemKey ? [category.systemKey] : [],
+    ),
+  );
+
+  for (const category of DEFAULT_CATEGORIES) {
+    if (existingSystemKeys.has(category.key)) continue;
+
+    const matchingCustomCategory = existing.find(
+      (item) =>
+        item.systemKey === null &&
+        item.type === category.type &&
+        item.name.trim().toLocaleLowerCase("en") ===
+          category.name.toLocaleLowerCase("en"),
+    );
+
+    if (matchingCustomCategory) {
+      await db
+        .update(categories)
+        .set({ system_key: category.key })
+        .where(
+          and(
+            eq(categories.id, matchingCustomCategory.id),
+            eq(categories.user_id, userId),
+            isNull(categories.system_key),
+          ),
+        );
+      continue;
+    }
+
+    await db
+      .insert(categories)
+      .values({
+        user_id: userId,
+        name: category.name,
+        type: category.type,
+        color: category.color,
+        icon: category.icon,
+        system_key: category.key,
+      })
+      .onConflictDoNothing();
+  }
 }
 
 function revalidateFinancialViews() {
@@ -720,6 +806,132 @@ export async function createTransaction(formData: FormData) {
   return { success: true, transactionId: created.id };
 }
 
+export async function scanReceiptWithGemini(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false as const, error: "UNAUTHORIZED" };
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    return { success: false as const, error: "GEMINI_NOT_CONFIGURED" };
+  }
+
+  const image = formData.get("image");
+  if (
+    !image ||
+    typeof image === "string" ||
+    !["image/jpeg", "image/png", "image/webp"].includes(image.type) ||
+    image.size <= 0 ||
+    image.size > 2_800_000
+  ) {
+    return { success: false as const, error: "INVALID_RECEIPT_IMAGE" };
+  }
+
+  try {
+    const result = await extractReceiptWithGemini({
+      base64: Buffer.from(await image.arrayBuffer()).toString("base64"),
+      mimeType: image.type,
+    });
+    return { success: true as const, result };
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "GEMINI_UNKNOWN_ERROR";
+    console.error("Gemini receipt recognition failed:", code);
+    return { success: false as const, error: "GEMINI_SCAN_FAILED" };
+  }
+}
+
+export async function createScannedTransaction(input: {
+  description: string;
+  amount: number;
+  currency: string;
+  date?: string | null;
+  note?: string;
+  categoryId?: string | null;
+  splits: Array<{ categoryId: string; amount: number; note?: string }>;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+
+  const description = input.description.trim();
+  const transactionDate = parseTransactionDate(input.date ?? null);
+  if (
+    !description ||
+    description.length > 200 ||
+    !Number.isFinite(input.amount) ||
+    input.amount <= 0 ||
+    !isCurrency(input.currency) ||
+    !transactionDate ||
+    input.splits.length > 12
+  ) {
+    return { success: false, error: "INVALID_RECEIPT" };
+  }
+
+  const categoryIds = new Set(
+    [input.categoryId, ...input.splits.map((split) => split.categoryId)].filter(
+      (value): value is string => Boolean(value),
+    ),
+  );
+  for (const categoryId of categoryIds) {
+    if (
+      !UUID_PATTERN.test(categoryId) ||
+      !(await categoryBelongsToUser(user.id, categoryId, "expense"))
+    ) {
+      return { success: false, error: "INVALID_CATEGORY" };
+    }
+  }
+
+  for (const split of input.splits) {
+    if (!Number.isFinite(split.amount) || split.amount <= 0) {
+      return { success: false, error: "INVALID_SPLITS" };
+    }
+  }
+  const splitTotal = input.splits.reduce((sum, split) => sum + split.amount, 0);
+  if (input.splits.length > 0 && Math.abs(splitTotal - input.amount) > 0.011) {
+    return { success: false, error: "SPLIT_TOTAL_MISMATCH" };
+  }
+
+  const currencyRate = await getCurrencyRate(input.currency);
+  const amountInUsd = input.amount / currencyRate;
+  const normalizedSplits = input.splits.map((split) => ({
+    ...split,
+    amountInUsd: split.amount / currencyRate,
+  }));
+  const primaryCategoryId =
+    input.categoryId ??
+    [...normalizedSplits].sort((left, right) => right.amountInUsd - left.amountInUsd)[0]?.categoryId ??
+    null;
+
+  const transactionId = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(transactions)
+      .values({
+        user_id: user.id,
+        category_id: primaryCategoryId,
+        description,
+        amount: amountInUsd.toFixed(2),
+        type: "expense",
+        status: "completed",
+        note: input.note?.trim().slice(0, 1000) || null,
+        review_status: "reviewed",
+        date: transactionDate,
+      })
+      .returning({ id: transactions.id });
+
+    if (normalizedSplits.length >= 2) {
+      await tx.insert(transactionSplits).values(
+        normalizedSplits.map((split) => ({
+          transaction_id: created.id,
+          user_id: user.id,
+          category_id: split.categoryId,
+          amount: split.amountInUsd.toFixed(2),
+          note: split.note?.trim().slice(0, 500) || null,
+        })),
+      );
+    }
+    return created.id;
+  });
+
+  revalidateFinancialViews();
+  return { success: true, transactionId };
+}
+
 export async function createQuickPreset(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "UNAUTHORIZED" };
@@ -979,11 +1191,36 @@ export async function updateTransaction(id: string, formData: FormData) {
       date: transactionDate,
     })
     .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
-    .returning({ id: transactions.id });
+    .returning({
+      id: transactions.id,
+      description: transactions.description,
+      amount: transactions.amount,
+      type: transactions.type,
+      status: transactions.status,
+      note: transactions.note,
+      reviewStatus: transactions.review_status,
+      categoryId: transactions.category_id,
+      recurringTransactionId: transactions.recurring_transaction_id,
+      date: transactions.date,
+    });
 
   if (!updated) return { success: false, error: "TRANSACTION_NOT_FOUND" };
   revalidateFinancialViews();
-  return { success: true };
+  return {
+    success: true,
+    transaction: {
+      id: updated.id,
+      description: updated.description,
+      amount: Number(updated.amount),
+      type: updated.type as "income" | "expense",
+      status: updated.status as "completed" | "pending",
+      note: updated.note,
+      review_status: updated.reviewStatus as "reviewed" | "needs_review",
+      category_id: updated.categoryId,
+      recurring_transaction_id: updated.recurringTransactionId,
+      date: updated.date.toISOString(),
+    },
+  };
 }
 
 export async function duplicateTransaction(id: string) {
@@ -1512,7 +1749,7 @@ export async function createSavingsGoal(formData: FormData) {
   const color =
     typeof colorInput === "string" && /^#[0-9a-f]{6}$/i.test(colorInput)
       ? colorInput
-      : "#ef4444";
+      : "#D92D3A";
   if (
     !name ||
     !Number.isFinite(target) ||
@@ -1602,6 +1839,8 @@ export async function getCategories() {
 
   if (!user) return [];
 
+  await ensureDefaultCategories(user.id);
+
   const rows = await db
     .select()
     .from(categories)
@@ -1619,25 +1858,34 @@ export async function createCategory(formData: FormData) {
 
   if (!user) return { success: false, error: "Неавторизован" };
 
-  const name = formData.get("name") as string;
+  const nameInput = formData.get("name");
+  const name = typeof nameInput === "string" ? nameInput.trim() : "";
   const type = formData.get("type") as "expense" | "income";
-  const color = formData.get("color") as string;
+  const color = String(formData.get("color") ?? "");
   const icon = (formData.get("icon") as string) || "tag";
 
-  if (!name || !color || (type !== "expense" && type !== "income")) {
+  if (
+    !name ||
+    name.length > CATEGORY_NAME_MAX_LENGTH ||
+    !CATEGORY_COLOR_PATTERN.test(color) ||
+    (type !== "expense" && type !== "income")
+  ) {
     return { success: false, error: "Заполните все поля" };
   }
 
-  const plan = await getCurrentPlanForUser(user);
-  const categoryLimit = getPlanCategoryLimit(plan);
-  if (categoryLimit !== null) {
-    const [result] = await db
-      .select({ count: count() })
-      .from(categories)
-      .where(eq(categories.user_id, user.id));
-    if (isLimitReached(categoryLimit, result.count)) {
-      return { success: false, error: "Plan limit reached for categories" };
-    }
+  const [duplicate] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        eq(categories.user_id, user.id),
+        eq(categories.type, type),
+        sql`lower(${categories.name}) = lower(${name})`,
+      ),
+    )
+    .limit(1);
+  if (duplicate) {
+    return { success: false, error: "DUPLICATE_CATEGORY" };
   }
 
   await db.insert(categories).values({
@@ -1648,7 +1896,7 @@ export async function createCategory(formData: FormData) {
     icon,
   });
 
-  revalidatePath("/dashboard/categories");
+  revalidateFinancialViews();
   return { success: true };
 }
 
@@ -1657,12 +1905,26 @@ export async function deleteCategory(id: string) {
   const user = await getCurrentUser();
 
   if (!user) return { success: false, error: "Неавторизован" };
+  if (!UUID_PATTERN.test(id)) {
+    return { success: false, error: "INVALID_CATEGORY" };
+  }
 
-  await db
+  const deleted = await db
     .delete(categories)
-    .where(and(eq(categories.id, id), eq(categories.user_id, user.id)));
+    .where(
+      and(
+        eq(categories.id, id),
+        eq(categories.user_id, user.id),
+        isNull(categories.system_key),
+      ),
+    )
+    .returning({ id: categories.id });
 
-  revalidatePath("/dashboard/categories");
+  if (deleted.length === 0) {
+    return { success: false, error: "DEFAULT_CATEGORY" };
+  }
+
+  revalidateFinancialViews();
   return { success: true };
 }
 
@@ -1672,6 +1934,7 @@ export async function getFilteredTransactions(filters: {
   type?: string;
   categoryId?: string;
   reviewStatus?: string;
+  month?: string;
 }) {
   const user = await getCurrentUser();
 
@@ -1686,6 +1949,14 @@ export async function getFilteredTransactions(filters: {
     cutoff.setHours(0, 0, 0, 0);
     cutoff.setDate(cutoff.getDate() - historyDays);
     conditions.push(gte(transactions.date, cutoff));
+  }
+
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(filters.month ?? "");
+  if (monthMatch) {
+    const year = Number(monthMatch[1]);
+    const monthIndex = Number(monthMatch[2]) - 1;
+    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
+    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
   }
 
   // Фильтр по поисковому слову (регистронезависимый поиск)
@@ -1724,7 +1995,11 @@ export async function getFilteredTransactions(filters: {
       recurring_transaction_id: transactions.recurring_transaction_id,
       date: transactions.date,
       category_id: transactions.category_id,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -1777,6 +2052,7 @@ export async function exportTransactionsWorkbook(filters: {
   search?: string;
   type?: string;
   categoryId?: string;
+  month?: string;
 }) {
   const { user, plan, profileName } = await getExportUserContext();
 
@@ -1789,6 +2065,14 @@ export async function exportTransactionsWorkbook(filters: {
   }
 
   const conditions = [eq(transactions.user_id, user.id)];
+
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(filters.month ?? "");
+  if (monthMatch) {
+    const year = Number(monthMatch[1]);
+    const monthIndex = Number(monthMatch[2]) - 1;
+    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
+    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
+  }
 
   if (filters.search) {
     conditions.push(ilike(transactions.description, `%${filters.search}%`));
@@ -1810,7 +2094,11 @@ export async function exportTransactionsWorkbook(filters: {
       type: transactions.type,
       status: transactions.status,
       date: transactions.date,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.category_id, categories.id))
@@ -1953,17 +2241,35 @@ export async function exportReportWorkbook(period: string = "30d") {
   return { success: true, workbook, filename };
 }
 
-// Получение бюджетов с агрегацией текущих расходов за текущий месяц
-export async function getBudgetsWithProgress() {
+// Получение бюджетов с агрегацией расходов за выбранный календарный месяц
+export async function getBudgetsWithProgress(month?: string) {
   const user = await getCurrentUser();
   if (!user) return [];
 
-  // 1. Получаем лимиты бюджетов за текущий месяц
   const now = new Date();
-  const currentMonthYear = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
+  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month ?? "");
+  const selectedYear = monthMatch
+    ? Number(monthMatch[1])
+    : now.getUTCFullYear();
+  const selectedMonthIndex = monthMatch
+    ? Number(monthMatch[2]) - 1
+    : now.getUTCMonth();
+  const startOfMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex, 1),
+  );
+  const startOfNextMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex + 1, 1),
+  );
+  const startOfPreviousMonth = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex - 1, 1),
+  );
+  const startOfThreeMonthsAgo = new Date(
+    Date.UTC(selectedYear, selectedMonthIndex - 3, 1),
+  );
+  const currentMonthYear = startOfMonth.toISOString().slice(0, 10);
+  const previousMonthYear = startOfPreviousMonth.toISOString().slice(0, 10);
 
+  // 1. Получаем лимиты бюджетов за выбранный месяц
   const budgetsData = await db
     .select({
       id: budgets.id,
@@ -1971,7 +2277,11 @@ export async function getBudgetsWithProgress() {
       rollover_enabled: budgets.rollover_enabled,
       alert_threshold: budgets.alert_threshold,
       category_id: budgets.category_id,
-      categories: { name: categories.name, color: categories.color },
+      categories: {
+        name: categories.name,
+        color: categories.color,
+        icon: categories.icon,
+      },
     })
     .from(budgets)
     .leftJoin(categories, eq(budgets.category_id, categories.id))
@@ -1982,22 +2292,7 @@ export async function getBudgetsWithProgress() {
       ),
     );
 
-  // 2. Получаем расходы за текущий месяц для расчета прогресса
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-  const startOfPreviousMonth = new Date(
-    startOfMonth.getFullYear(),
-    startOfMonth.getMonth() - 1,
-    1,
-  );
-  const startOfThreeMonthsAgo = new Date(
-    startOfMonth.getFullYear(),
-    startOfMonth.getMonth() - 3,
-    1,
-  );
-  const previousMonthYear = startOfPreviousMonth.toISOString().split("T")[0];
-
+  // 2. Получаем расходы только внутри выбранного месяца
   const spending = await db
     .select({
       amount: transactions.amount,
@@ -2010,6 +2305,7 @@ export async function getBudgetsWithProgress() {
         eq(transactions.type, "expense"),
         eq(transactions.status, "completed"),
         gte(transactions.date, startOfMonth),
+        lt(transactions.date, startOfNextMonth),
       ),
     );
 
@@ -2151,9 +2447,11 @@ export async function upsertBudget(formData: {
 
   // month_year хранит первый день текущего месяца
   const now = new Date();
-  const monthYear = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthYear = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  )
     .toISOString()
-    .split("T")[0];
+    .slice(0, 10);
 
   const budgetLimit = getPlanBudgetLimit(plan);
   if (budgetLimit !== null) {
@@ -2200,7 +2498,7 @@ export async function upsertBudget(formData: {
         alert_threshold: alertThreshold,
       },
     });
-  revalidatePath("/dashboard/budget");
+  revalidateFinancialViews();
 }
 
 // Получить профиль текущего пользователя
@@ -2367,7 +2665,7 @@ export async function getReportData(period: string = "30d") {
     ...v,
   }));
 
-  // Daily trend — only for short periods
+  // Daily trend is only useful for short periods.
   const dailyTrend = Object.entries(byDay).map(([label, v]) => ({
     label,
     ...v,

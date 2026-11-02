@@ -68,7 +68,7 @@ export default function MetricCard({
           : "bg-red-50 dark:bg-red-950/30 text-red-500";
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ${featured ? "col-span-2 md:col-span-1" : ""}`}>
+    <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5 ${featured ? "col-span-2 md:col-span-1" : ""}`}>
       {/* Top row: title + icon */}
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 leading-tight">
@@ -98,7 +98,7 @@ export default function MetricCard({
       <div className="mt-2 sm:mt-3 flex items-center gap-1 sm:gap-2">
         {change === null ? (
           <span className="inline-flex items-center text-[10px] sm:text-[11px] font-medium text-slate-400 dark:text-slate-500 leading-tight">
-            <span className="hidden sm:inline">— </span>
+            <span className="hidden sm:inline">· </span>
             {t("noDataShort")}
           </span>
         ) : (

@@ -10,6 +10,7 @@ import { MobileAppChrome } from "@/components/dashboard/mobile-app-chrome";
 import AddExpenseModal from "@/components/dashboard/add-expense-modal";
 import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
 import { CurrencyRateSync } from "@/components/currency-rate-sync";
+import { MobileReceiptScanner } from "@/components/dashboard/mobile-receipt-scanner";
 
 export default function DashboardLayout({
   children,
@@ -26,7 +27,9 @@ export default function DashboardLayout({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileAppChrome />
+        <Suspense fallback={null}>
+          <MobileAppChrome />
+        </Suspense>
 
         <main className="dashboard-main flex-1 overflow-y-auto overscroll-contain bg-[var(--app-canvas)]">
           <Suspense>
@@ -35,6 +38,7 @@ export default function DashboardLayout({
           </Suspense>
         </main>
       </div>
+      <MobileReceiptScanner />
       <AddExpenseModal hideTrigger />
     </div>
   );

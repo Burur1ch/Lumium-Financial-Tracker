@@ -55,7 +55,7 @@ export const MONETIZATION_PLANS: Record<PlanKey, MonetizationPlan> = {
       workspaces: 1,
       members: 1,
       transactionHistoryDays: 30,
-      customCategories: 10,
+      customCategories: null,
       monthlyBudgets: 5,
       exportsPerMonth: 0,
       savedRules: 0,

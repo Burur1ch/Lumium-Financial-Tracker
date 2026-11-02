@@ -50,7 +50,7 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
   const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 6);
 
   return (
-    <div className="flex h-auto min-h-64 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-6">
+    <div className="flex h-auto min-h-64 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-6">
       <div>
         <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
           {t("categoryBreakdown")}
@@ -120,9 +120,9 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
                     </div>
                     <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full rounded-full transition-all duration-500"
+                        className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                         style={{
-                          width: `${pct}%`,
+                          transform: `scaleX(${pct / 100})`,
                           backgroundColor: item.color,
                         }}
                       />

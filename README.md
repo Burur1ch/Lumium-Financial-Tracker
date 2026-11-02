@@ -7,6 +7,7 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
 - Income and expense tracking with categories, notes, editing, duplication, deletion, and review status.
 - One-tap quick transaction presets for repeated purchases such as transport or coffee.
 - Split transactions across multiple categories while preserving the original total.
+- Mobile receipt recognition with Gemini item extraction, category suggestions, and an on-device OCR fallback.
 - Recurring weekly, monthly, and yearly transactions with optional automatic materialization.
 - Description-based automation rules for categorization and review queues.
 - Monthly category budgets with custom alert thresholds, unused-budget rollover, historical averages, and month-end forecasts.
@@ -29,7 +30,7 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
    npm install
    ```
 
-2. Copy `.env.example` to `.env.local`. Set a unique `BETTER_AUTH_SECRET` of at least 32 characters.
+2. Copy `.env.example` to `.env.local`. Set a unique `BETTER_AUTH_SECRET` of at least 32 characters. To enable AI receipt recognition, also set `GEMINI_API_KEY`; without it the scanner automatically uses local OCR.
 
 3. Start the bundled PostgreSQL service:
 
@@ -50,6 +51,23 @@ Lumium is a mobile-first personal finance dashboard built with Next.js, PostgreS
    ```
 
 If Docker is unavailable, run PostgreSQL locally and change `DATABASE_URL`. The database schema must be migrated before opening authenticated dashboard pages.
+
+### Local authentication
+
+There is no seeded demo account. With PostgreSQL running and migrations applied, open [http://localhost:3000/register](http://localhost:3000/register), create an account with a password of at least 8 characters, and then use the same credentials at [http://localhost:3000/login](http://localhost:3000/login). Accounts and sessions are stored in the database configured by `DATABASE_URL`.
+
+### Visual feedback with Agentation
+
+The Agentation toolbar is mounted only in development and connects to the local MCP server at `http://localhost:4747`.
+
+```bash
+npx -y agentation-mcp doctor
+# Start this only if doctor reports that the server is not running:
+npx -y agentation-mcp server
+npm run dev
+```
+
+Open the local app and use the toolbar in the bottom-right corner to attach feedback to an element. Production builds do not render the toolbar.
 
 ## Useful commands
 
@@ -90,6 +108,7 @@ Create a Railway PostgreSQL service and configure the web service with:
 - `NEXT_PUBLIC_APP_URL`
 - Stripe variables from `.env.example` when billing is enabled
 - Resend variables when the support form is enabled
+- `GEMINI_API_KEY` to enable AI receipt recognition (`GEMINI_RECEIPT_MODEL` optionally overrides the default model)
 
 Run `npm run db:migrate` against the Railway database before deploying the application. Prefer Railway's private database URL when the web service and database are in the same project.
 

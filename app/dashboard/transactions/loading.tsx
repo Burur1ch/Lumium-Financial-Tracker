@@ -2,7 +2,7 @@ import React from "react";
 
 export default function TransactionsLoading() {
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto animate-pulse select-none">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full max-w-7xl mx-auto select-none">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
           <div className="h-7 w-44 bg-slate-200 dark:bg-slate-800 rounded-xl" />

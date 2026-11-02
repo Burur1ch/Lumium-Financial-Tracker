@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -20,12 +20,18 @@ import {
   X,
   ArrowLeftRight,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { useNotifStore, usePrefs } from "@/store/prefs";
 import { UserAvatar } from "@/components/user-avatar";
 import { BrandLogo } from "@/components/brand-logo";
-import PeriodSelector from "@/components/dashboard/period-selector";
+import {
+  getCurrentMonthKey,
+  isValidMonthKey,
+  monthKeyToDate,
+  MonthSelector,
+} from "@/components/dashboard/month-selector";
 
 const moreItems = [
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
@@ -39,33 +45,62 @@ const moreItems = [
 
 export function MobileAppChrome() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
-  const { avatarColor, avatarIcon, language } = usePrefs();
+  const { avatarColor, avatarIcon, avatarPreset, language } = usePrefs();
   const { notifications, markAllRead, markRead } = useNotifStore();
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [periodOpen, setPeriodOpen] = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
   const unreadCount = notifications.filter((item) => item.unread).length;
   const isHome = pathname === "/dashboard";
+  const isTransactions = pathname.startsWith("/dashboard/transactions");
+  const showMonthControl = isHome || isTransactions;
+  const pageTitle = isTransactions
+    ? t("transactions")
+    : pathname.startsWith("/dashboard/reports")
+      ? t("reports")
+      : pathname.startsWith("/dashboard/categories")
+        ? t("categories")
+        : pathname.startsWith("/dashboard/budget")
+          ? t("budget")
+          : pathname.startsWith("/dashboard/planning")
+            ? t("planning")
+            : pathname.startsWith("/dashboard/settings")
+              ? t("settings")
+              : pathname.startsWith("/dashboard/help")
+                ? t("help")
+                : pathname.startsWith("/dashboard/pricing")
+                  ? t("pricing")
+                  : pathname.startsWith("/dashboard/users")
+                    ? t("sharedFinances")
+                    : t("dashboard");
   const monthLocale = {
     en: "en-US",
     ru: "ru-RU",
     de: "de-DE",
     fr: "fr-FR",
   }[language];
+  const rawMonth = searchParams.get("month");
+  const selectedMonth = isValidMonthKey(rawMonth)
+    ? rawMonth
+    : getCurrentMonthKey();
+  const selectedMonthDate = monthKeyToDate(selectedMonth);
+  const currentYear = new Date().getFullYear();
   const monthLabel = new Intl.DateTimeFormat(monthLocale, {
     month: "long",
-  }).format(new Date());
+    year: selectedMonthDate.getFullYear() === currentYear ? undefined : "numeric",
+  }).format(selectedMonthDate);
 
   useEffect(() => {
-    if (!moreOpen && !notificationsOpen && !periodOpen) return;
+    if (!moreOpen && !notificationsOpen && !monthOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setMoreOpen(false);
         setNotificationsOpen(false);
-        setPeriodOpen(false);
+        setMonthOpen(false);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -73,10 +108,10 @@ export function MobileAppChrome() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [moreOpen, notificationsOpen, periodOpen]);
+  }, [moreOpen, notificationsOpen, monthOpen]);
 
   const openAddTransaction = () => {
-    window.dispatchEvent(new Event("lumium:open-add-transaction"));
+    window.dispatchEvent(new Event("lumium:open-mobile-add"));
   };
 
   const primaryItems = [
@@ -103,62 +138,93 @@ export function MobileAppChrome() {
   return (
     <>
       <header className="mobile-topbar lg:hidden">
-        <Link
-          href="/dashboard"
-          className="flex min-h-11 items-center rounded-xl pr-2 active:scale-[0.98]"
-          aria-label={t("home")}
-        >
-          <BrandLogo />
-        </Link>
+        {isHome ? (
+          <Link
+            href="/dashboard"
+            className="mobile-topbar-brand min-w-0 rounded-xl active:scale-[0.98]"
+            aria-label={t("home")}
+          >
+            <BrandLogo
+              showMark={false}
+              className="min-w-0"
+              wordmarkClassName="text-[1.45rem] font-extrabold"
+            />
+          </Link>
+        ) : (
+          <div className="mobile-topbar-title truncate">{pageTitle}</div>
+        )}
 
-        <div className="ml-auto flex items-center gap-0.5">
-          {isHome && (
-            <button
-              type="button"
-              onClick={() => {
-                setPeriodOpen(true);
-                setNotificationsOpen(false);
-                setMoreOpen(false);
-              }}
-              className="mr-1 flex min-h-11 items-center gap-1 rounded-xl px-2.5 text-sm font-semibold capitalize text-slate-700 hover:bg-slate-100 active:scale-[0.98] dark:text-slate-200 dark:hover:bg-white/[0.06]"
-              aria-haspopup="dialog"
-              aria-expanded={periodOpen}
-              aria-controls="period-sheet"
-            >
-              {monthLabel}
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${periodOpen ? "rotate-180" : ""}`}
-                strokeWidth={2}
-              />
-            </button>
-          )}
+        {showMonthControl && (
           <button
             type="button"
             onClick={() => {
-              setNotificationsOpen(true);
-              setPeriodOpen(false);
+              setMonthOpen(true);
+              setNotificationsOpen(false);
               setMoreOpen(false);
             }}
-            className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-300 dark:hover:bg-white/[0.06]"
-            aria-label={t("notifications")}
+            className="mobile-topbar-period"
             aria-haspopup="dialog"
-            aria-expanded={notificationsOpen}
-            aria-controls="notifications-sheet"
+            aria-expanded={monthOpen}
+            aria-controls="month-sheet"
           >
-            <Bell className="h-5 w-5" strokeWidth={1.8} />
-            {unreadCount > 0 && (
-              <span className="absolute right-2 top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                {Math.min(unreadCount, 9)}
-              </span>
-            )}
+            <span className="truncate">{monthLabel}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${monthOpen ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
           </button>
-          <Link
-            href="/dashboard/settings"
-            className="flex h-11 w-11 items-center justify-center rounded-xl active:scale-[0.96]"
-            aria-label={t("settings")}
-          >
-            <UserAvatar color={avatarColor} iconKey={avatarIcon} size="sm" />
-          </Link>
+        )}
+
+        <div className="mobile-topbar-actions">
+          {isTransactions ? (
+            <button
+              type="button"
+              onClick={() => {
+                const search = document.getElementById("mobile-transactions-search") as HTMLInputElement | null;
+                search?.scrollIntoView({ behavior: "smooth", block: "center" });
+                search?.focus({ preventScroll: true });
+              }}
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-200 dark:hover:bg-white/[0.06]"
+              aria-label={t("searchTransactions")}
+            >
+              <Search className="h-[1.35rem] w-[1.35rem]" strokeWidth={1.9} />
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/dashboard/settings"
+                className="flex h-11 w-11 items-center justify-center rounded-full active:scale-[0.96]"
+                aria-label={t("settings")}
+              >
+                <UserAvatar
+                  color={avatarColor}
+                  iconKey={avatarIcon}
+                  imageKey={avatarPreset}
+                  size="sm"
+                />
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setNotificationsOpen(true);
+                  setMonthOpen(false);
+                  setMoreOpen(false);
+                }}
+                className="relative flex h-11 w-11 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100 active:scale-[0.96] dark:text-slate-200 dark:hover:bg-white/[0.06]"
+                aria-label={t("notifications")}
+                aria-haspopup="dialog"
+                aria-expanded={notificationsOpen}
+                aria-controls="notifications-sheet"
+              >
+                <Bell className="h-[1.35rem] w-[1.35rem]" strokeWidth={1.9} />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-0.5 text-[11px] font-bold leading-none text-white ring-2 ring-[var(--app-canvas)]">
+                    {Math.min(unreadCount, 9)}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -177,7 +243,10 @@ export function MobileAppChrome() {
           className="mobile-add-button"
           aria-label={t("addTransaction")}
         >
-          <Plus className="h-6 w-6" strokeWidth={2.2} />
+          <span className="mobile-add-button-circle">
+            <Plus className="h-6 w-6" strokeWidth={2.15} />
+          </span>
+          <span>{t("addNew")}</span>
         </button>
         <Link className={`mobile-nav-item ${primaryItems[2].active ? "is-active" : ""}`} href={primaryItems[2].href} aria-current={primaryItems[2].active ? "page" : undefined}>
           <BarChart3 className="h-5 w-5" strokeWidth={1.8} />
@@ -187,7 +256,7 @@ export function MobileAppChrome() {
           type="button"
           onClick={() => {
             setMoreOpen(true);
-            setPeriodOpen(false);
+            setMonthOpen(false);
             setNotificationsOpen(false);
           }}
           className={`mobile-nav-item ${moreOpen || moreItems.some((item) => pathname.startsWith(item.href)) ? "is-active" : ""}`}
@@ -235,29 +304,27 @@ export function MobileAppChrome() {
         </div>
       )}
 
-      {periodOpen && isHome && (
-        <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setPeriodOpen(false)}>
+      {monthOpen && showMonthControl && (
+        <div className="mobile-sheet-layer lg:hidden" onMouseDown={() => setMonthOpen(false)}>
           <section
-            id="period-sheet"
+            id="month-sheet"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="period-sheet-title"
+            aria-labelledby="month-sheet-title"
             className="mobile-sheet"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="mobile-sheet-handle" />
             <div className="flex items-center justify-between px-5 pb-3 pt-1">
-              <h2 id="period-sheet-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
-                {t("selectPeriod")}
+              <h2 id="month-sheet-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
+                {t("selectMonth")}
               </h2>
-              <button type="button" className="icon-button" onClick={() => setPeriodOpen(false)} aria-label={t("close")}>
+              <button type="button" className="icon-button" onClick={() => setMonthOpen(false)} aria-label={t("close")}>
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-x-auto px-4 pb-5">
-              <Suspense>
-                <PeriodSelector onSelect={() => setPeriodOpen(false)} />
-              </Suspense>
+            <div className="px-4 pb-5">
+              <MonthSelector onSelect={() => setMonthOpen(false)} />
             </div>
           </section>
         </div>

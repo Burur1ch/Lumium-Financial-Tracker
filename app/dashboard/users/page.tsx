@@ -11,9 +11,9 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 p-4 md:space-y-7 md:p-8">
-      <header>
+      <header className="hidden lg:block">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500 text-white shadow-sm shadow-red-500/20">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500 text-white">
             <Users className="h-6 w-6" />
           </span>
           <div>
@@ -39,7 +39,7 @@ export default function UsersPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30">
             <Eye className="h-5 w-5" />
           </span>
@@ -64,7 +64,7 @@ export default function UsersPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30">
             <Wallet className="h-5 w-5" />
           </span>
