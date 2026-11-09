@@ -41,7 +41,11 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthExperience mode="login" focusStage={focusStage}>
+    <AuthExperience
+      mode="login"
+      focusStage={focusStage}
+      onFocusStageChange={setFocusStage}
+    >
       <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">

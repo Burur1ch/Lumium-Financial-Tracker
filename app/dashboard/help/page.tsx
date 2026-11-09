@@ -320,15 +320,15 @@ export default function HelpPage() {
           <a
             key={titleKey}
             href={href}
-            className="group flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4"
+            className="group flex min-h-16 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4"
           >
             <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center shrink-0">
               <Icon className="w-4 h-4 text-red-500" />
             </div>
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-red-500 transition-colors truncate">
+            <span className="min-w-0 text-[13px] font-semibold text-slate-700 transition-colors group-hover:text-red-500 dark:text-slate-200 sm:text-sm">
               {t(titleKey)}
             </span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0 ml-auto group-hover:text-red-400 transition-colors" />
+            <ArrowUpRight className="ml-auto hidden h-3.5 w-3.5 shrink-0 text-slate-300 transition-colors group-hover:text-red-400 dark:text-slate-600 sm:block" />
           </a>
         ))}
       </div>
@@ -336,12 +336,12 @@ export default function HelpPage() {
       {/* Tabs */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
         {/* Tab bar */}
-        <div className="flex overflow-x-auto border-b border-slate-100 dark:border-slate-800">
+        <div className="no-scrollbar flex overflow-x-auto border-b border-slate-100 dark:border-slate-800">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-5 py-3.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-1 py-3.5 text-sm font-semibold transition-colors border-b-2 -mb-px sm:px-5 ${
                 activeTab === key
                   ? "border-red-500 text-red-500"
                   : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"

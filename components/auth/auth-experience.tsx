@@ -1,6 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
+import {
+  useState,
+  type CSSProperties,
+  type FocusEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useI18n } from "@/hooks/useI18n";
@@ -16,13 +22,39 @@ export type AuthFocusStage =
 export function AuthExperience({
   mode,
   focusStage,
+  onFocusStageChange,
   children,
 }: {
   mode: "login" | "register";
   focusStage: AuthFocusStage;
+  onFocusStageChange: (stage: AuthFocusStage) => void;
   children: ReactNode;
 }) {
+  const [gazeOffset, setGazeOffset] = useState(0);
   const { t } = useI18n();
+  const updateGaze = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLInputElement) || target.type === "password") {
+      setGazeOffset(0);
+      return;
+    }
+
+    const textLength = Math.max(target.value.length, target.placeholder.length, 10);
+    const caretPosition = target.selectionStart ?? target.value.length;
+    const progress = Math.min(1, caretPosition / textLength);
+    setGazeOffset((progress - 0.5) * 5);
+  };
+  const handleBlurCapture = (event: FocusEvent<HTMLElement>) => {
+    updateGaze(event.relatedTarget);
+    if (!(event.relatedTarget instanceof HTMLInputElement)) {
+      onFocusStageChange("idle");
+    }
+  };
+  const handleInputCapture = (event: SyntheticEvent<HTMLElement>) => {
+    updateGaze(event.target);
+  };
+  const sceneStyle: CSSProperties & { "--gaze-x": string } = {
+    "--gaze-x": `${gazeOffset}px`,
+  };
 
   return (
     <main className="auth-shell">
@@ -34,6 +66,7 @@ export function AuthExperience({
         <section
           className="auth-scene"
           data-focus={focusStage}
+          style={sceneStyle}
           aria-label={t("authSceneLabel")}
         >
           <div className="auth-scene__brand">
@@ -88,42 +121,75 @@ export function AuthExperience({
                 strokeLinecap="round"
                 opacity=".58"
               />
-              <g className="auth-companion">
-                <path
-                  d="M210 65c-37 0-66 29-66 66v36c0 37 29 66 66 66s66-29 66-66v-36c0-37-29-66-66-66z"
-                  fill="#F4F5F0"
-                  stroke="#D8DEDA"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M210 65V42"
-                  fill="none"
-                  stroke="#D8DEDA"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                />
-                <circle cx="210" cy="37" r="8" fill="#D92D3A" />
-                <circle cx="188" cy="153" r="5.5" fill="#23343A" />
-                <circle cx="232" cy="153" r="5.5" fill="#23343A" />
-                <path
-                  d="M199 172c6 7 16 7 22 0"
-                  fill="none"
-                  stroke="#66787B"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                />
-                <path
-                  className="auth-companion__visor"
-                  d="M174 146h72v21c0 11-9 20-20 20h-32c-11 0-20-9-20-20z"
-                  fill="#D92D3A"
-                />
-                <path
-                  d="M192 153h36"
-                  stroke="#F8E8E8"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  className="auth-companion__visor-mark"
-                />
+              <g className="auth-companion-float">
+                <g className="auth-companion">
+                  <path
+                    d="M210 65c-37 0-66 29-66 66v36c0 37 29 66 66 66s66-29 66-66v-36c0-37-29-66-66-66z"
+                    fill="#F4F5F0"
+                    stroke="#D8DEDA"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M210 65V42"
+                    fill="none"
+                    stroke="#D8DEDA"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="210" cy="37" r="8" fill="#D92D3A" />
+                  <g className="auth-companion__eyes-open">
+                    <g className="auth-companion__eye">
+                      <ellipse
+                        cx="188"
+                        cy="147"
+                        rx="8"
+                        ry="10"
+                        fill="#FFFFFF"
+                      />
+                      <circle
+                        className="auth-companion__pupil"
+                        cx="188"
+                        cy="148"
+                        r="3.5"
+                        fill="#23343A"
+                      />
+                      <circle cx="189.5" cy="146.5" r="1" fill="#FFFFFF" />
+                    </g>
+                    <g className="auth-companion__eye">
+                      <ellipse
+                        cx="232"
+                        cy="147"
+                        rx="8"
+                        ry="10"
+                        fill="#FFFFFF"
+                      />
+                      <circle
+                        className="auth-companion__pupil"
+                        cx="232"
+                        cy="148"
+                        r="3.5"
+                        fill="#23343A"
+                      />
+                      <circle cx="233.5" cy="146.5" r="1" fill="#FFFFFF" />
+                    </g>
+                  </g>
+                  <g className="auth-companion__eyes-closed">
+                    <path
+                      d="M179 148c5 5 13 5 18 0m26 0c5 5 13 5 18 0"
+                      fill="none"
+                      stroke="#23343A"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                  <path
+                    d="M199 176c6 7 16 7 22 0"
+                    fill="none"
+                    stroke="#66787B"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                </g>
               </g>
               <g className="auth-companion__coin">
                 <circle cx="322" cy="123" r="21" fill="#D92D3A" />
@@ -163,7 +229,17 @@ export function AuthExperience({
           </div>
         </section>
 
-        <section className="auth-form-side">{children}</section>
+        <section
+          className="auth-form-side"
+          onBlurCapture={handleBlurCapture}
+          onChangeCapture={handleInputCapture}
+          onClickCapture={handleInputCapture}
+          onFocusCapture={handleInputCapture}
+          onKeyUpCapture={handleInputCapture}
+          onSelectCapture={handleInputCapture}
+        >
+          {children}
+        </section>
       </div>
     </main>
   );

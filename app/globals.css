@@ -102,7 +102,7 @@ html.dark body::before {
   position: relative;
   display: grid;
   min-height: calc(4.25rem + env(safe-area-inset-top));
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto auto;
   flex-shrink: 0;
   align-items: center;
   gap: 0.5rem;
@@ -959,9 +959,12 @@ html.dark textarea {
 
 .auth-orbit,
 .auth-companion__coin,
-.auth-companion__visor,
-.auth-companion__visor-mark,
-.auth-companion {
+.auth-companion-float,
+.auth-companion,
+.auth-companion__eye,
+.auth-companion__pupil,
+.auth-companion__eyes-open,
+.auth-companion__eyes-closed {
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -974,44 +977,60 @@ html.dark textarea {
   animation: auth-orbit-drift 12s linear infinite reverse;
 }
 
-.auth-companion {
+.auth-companion-float {
   animation: auth-companion-hover 3.8s ease-in-out infinite;
+}
+
+.auth-companion {
+  transition: transform 180ms ease;
+}
+
+.auth-companion__eye {
+  animation: auth-companion-blink 5.2s ease-in-out infinite;
+}
+
+.auth-companion__eye:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.auth-companion__pupil {
+  transform: translateX(var(--gaze-x, 0px));
+  transition: transform 100ms ease-out;
 }
 
 .auth-companion__coin {
   animation: auth-coin-float 4.5s ease-in-out infinite;
 }
 
-.auth-companion__visor {
-  opacity: 0;
-  transform: translateY(8px) scaleY(0.72);
+.auth-companion__eyes-open,
+.auth-companion__eyes-closed {
   transition:
-    opacity 180ms ease,
-    transform 180ms ease;
+    opacity 140ms ease,
+    transform 140ms ease;
 }
 
-.auth-companion__visor-mark {
+.auth-companion__eyes-closed {
   opacity: 0;
-  transition: opacity 180ms ease;
+  transform: translateY(-2px) scaleY(0.7);
 }
 
 .auth-scene[data-focus="email"] .auth-companion {
-  transform: translateX(5px) rotate(2deg);
+  transform: translateX(2px) rotate(1deg);
 }
 
 .auth-scene[data-focus="name"] .auth-companion {
-  transform: translateX(-4px) rotate(-2deg);
+  transform: translateX(-2px) rotate(-1deg);
 }
 
-.auth-scene[data-focus="password"] .auth-companion__visor,
-.auth-scene[data-focus="loading"] .auth-companion__visor {
+.auth-scene[data-focus="password"] .auth-companion__eyes-open,
+.auth-scene[data-focus="loading"] .auth-companion__eyes-open {
+  opacity: 0;
+}
+
+.auth-scene[data-focus="password"] .auth-companion__eyes-closed,
+.auth-scene[data-focus="loading"] .auth-companion__eyes-closed {
   opacity: 1;
   transform: translateY(0) scaleY(1);
-}
-
-.auth-scene[data-focus="password"] .auth-companion__visor-mark,
-.auth-scene[data-focus="loading"] .auth-companion__visor-mark {
-  opacity: 1;
 }
 
 .auth-scene[data-focus="error"] .auth-companion {
@@ -1031,6 +1050,17 @@ html.dark textarea {
   }
   50% {
     transform: translateY(-7px);
+  }
+}
+
+@keyframes auth-companion-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.08);
   }
 }
 
@@ -1165,13 +1195,16 @@ html.dark textarea {
 @media (prefers-reduced-motion: reduce) {
   .auth-orbit--outer,
   .auth-orbit--inner,
-  .auth-companion,
+  .auth-companion-float,
   .auth-companion__coin {
     animation: none;
   }
 
-  .auth-companion__visor,
-  .auth-companion__visor-mark,
+  .auth-companion__eye,
+  .auth-companion__pupil,
+  .auth-companion__eyes-open,
+  .auth-companion__eyes-closed,
+  .auth-companion,
   .tour-highlight {
     transition: none;
   }
