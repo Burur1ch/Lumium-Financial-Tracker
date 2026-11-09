@@ -2,7 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  ChevronRight,
+  Plus,
+} from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { TransactionDetailSheet } from "@/components/dashboard/transaction-detail-sheet";
@@ -41,6 +46,8 @@ export interface Transaction {
 interface TransactionsTableProps {
   transactions: Transaction[];
   showViewAll?: boolean;
+  emptyStateAction?: "add" | "clear";
+  clearFiltersHref?: string;
   categories?: Array<{
     id: string;
     name: string;
@@ -56,6 +63,8 @@ const PAGE_SIZE = 10;
 export default function TransactionsTable({
   transactions,
   showViewAll = false,
+  emptyStateAction = "add",
+  clearFiltersHref = "/dashboard/transactions",
   categories = [],
 }: TransactionsTableProps) {
   const { fmt, fmtDate, t, language } = useI18n();
@@ -86,6 +95,37 @@ export default function TransactionsTable({
   const hasMore = visibleCount < limitedTransactions.length;
   const mobileVisible = showViewAll ? visible.slice(0, 3) : visible;
   const locale = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language];
+  const openAddTransaction = () => {
+    const event =
+      window.matchMedia("(max-width: 1023px)").matches
+        ? "lumium:open-mobile-add"
+        : "lumium:open-add-transaction";
+    window.dispatchEvent(new Event(event));
+  };
+  const renderEmptyState = () => (
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+        {t("noTransactions")}
+      </p>
+      {emptyStateAction === "clear" ? (
+        <Link
+          href={clearFiltersHref}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+        >
+          {t("clearFilters")}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={openAddTransaction}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white transition-colors hover:bg-red-600"
+        >
+          <Plus className="h-4 w-4" />
+          {t("addTransaction")}
+        </button>
+      )}
+    </div>
+  );
   const todayKey = new Date().toDateString();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -164,7 +204,7 @@ export default function TransactionsTable({
   );
 
   return (
-    <div className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:dark:border-slate-800 sm:dark:bg-slate-900">
+    <div data-tour={showViewAll ? "activity" : undefined} className="w-full sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:dark:border-slate-800 sm:dark:bg-slate-900">
       <div className={`mb-2.5 flex items-center justify-between sm:mb-6 ${showViewAll ? "" : "max-sm:hidden"}`}>
         <div>
           <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
@@ -201,9 +241,7 @@ export default function TransactionsTable({
       {/* Mobile: grouped finance feed */}
       <div className="space-y-4 sm:hidden">
         {limitedTransactions.length === 0 ? (
-          <p className="finance-panel py-8 text-center text-xs text-slate-400 dark:text-slate-500">
-            {t("noTransactions")}
-          </p>
+          <div className="finance-panel">{renderEmptyState()}</div>
         ) : showViewAll ? (
           renderMobileRows(mobileVisible)
         ) : (
@@ -237,9 +275,9 @@ export default function TransactionsTable({
               <tr>
                 <td
                   colSpan={3}
-                  className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs"
+                  className="text-center"
                 >
-                  {t("noTransactions")}
+                  {renderEmptyState()}
                 </td>
               </tr>
             ) : (

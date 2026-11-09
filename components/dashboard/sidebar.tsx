@@ -28,6 +28,7 @@ import {
 } from "@/app/dashboard/actions";
 import { PaywallModal } from "@/components/dashboard/paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
+import { PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import {
   useProfileStore,
   useNotifStore,
@@ -282,7 +283,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         </Link>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-1" data-tour="main-navigation">
           {menuItemDefs.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -349,7 +350,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
                 {t("currentPlan")}
               </p>
               <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100 capitalize">
-                {plan}
+                {t(PLAN_TRANSLATION_KEYS[plan].name)}
               </p>
               <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 {plan === "free" ? t("upgradeToPro") : t("managePlan")}

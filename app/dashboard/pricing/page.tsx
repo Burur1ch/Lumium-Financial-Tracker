@@ -9,7 +9,6 @@ import {
   Sparkles,
   TrendingUp,
   Users,
-  Zap,
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
@@ -21,13 +20,18 @@ import {
 } from "@/app/dashboard/actions";
 import { StripePaymentForm } from "@/components/dashboard/stripe-payment-form";
 import {
-  BillingInterval,
+  AVAILABLE_PLAN_KEYS,
   MONETIZATION_PLANS,
+  PLAN_TRANSLATION_KEYS,
+} from "@/utils/monetization/plans";
+import type { TranslationKey } from "@/store/translations";
+import type {
+  BillingInterval,
+  MonetizationPlan,
   PlanKey,
-  getPlanPriceLabel,
 } from "@/utils/monetization/plans";
 
-const PLAN_ORDER: PlanKey[] = ["free", "pro", "family"];
+const PLAN_ORDER = AVAILABLE_PLAN_KEYS;
 
 type PaidPlanKey = Exclude<PlanKey, "free">;
 
@@ -35,29 +39,38 @@ const FEATURE_ROWS = [
   { labelKey: "fullHistory", value: "transactionHistoryDays" },
   { labelKey: "csvImport", value: "csvImport" },
   { labelKey: "aiInsights", value: "aiInsights" },
-  { labelKey: "sharedWorkspace", value: "sharedWorkspace" },
-  { labelKey: "rolePermissions", value: "rolePermissions" },
+  { labelKey: "recurringTransactions", value: "recurringTransactions" },
+  { labelKey: "advancedReports", value: "advancedReports" },
+  { labelKey: "forecastAlerts", value: "forecastAlerts" },
 ] as const;
 
-function getPlanHighlights(plan: PlanKey, t: (key: never) => string) {
+type FeatureValueKey = (typeof FEATURE_ROWS)[number]["value"];
+
+function getPlanHighlights(
+  plan: PlanKey,
+  t: (key: TranslationKey) => string,
+) {
   switch (plan) {
     case "free":
       return [
-        "30 days history",
-        `∞ ${t("categoriesCount" as never)}`,
-        `5 ${t("budgetsCount" as never)}`,
+        t("daysOfHistory").replace(
+          "{count}",
+          String(MONETIZATION_PLANS.free.limits.transactionHistoryDays),
+        ),
+        `${t("unlimited")} ${t("categoriesCount")}`,
+        `${MONETIZATION_PLANS.free.limits.monthlyBudgets} ${t("budgetsCount")}`,
       ];
     case "pro":
       return [
-        t("fullHistory" as never),
-        t("csvImport" as never),
-        t("aiInsights" as never),
+        t("fullHistory"),
+        t("csvImport"),
+        t("aiInsights"),
       ];
     case "family":
       return [
-        t("sharedWorkspace" as never),
-        t("rolePermissions" as never),
-        `5 ${t("membersCount" as never)}`,
+        t("sharedWorkspace"),
+        t("rolePermissions"),
+        `${MONETIZATION_PLANS.family.limits.members} ${t("membersCount")}`,
       ];
   }
 }
@@ -74,24 +87,28 @@ function getPlanIcon(plan: PlanKey) {
 }
 
 function renderFeatureValue(
-  plan: (typeof MONETIZATION_PLANS)[PlanKey],
-  key: string,
+  plan: MonetizationPlan,
+  key: FeatureValueKey,
+  t: (key: TranslationKey) => string,
 ) {
   switch (key) {
     case "transactionHistoryDays":
       return plan.limits.transactionHistoryDays === null
-        ? "Unlimited"
-        : `${plan.limits.transactionHistoryDays} days`;
+        ? t("unlimited")
+        : t("daysOfHistory").replace(
+            "{count}",
+            String(plan.limits.transactionHistoryDays),
+          );
     case "csvImport":
       return plan.features.csvImport;
     case "aiInsights":
       return plan.features.aiInsights;
-    case "sharedWorkspace":
-      return plan.features.sharedWorkspace;
-    case "rolePermissions":
-      return plan.features.rolePermissions;
-    default:
-      return false;
+    case "recurringTransactions":
+      return plan.features.recurringTransactions;
+    case "advancedReports":
+      return plan.features.advancedReports;
+    case "forecastAlerts":
+      return plan.features.forecastAlerts;
   }
 }
 
@@ -113,6 +130,16 @@ function ValueMark({ value }: { value: boolean | string }) {
       -
     </span>
   );
+}
+
+function getBillingErrorMessage(
+  error: string | undefined,
+  t: (key: TranslationKey) => string,
+) {
+  if (!error) return t("genericError");
+  return error === "familyPlanUnavailable"
+    ? t("familyPlanUnavailable")
+    : error;
 }
 
 export default function PricingPage() {
@@ -166,7 +193,7 @@ export default function PricingPage() {
     startTransition(async () => {
       const result = await createBillingPortalSession();
       if (!result.success || !result.url) {
-        setActionError(result.error ?? "Billing portal is unavailable");
+        setActionError(getBillingErrorMessage(result.error, t));
         return;
       }
 
@@ -204,7 +231,7 @@ export default function PricingPage() {
         });
 
         if (!result.success || !result.clientSecret) {
-          setActionError(result.error ?? "Payment form is unavailable");
+          setActionError(getBillingErrorMessage(result.error, t));
           return;
         }
 
@@ -224,7 +251,7 @@ export default function PricingPage() {
       });
 
       if (!result.success || !result.url) {
-        setActionError(result.error ?? "Checkout is unavailable");
+        setActionError(getBillingErrorMessage(result.error, t));
         return;
       }
 
@@ -248,33 +275,23 @@ export default function PricingPage() {
       return isCurrent ? t("currentPlan") : t("managePlan");
     }
 
-    if (isCurrent) {
+    if (isCurrent || currentPlan !== "free") {
       return t("managePlan");
     }
 
     const selectedPlan = MONETIZATION_PLANS[plan];
     return selectedPlan.trialDays > 0
-      ? `${t("startTrial")} · ${selectedPlan.trialDays}d`
+      ? `${t("startTrial")} · ${t("trialDuration").replace("{days}", String(selectedPlan.trialDays))}`
       : t("choosePlan");
   };
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:rounded-[32px] md:p-8">
-        <div className="absolute inset-y-0 right-0 w-1/2 opacity-60 pointer-events-none">
-          <div className="absolute right-[-10%] top-[-10%] h-56 w-56 rounded-full bg-red-200/30 blur-3xl dark:bg-red-700/10" />
-          <div className="absolute right-[10%] bottom-[-20%] h-64 w-64 rounded-full bg-orange-200/30 blur-3xl dark:bg-orange-700/10" />
-        </div>
-
-        <div className="relative grid gap-6 xl:grid-cols-[1.35fr_0.9fr] xl:items-end">
+      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 md:rounded-[32px] md:p-8">
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr] xl:items-end">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-3 py-1 text-xs font-semibold text-red-700 dark:border-red-900/40 dark:bg-slate-900 dark:text-red-300">
-              <Zap className="w-3.5 h-3.5" />
-              {t("pricing")}
-            </div>
-            <h1 className="mt-4 max-w-2xl text-2xl font-black tracking-[-0.035em] text-slate-950 dark:text-slate-50 md:text-4xl">
-              Pick a plan that grows from simple tracking to shared financial
-              control.
+            <h1 className="max-w-2xl text-2xl font-black tracking-[-0.035em] text-slate-950 dark:text-slate-50 md:text-4xl">
+              {t("pricingHeroTitle")}
             </h1>
             <p className="mt-3 max-w-2xl text-sm md:text-base text-slate-500 dark:text-slate-400 leading-relaxed">
               {t("pricingSubtitle")}
@@ -285,33 +302,33 @@ export default function PricingPage() {
                 <div className="flex items-center gap-2 text-red-500">
                   <TrendingUp className="w-4 h-4" />
                   <span className="text-xs font-semibold">
-                    Insight
+                    {t("pricingInsightTitle")}
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  From basic budgets to forecast-driven decisions.
+                  {t("pricingInsightCopy")}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-red-500">
                   <Sparkles className="w-4 h-4" />
                   <span className="text-xs font-semibold">
-                    Automation
+                    {t("pricingAutomationTitle")}
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Use imports, rules, and AI summaries in higher tiers.
+                  {t("pricingAutomationCopy")}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-red-500">
                   <ShieldCheck className="w-4 h-4" />
                   <span className="text-xs font-semibold">
-                    Control
+                    {t("pricingControlTitle")}
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Move from solo use to shared workspaces and permissions.
+                  {t("pricingControlCopy")}
                 </p>
               </div>
             </div>
@@ -319,7 +336,7 @@ export default function PricingPage() {
 
           <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:p-5 md:rounded-[28px]">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Billing
+              {t("billing")}
             </p>
             <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               {isElementMode
@@ -355,10 +372,10 @@ export default function PricingPage() {
             </p>
             <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-4">
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Active choice
+                {t("activeChoice")}
               </p>
               <p className="mt-1 text-lg font-bold capitalize text-slate-900 dark:text-slate-100">
-                {currentPlan}
+                {t(PLAN_TRANSLATION_KEYS[currentPlan].name)}
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t("pricingStripeFlowHint")}
@@ -382,8 +399,9 @@ export default function PricingPage() {
             <p className="text-xs font-semibold text-red-600 dark:text-red-400">
               {t("paymentFormTitle")}
             </p>
-            <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100 capitalize">
-              {paymentForm.plan} · {paymentForm.interval}
+            <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
+              {t(PLAN_TRANSLATION_KEYS[paymentForm.plan].name)} ·{" "}
+              {t(paymentForm.interval === "month" ? "monthlyBilling" : "yearlyBilling")}
             </h2>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {t("paymentFormDescription")}
@@ -402,15 +420,12 @@ export default function PricingPage() {
         </section>
       ) : null}
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {PLAN_ORDER.map((key) => {
           const plan = MONETIZATION_PLANS[key];
           const Icon = getPlanIcon(key);
           const isCurrent = currentPlan === key;
-          const highlights = getPlanHighlights(
-            key,
-            t as (key: never) => string,
-          );
+          const highlights = getPlanHighlights(key, t);
 
           return (
             <div
@@ -429,15 +444,15 @@ export default function PricingPage() {
 
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-red-50 dark:bg-red-950/30 text-red-500 flex items-center justify-center shrink-0">
+                  <div className="shrink-0 text-red-500">
                     <Icon className="w-5 h-5" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                      {plan.name}
+                      {t(PLAN_TRANSLATION_KEYS[key].name)}
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {plan.tagline}
+                      {t(PLAN_TRANSLATION_KEYS[key].tagline)}
                     </p>
                   </div>
                 </div>
@@ -461,19 +476,19 @@ export default function PricingPage() {
                 <span className="pb-1 text-sm text-slate-500 dark:text-slate-400">
                   {plan.price.monthly === 0
                     ? ""
-                    : interval === "year"
-                      ? "/mo"
-                      : "/mo"}
+                    : t("perMonth")}
                 </span>
               </div>
               <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-                {getPlanPriceLabel(plan, interval)}
+                {plan.price.monthly === 0
+                  ? t("noCharge")
+                  : interval === "year"
+                    ? t("priceBilledYearly").replace(
+                        "{amount}",
+                        `$${plan.price.yearly}`,
+                      )
+                    : t("priceBilledMonthly")}
               </p>
-              {interval === "year" && plan.price.yearly > 0 && (
-                <p className="mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  {`Billed yearly at $${plan.price.yearly}`}
-                </p>
-              )}
 
               <button
                 type="button"
@@ -558,16 +573,16 @@ export default function PricingPage() {
       </section>
 
       <section className="rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-        <div className="grid grid-cols-[1.2fr_repeat(3,minmax(0,1fr))] border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50">
+        <div className="grid grid-cols-[1.2fr_repeat(2,minmax(0,1fr))] border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50">
           <div className="px-5 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Compare
+            {t("comparePlans")}
           </div>
           {PLAN_ORDER.map((key) => (
             <div
               key={key}
               className="px-4 py-4 text-center text-sm font-bold text-slate-800 dark:text-slate-100"
             >
-              {MONETIZATION_PLANS[key].name}
+              {t(PLAN_TRANSLATION_KEYS[key].name)}
             </div>
           ))}
         </div>
@@ -575,10 +590,10 @@ export default function PricingPage() {
         {FEATURE_ROWS.map((row) => (
           <div
             key={row.labelKey}
-            className="grid grid-cols-[1.2fr_repeat(3,minmax(0,1fr))] border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+            className="grid grid-cols-[1.2fr_repeat(2,minmax(0,1fr))] border-b border-slate-100 dark:border-slate-800 last:border-b-0"
           >
             <div className="px-5 py-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-              {t(row.labelKey as never)}
+              {t(row.labelKey)}
             </div>
             {PLAN_ORDER.map((key) => (
               <div
@@ -586,7 +601,7 @@ export default function PricingPage() {
                 className="px-4 py-4 flex items-center justify-center"
               >
                 <ValueMark
-                  value={renderFeatureValue(MONETIZATION_PLANS[key], row.value)}
+                  value={renderFeatureValue(MONETIZATION_PLANS[key], row.value, t)}
                 />
               </div>
             ))}

@@ -150,8 +150,10 @@ export function MobileAppChrome() {
               wordmarkClassName="text-[1.45rem] font-extrabold"
             />
           </Link>
-        ) : (
+        ) : pathname.startsWith("/dashboard/pricing") ? (
           <div className="mobile-topbar-title truncate">{pageTitle}</div>
+        ) : (
+          <h1 className="mobile-topbar-title truncate">{pageTitle}</h1>
         )}
 
         {showMonthControl && (
@@ -239,6 +241,7 @@ export function MobileAppChrome() {
         </Link>
         <button
           type="button"
+          data-tour="add-transaction"
           onClick={openAddTransaction}
           className="mobile-add-button"
           aria-label={t("addTransaction")}
@@ -254,6 +257,7 @@ export function MobileAppChrome() {
         </Link>
         <button
           type="button"
+          data-tour="main-navigation"
           onClick={() => {
             setMoreOpen(true);
             setMonthOpen(false);

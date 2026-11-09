@@ -45,7 +45,7 @@ import {
   disableAutoTheme,
   isAutoThemeEnabled,
 } from "@/components/scheduled-theme";
-import { getPlan } from "@/utils/monetization/plans";
+import { getPlan, PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 
 interface Profile {
   id: string;
@@ -271,10 +271,10 @@ export default function SettingsPage() {
                 {t("currentPlan")}
               </p>
               <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                {activePlan.name}
+                {t(PLAN_TRANSLATION_KEYS[activePlan.key].name)}
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {activePlan.tagline}
+                {t(PLAN_TRANSLATION_KEYS[activePlan.key].tagline)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

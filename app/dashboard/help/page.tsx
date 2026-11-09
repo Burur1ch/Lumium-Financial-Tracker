@@ -19,6 +19,7 @@ import {
   Wallet,
   Tag,
   Settings,
+  Compass,
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 
@@ -274,7 +275,7 @@ export default function HelpPage() {
         setSent(true);
         setForm({ name: "", email: "", subject: "", message: "" });
       } else {
-        setSendError(result.error ?? "Unknown error");
+        setSendError(result.error ?? t("genericError"));
       }
     });
   };
@@ -303,6 +304,15 @@ export default function HelpPage() {
           {t("helpSubtitle")}
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event("lumium:start-tour"))}
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+      >
+        <Compass className="h-4 w-4 text-red-500" />
+        {t("replayTour")}
+      </button>
 
       {/* Quick guides grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -362,9 +372,18 @@ export default function HelpPage() {
               {/* Items */}
               <div className="space-y-2">
                 {filtered.length === 0 ? (
-                  <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
-                    {t("noTransactions")}
-                  </p>
+                  <div className="flex flex-col items-center gap-2 py-8 text-center">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {t("noHelpResults")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="min-h-11 px-3 text-sm font-semibold text-red-600 transition-colors hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      {t("clearSearch")}
+                    </button>
+                  </div>
                 ) : (
                   filtered.map((f, i) => <FaqItem key={i} q={f.q} a={f.a} />)
                 )}

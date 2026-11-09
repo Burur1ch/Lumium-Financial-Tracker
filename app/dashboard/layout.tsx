@@ -12,6 +12,7 @@ import { RecurringProcessor } from "@/components/dashboard/recurring-processor";
 import { CurrencyRateSync } from "@/components/currency-rate-sync";
 import { MobileReceiptScanner } from "@/components/dashboard/mobile-receipt-scanner";
 import { DashboardLaunchLoader } from "@/components/dashboard/dashboard-launch-loader";
+import { FirstRunTour } from "@/components/dashboard/first-run-tour";
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,7 @@ export default function DashboardLayout({
       <StoreHydration />
       <CurrencyRateSync />
       <RecurringProcessor />
+      <FirstRunTour />
       <div className="hidden lg:block">
         <Sidebar />
       </div>

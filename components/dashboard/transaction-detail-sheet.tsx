@@ -186,14 +186,14 @@ export function TransactionDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[75] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
+      className="ui-modal-overlay fixed inset-0 z-[75] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
       onMouseDown={onClose}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="transaction-detail-title"
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-[1.75rem] border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-700/70 dark:bg-[#111b27] sm:max-w-lg sm:rounded-2xl"
+        className="ui-modal-panel max-h-[90dvh] w-full overflow-y-auto rounded-t-[1.75rem] border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-700/70 dark:bg-[#111b27] sm:max-w-lg sm:rounded-2xl"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />

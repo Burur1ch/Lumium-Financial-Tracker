@@ -1,5 +1,18 @@
+import type { TranslationKey } from "@/store/translations";
+
 export type PlanKey = "free" | "pro" | "family";
 export type BillingInterval = "month" | "year";
+
+export const AVAILABLE_PLAN_KEYS = ["free", "pro"] as const satisfies readonly PlanKey[];
+
+export const PLAN_TRANSLATION_KEYS = {
+  free: { name: "planFreeName", tagline: "planFreeTagline" },
+  pro: { name: "planProName", tagline: "planProTagline" },
+  family: { name: "planFamilyName", tagline: "planFamilyTagline" },
+} as const satisfies Record<
+  PlanKey,
+  { name: TranslationKey; tagline: TranslationKey }
+>;
 
 export interface PlanPrice {
   monthly: number;

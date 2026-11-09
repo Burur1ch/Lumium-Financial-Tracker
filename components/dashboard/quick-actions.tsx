@@ -387,7 +387,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
 
   return (
     <>
-      <section className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900">
+      <section data-tour="quick-actions" className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
@@ -481,14 +481,14 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
 
       {managerOpen && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
+          className="ui-modal-overlay fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/50 sm:items-center sm:p-4"
           onMouseDown={() => setManagerOpen(false)}
         >
           <section
             role="dialog"
             aria-modal="true"
             aria-labelledby="quick-actions-title"
-            className="max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-md sm:rounded-2xl"
+            className="ui-modal-panel max-h-[88dvh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:max-w-md sm:rounded-2xl"
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />
@@ -759,7 +759,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-[80] mx-auto flex min-h-14 max-w-md items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-2xl dark:bg-slate-100 dark:text-slate-950 lg:bottom-6"
+          className="ui-toast fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-[80] mx-auto flex min-h-14 max-w-md items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-2xl dark:bg-slate-100 dark:text-slate-950 lg:bottom-6"
         >
           {toast.kind === "success" ? (
             <Check className="h-5 w-5 shrink-0 text-emerald-400" />

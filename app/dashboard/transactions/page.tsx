@@ -35,9 +35,16 @@ export default async function TransactionsPage({
     reviewStatus: resolvedParams.reviewStatus,
     month: resolvedParams.month ?? currentMonth,
   };
+  const hasActiveFilters = Boolean(
+    filters.search?.trim() ||
+      (filters.type && filters.type !== "all") ||
+      (filters.categoryId && filters.categoryId !== "all") ||
+      (filters.reviewStatus && filters.reviewStatus !== "all"),
+  );
 
   // Получаем отфильтрованный массив транзакций из PostgreSQL
   const transactions = await getFilteredTransactions(filters);
+  const clearFiltersHref = `/dashboard/transactions?month=${encodeURIComponent(filters.month)}`;
 
   return (
     <div className="mobile-finance-page mx-auto w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8">
@@ -57,7 +64,12 @@ export default async function TransactionsPage({
 
       {/* Таблица с результатами выборки */}
       <div className="w-full">
-        <TransactionsTable transactions={transactions} categories={categories} />
+        <TransactionsTable
+          transactions={transactions}
+          categories={categories}
+          emptyStateAction={hasActiveFilters ? "clear" : "add"}
+          clearFiltersHref={clearFiltersHref}
+        />
       </div>
     </div>
   );

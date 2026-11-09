@@ -484,6 +484,9 @@ export async function createCheckoutSession(input: {
   if (!user) {
     return { success: false, error: "Unauthorized" };
   }
+  if (input.plan === "family") {
+    return { success: false, error: "familyPlanUnavailable" };
+  }
 
   const priceId = getPriceIdForPlan(input.plan, input.interval);
   if (!priceId) {
@@ -623,6 +626,9 @@ export async function createPaymentElementSession(input: {
 
   if (!user) {
     return { success: false, error: "Unauthorized" };
+  }
+  if (input.plan === "family") {
+    return { success: false, error: "familyPlanUnavailable" };
   }
 
   const priceId = getPriceIdForPlan(input.plan, input.interval);

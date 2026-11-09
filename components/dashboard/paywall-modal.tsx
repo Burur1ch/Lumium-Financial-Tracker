@@ -48,7 +48,7 @@ export function PaywallModal({
       ) : null}
 
       {opened && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="ui-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/65"
@@ -56,7 +56,7 @@ export function PaywallModal({
             aria-label="Close paywall"
           />
 
-          <div className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
+          <div className="ui-modal-panel relative w-full max-w-lg overflow-hidden rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
             <div className="absolute inset-x-0 top-0 h-36 bg-red-50 dark:bg-red-950/20" />
             <div className="absolute right-[-10%] top-[-18%] h-40 w-40 rounded-full bg-red-200/30 blur-3xl dark:bg-red-700/10" />
 

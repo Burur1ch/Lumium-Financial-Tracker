@@ -5,12 +5,15 @@ import { authClient } from "@/utils/auth/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/hooks/useI18n";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { BrandLogo } from "@/components/brand-logo";
+import {
+  AuthExperience,
+  type AuthFocusStage,
+} from "@/components/auth/auth-experience";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [focusStage, setFocusStage] = useState<AuthFocusStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -19,6 +22,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setFocusStage("loading");
     setError(null);
 
     const { error: signInError } = await authClient.signIn.email({
@@ -28,6 +32,7 @@ export default function LoginPage() {
 
     if (signInError) {
       setError(signInError.message ?? t("signInFailed"));
+      setFocusStage("error");
       setLoading(false);
     } else {
       router.push("/dashboard");
@@ -36,14 +41,8 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4 py-8 dark:bg-[#0b0f1a]">
-      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))]">
-        <ThemeToggle compact />
-      </div>
-      <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-        <Link href="/" className="mx-auto flex min-h-11 w-fit items-center rounded-xl px-2 active:scale-[0.98]" aria-label="Lumium">
-          <BrandLogo size="md" wordmarkClassName="text-xl" />
-        </Link>
+    <AuthExperience mode="login" focusStage={focusStage}>
+      <div className="mx-auto w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
             {t("signInTitle")}
@@ -52,20 +51,29 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-xs font-medium text-red-700">
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700 dark:bg-red-950/30 dark:text-red-300"
+          >
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <label
+              htmlFor="login-email"
+              className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+            >
               {t("email")}
             </label>
             <input
+              id="login-email"
               type="email"
+              autoComplete="email"
               required
               value={email}
+              onFocus={() => setFocusStage("email")}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="alex@company.by"
               className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
@@ -73,13 +81,19 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <label
+              htmlFor="login-password"
+              className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+            >
               {t("password")}
             </label>
             <input
+              id="login-password"
               type="password"
+              autoComplete="current-password"
               required
               value={password}
+              onFocus={() => setFocusStage("password")}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-950 placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
@@ -89,6 +103,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
+            onFocus={() => setFocusStage("idle")}
             className="min-h-12 w-full rounded-xl bg-[var(--app-accent)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--app-accent-strong)] active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? t("signingIn") : t("signIn")}
@@ -105,6 +120,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-    </main>
+    </AuthExperience>
   );
 }

@@ -131,7 +131,7 @@ export function MobileDashboardOverview({
 
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
-      <div className="finance-panel px-4 py-4">
+      <div className="finance-panel px-4 py-4" data-tour="overview">
         <div className="grid grid-cols-[minmax(0,1.12fr)_minmax(7.5rem,0.88fr)] items-center gap-3">
           <div className="min-w-0">
             <div className="flex min-h-11 min-w-0 items-center gap-1 text-sm font-medium text-slate-600 dark:text-slate-300">

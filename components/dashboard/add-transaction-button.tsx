@@ -9,6 +9,7 @@ export function AddTransactionButton({ className = "" }: { className?: string })
   return (
     <button
       type="button"
+      data-tour="add-transaction"
       onClick={() => window.dispatchEvent(new Event("lumium:open-add-transaction"))}
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98] ${className}`}
     >
