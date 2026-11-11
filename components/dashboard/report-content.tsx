@@ -143,8 +143,13 @@ export default function ReportContent({
             {t("reports")}
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {periodLabel} · {data?.txCount ?? 0}{" "}
-            {t("transactions").toLowerCase()}
+            {periodLabel}
+            {hasReportsAccess && (
+              <>
+                {" · "}
+                {data?.txCount ?? 0} {t("transactions").toLowerCase()}
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -155,22 +160,7 @@ export default function ReportContent({
         </div>
       </div>
 
-      {!data ? (
-        <section className="mx-auto flex min-h-72 max-w-lg flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-950/30">
-            <Receipt className="h-6 w-6" strokeWidth={1.8} />
-          </span>
-          <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">{t("noDataPeriod")}</h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">{t("transactionsSubtitle")}</p>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new Event("lumium:open-add-transaction"))}
-            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.97]"
-          >
-            <Plus className="h-4 w-4" /> {t("addTransaction")}
-          </button>
-        </section>
-      ) : !hasReportsAccess ? (
+      {!hasReportsAccess ? (
         <div className="rounded-[28px] bg-red-50 p-8 dark:bg-red-950/10 md:p-10">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-300">
@@ -203,6 +193,21 @@ export default function ReportContent({
             </div>
           </div>
         </div>
+      ) : !data ? (
+        <section className="mx-auto flex min-h-72 max-w-lg flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-950/30">
+            <Receipt className="h-6 w-6" strokeWidth={1.8} />
+          </span>
+          <h2 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">{t("noDataPeriod")}</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">{t("transactionsSubtitle")}</p>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("lumium:open-add-transaction"))}
+            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.97]"
+          >
+            <Plus className="h-4 w-4" /> {t("addTransaction")}
+          </button>
+        </section>
       ) : (
         <>
           {/* Summary cards */}

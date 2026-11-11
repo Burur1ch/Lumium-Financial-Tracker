@@ -37,7 +37,7 @@ import {
   isLimitReached,
 } from "@/utils/monetization/limits";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
-import { isCurrency } from "@/utils/currency";
+import { formatUsdStorageAmount, isCurrency } from "@/utils/currency";
 import { getCurrencyRate } from "@/utils/currency-server";
 import { extractReceiptWithGemini } from "@/utils/gemini-receipt";
 import { revalidatePath } from "next/cache";
@@ -795,7 +795,7 @@ export async function createTransaction(formData: FormData) {
       user_id: user.id,
       category_id,
       description: description.trim(),
-      amount: amountInUsd.toFixed(2),
+      amount: formatUsdStorageAmount(amountInUsd),
       type,
       status,
       note: note || null,
@@ -911,7 +911,7 @@ export async function createScannedTransaction(input: {
         user_id: user.id,
         category_id: primaryCategoryId,
         description,
-        amount: amountInUsd.toFixed(2),
+        amount: formatUsdStorageAmount(amountInUsd),
         type: "expense",
         status: "completed",
         note: input.note?.trim().slice(0, 1000) || null,
@@ -926,7 +926,7 @@ export async function createScannedTransaction(input: {
           transaction_id: created.id,
           user_id: user.id,
           category_id: split.categoryId,
-          amount: split.amountInUsd.toFixed(2),
+          amount: formatUsdStorageAmount(split.amountInUsd),
           note: split.note?.trim().slice(0, 500) || null,
         })),
       );
@@ -967,7 +967,7 @@ export async function createQuickPreset(formData: FormData) {
       user_id: user.id,
       category_id: input.categoryId,
       name: input.name,
-      amount: input.amountInUsd.toFixed(2),
+      amount: formatUsdStorageAmount(input.amountInUsd),
       type: input.type,
       icon: input.icon,
       sort_order: presetCount.count,
@@ -1000,7 +1000,7 @@ export async function updateQuickPreset(id: string, formData: FormData) {
     .set({
       category_id: input.categoryId,
       name: input.name,
-      amount: input.amountInUsd.toFixed(2),
+      amount: formatUsdStorageAmount(input.amountInUsd),
       type: input.type,
       icon: input.icon,
       updated_at: new Date(),
@@ -1190,7 +1190,7 @@ export async function updateTransaction(id: string, formData: FormData) {
     .set({
       category_id: categoryId,
       description,
-      amount: (amount / currencyRate).toFixed(2),
+      amount: formatUsdStorageAmount(amount / currencyRate),
       type,
       note: note || null,
       review_status: "reviewed",
@@ -1356,7 +1356,7 @@ export async function saveTransactionSplits(input: {
         transaction_id: input.transactionId,
         user_id: user.id,
         category_id: split.categoryId,
-        amount: split.amountInUsd.toFixed(2),
+        amount: formatUsdStorageAmount(split.amountInUsd),
         note: split.note?.trim() || null,
       })),
     );
@@ -1506,7 +1506,7 @@ export async function createRecurringTransaction(formData: FormData) {
     user_id: user.id,
     category_id: categoryId,
     name,
-    amount: (amount / currencyRate).toFixed(2),
+    amount: formatUsdStorageAmount(amount / currencyRate),
     type,
     frequency,
     next_date: nextDate,
@@ -1773,8 +1773,8 @@ export async function createSavingsGoal(formData: FormData) {
   await db.insert(savingsGoals).values({
     user_id: user.id,
     name,
-    target_amount: targetUsd.toFixed(2),
-    current_amount: currentUsd.toFixed(2),
+    target_amount: formatUsdStorageAmount(targetUsd),
+    current_amount: formatUsdStorageAmount(currentUsd),
     target_date: targetDate,
     color,
     status: currentUsd >= targetUsd ? "completed" : "active",
@@ -1810,7 +1810,7 @@ export async function setSavingsGoalProgress(input: {
   await db
     .update(savingsGoals)
     .set({
-      current_amount: amountUsd.toFixed(2),
+      current_amount: formatUsdStorageAmount(amountUsd),
       status: amountUsd >= Number(goal.target) ? "completed" : "active",
       updated_at: new Date(),
     })
@@ -2491,7 +2491,7 @@ export async function upsertBudget(formData: {
     .values({
       user_id: user.id,
       category_id: formData.categoryId,
-      monthly_limit: limitInUsd.toFixed(2),
+      monthly_limit: formatUsdStorageAmount(limitInUsd),
       rollover_enabled: Boolean(formData.rolloverEnabled),
       alert_threshold: alertThreshold,
       month_year: monthYear,
@@ -2499,7 +2499,7 @@ export async function upsertBudget(formData: {
     .onConflictDoUpdate({
       target: [budgets.user_id, budgets.category_id, budgets.month_year],
       set: {
-        monthly_limit: limitInUsd.toFixed(2),
+        monthly_limit: formatUsdStorageAmount(limitInUsd),
         rollover_enabled: Boolean(formData.rolloverEnabled),
         alert_threshold: alertThreshold,
       },

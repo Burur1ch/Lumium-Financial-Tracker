@@ -148,7 +148,7 @@ export const transactions = pgTable(
       onDelete: "set null",
     }),
     description: text("description").notNull(),
-    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
     type: varchar("type", { length: 16 }).notNull(),
     status: varchar("status", { length: 16 }).notNull().default("completed"),
     note: text("note"),
@@ -189,7 +189,7 @@ export const quickTransactionPresets = pgTable(
       onDelete: "set null",
     }),
     name: varchar("name", { length: 80 }).notNull(),
-    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
     type: varchar("type", { length: 16 }).notNull().default("expense"),
     icon: varchar("icon", { length: 32 }).notNull().default("train"),
     sort_order: integer("sort_order").notNull().default(0),
@@ -217,7 +217,7 @@ export const recurringTransactions = pgTable(
       onDelete: "set null",
     }),
     name: varchar("name", { length: 120 }).notNull(),
-    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
     type: varchar("type", { length: 16 }).notNull().default("expense"),
     frequency: varchar("frequency", { length: 16 }).notNull(),
     next_date: date("next_date", { mode: "string" }).notNull(),
@@ -287,7 +287,7 @@ export const transactionSplits = pgTable(
     category_id: uuid("category_id").references(() => categories.id, {
       onDelete: "set null",
     }),
-    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
     note: text("note"),
     created_at: createdAt(),
   },
@@ -306,10 +306,10 @@ export const savingsGoals = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 120 }).notNull(),
     target_amount: numeric("target_amount", {
-      precision: 14,
-      scale: 2,
+      precision: 20,
+      scale: 8,
     }).notNull(),
-    current_amount: numeric("current_amount", { precision: 14, scale: 2 })
+    current_amount: numeric("current_amount", { precision: 20, scale: 8 })
       .notNull()
       .default("0"),
     target_date: date("target_date", { mode: "string" }),
@@ -339,7 +339,7 @@ export const budgets = pgTable(
     category_id: uuid("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
-    monthly_limit: numeric("monthly_limit", { precision: 14, scale: 2 }).notNull(),
+    monthly_limit: numeric("monthly_limit", { precision: 20, scale: 8 }).notNull(),
     rollover_enabled: boolean("rollover_enabled").notNull().default(false),
     alert_threshold: integer("alert_threshold").notNull().default(75),
     month_year: date("month_year", { mode: "string" }).notNull(),

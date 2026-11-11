@@ -20,6 +20,10 @@ export const RATES: Record<Currency, number> = {
   CNY: 7.25,
 };
 
+export function formatUsdStorageAmount(amount: number): string {
+  return amount.toFixed(8);
+}
+
 export function isCurrency(value: string): value is Currency {
   return CURRENCIES.includes(value as Currency);
 }
