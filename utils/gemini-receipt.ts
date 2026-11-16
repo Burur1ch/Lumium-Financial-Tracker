@@ -1,5 +1,6 @@
 import "server-only";
 
+import { normalizeKnownReceiptTerms } from "@/utils/receipt-scanner";
 import type {
   ReceiptExpenseCategoryKey,
   ReceiptScanItem,
@@ -168,9 +169,10 @@ function cleanCurrency(value: unknown) {
 function cleanItem(value: unknown): ReceiptScanItem | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
-  const name = cleanText(item.name, 100);
+  const cleanedName = cleanText(item.name, 100);
   const price = positiveNumber(item.price);
-  if (!name || price === null) return null;
+  if (!cleanedName || price === null) return null;
+  const name = normalizeKnownReceiptTerms(cleanedName);
 
   const categoryKey = RECEIPT_CATEGORY_SET.has(String(item.categoryKey))
     ? (item.categoryKey as ReceiptExpenseCategoryKey)

@@ -45,6 +45,13 @@ export interface ReceiptCategoryInference {
   matched: string[];
 }
 
+export function normalizeKnownReceiptTerms(value: string) {
+  return value
+    .replace(/(^|[^\p{L}])(?:апивария|ивария)(?=$|[^\p{L}])/giu, "$1Аливария")
+    .replace(/(^|[^\p{L}])швегпс(?=$|[^\p{L}])/giu, "$1Швеппс")
+    .replace(/(^|[^\p{L}])линон(?=$|[^\p{L}])/giu, "$1лимон");
+}
+
 const CATEGORY_RULES: Array<{
   key: ReceiptExpenseCategoryKey;
   phrases?: string[];
@@ -140,7 +147,7 @@ const CATEGORY_RULES: Array<{
 ];
 
 function normalizeCategoryText(value: string) {
-  return value
+  return normalizeKnownReceiptTerms(value)
     .toLocaleLowerCase()
     .replace(/ё/g, "е")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
@@ -200,11 +207,16 @@ const SUBCATEGORY_RULES: Array<[string, RegExp]> = [
 
 export function resolveReceiptCategory(item: ReceiptScanItem, categories: CategoryLike[]) {
   const active = categories.filter(c => !isCategoryArchived(c, categories));
+  const name = normalizeKnownReceiptTerms(item.name);
+  const inferred = inferReceiptCategory(name);
   const explicit = active.find(c => c.id === item.categoryId);
-  if (explicit) return explicit.id;
-  const inferred = inferReceiptCategory(item.name);
-  const rootKey = item.categoryKey ?? inferred.key;
-  const suggestedKey = item.subcategoryKey ?? SUBCATEGORY_RULES.find(([key, rule]) => key.startsWith(rootKey + "/") && rule.test(item.name))?.[0];
+  if (explicit && (explicit.system_key !== "other-expense" || inferred.key === "other-expense")) {
+    return explicit.id;
+  }
+  const rootKey = item.categoryKey === "other-expense" && inferred.key !== "other-expense"
+    ? inferred.key
+    : item.categoryKey ?? inferred.key;
+  const suggestedKey = item.subcategoryKey ?? SUBCATEGORY_RULES.find(([key, rule]) => key.startsWith(rootKey + "/") && rule.test(name))?.[0];
   const root = active.find(c => c.system_key === rootKey && !c.parent_id);
   if (!root) return active.find(c => c.system_key === "other-expense")?.id ?? "";
   const child = active.find(c => c.parent_id === root.id && c.system_key === suggestedKey);
@@ -369,20 +381,22 @@ function isReceiptMetaLine(line: string) {
     NON_ITEM_MARKERS.some((marker) => lower.includes(marker)) ||
     Boolean(parseDate(line)) ||
     /(?:^|\s)(?:унп|инн|кпп|бик|р\/с|кассир|смена|касса|чек\s*№|receipt\s*#)/iu.test(lower) ||
-    /(?:https?:\/\/|www\.|@|\+?\d[\d\s()-]{7,})/iu.test(line) ||
+    /(?:https?:\/\/|www\.|@|\+?\d(?:[\d\s()-]*\d){7,})/iu.test(line) ||
     /^[-=*#_\s]{3,}$/.test(line)
   );
 }
 
 function readableItemName(value: string) {
   let name = normalizeLine(value)
-    .replace(/\b\d{8,14}\b/g, " ")
+    .replace(/\b\d{7,14}\b/g, " ")
     .replace(/^\s*\d{1,3}[.)-]\s*/, "")
     .replace(/\b\d+(?:[.,]\d+)?\s*(?:шт|pcs|pc|кг|kg|гр|g|л|l|мл|ml)\b/giu, " ")
     .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}%+./()-]+$/gu, "")
     .replace(/\s+/g, " ")
     .trim();
   if (!name) return "";
+
+  name = normalizeKnownReceiptTerms(name);
 
   const letters = name.match(/[\p{L}]/gu) ?? [];
   const upper = name.match(/[\p{Lu}]/gu) ?? [];
@@ -396,6 +410,10 @@ function readableItemName(value: string) {
       })
       .join(" ");
   }
+  name = name.replace(
+    /(^|[^\p{L}])([А-ЯЁ]{4,})(?=$|[^\p{L}])/gu,
+    (_, prefix: string, word: string) => prefix + word.charAt(0) + word.slice(1).toLocaleLowerCase(),
+  );
   return name;
 }
 
@@ -437,19 +455,14 @@ function findMerchant(lines: string[]) {
   );
 }
 
-function findTotal(lines: string[], items: ReceiptScanItem[]) {
+function findTotal(lines: string[]) {
   for (const line of [...lines].reverse()) {
     const lower = line.toLowerCase();
     if (!TOTAL_MARKERS.some((marker) => lower.includes(marker))) continue;
     const values = moneyValues(line);
     if (values.length) return Math.max(...values);
   }
-
-  const itemTotal = items.reduce((sum, item) => sum + item.price, 0);
-  if (itemTotal > 0) return Math.round(itemTotal * 100) / 100;
-
-  const fallback = lines.flatMap((line) => moneyAtEnd(line)?.amount ?? []);
-  return fallback.length ? Math.max(...fallback) : null;
+  return null;
 }
 
 function findItems(lines: string[], receiptConfidence: number) {
@@ -465,7 +478,9 @@ function findItems(lines: string[], receiptConfidence: number) {
     if (!priceMatch) {
       const candidate = readableItemName(line);
       const letters = candidate.match(/[\p{L}]/gu)?.length ?? 0;
-      pendingName = letters >= 2 && candidate.length <= 100 ? candidate : null;
+      if (letters >= 2) {
+        pendingName = candidate.length <= 100 ? candidate : null;
+      }
       continue;
     }
 
@@ -504,7 +519,7 @@ export function parseReceiptText(rawText: string, confidence = 0): ReceiptScanRe
   const items = findItems(lines, confidence);
   return {
     source: "receipt",
-    amount: findTotal(lines, items),
+    amount: findTotal(lines),
     currency: detectCurrency(rawText),
     date: lines.map(parseDate).find((value): value is string => Boolean(value)) ?? null,
     merchant: findMerchant(lines),

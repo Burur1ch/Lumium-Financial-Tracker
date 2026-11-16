@@ -47,6 +47,39 @@ test("ignores an item discount line even when OCR misses its first letter", () =
   ]);
 });
 
+test("keeps a product name across OCR quantity noise and fixes obvious brand typos", () => {
+  const result = parseReceiptText(
+    `1981724 Нап,пив,б/а "АПИВАРИЯ ПШЕНИЧНОЕ" (Жб
+)0. 45л
+1,99`,
+    68,
+  );
+
+  expect(result.items).toEqual([
+    expect.objectContaining({
+      name: expect.stringContaining("Аливария"),
+      price: 1.99,
+    }),
+  ]);
+  expect(result.items[0].name).not.toContain("1981724");
+  expect(result.items[0].name).toContain("Пшеничное");
+});
+
+test("retries OCR when the receipt total is missing, even when several items were found", () => {
+  const result = parseReceiptText(
+    `Напиток "ШВЕГПС" (линон) 3,19
+Напиток "Фанта" 4,69
+Пиво "Аливария" 1,99
+Карамель "Halls" 1,55
+Напиток "Sprite" 14,07`,
+    90,
+  );
+
+  expect(result.items).toHaveLength(5);
+  expect(result.amount).toBeNull();
+  expect(receiptRecognitionNeedsRetry(result)).toBe(true);
+});
+
 test("categorizes Russian supermarket drinks and confectionery into grocery subcategories", () => {
   const categories = [
     { id: "groceries", name: "Groceries", system_key: "groceries" },
@@ -97,6 +130,13 @@ test("categorizes Russian supermarket drinks and confectionery into grocery subc
       "groceries/drinks",
     );
   }
+  expect(inferReceiptCategory("Ивария").key).toBe("groceries");
+  expect(resolveReceiptCategory({
+    name: "Ивария",
+    price: 1,
+    categoryKey: "other-expense",
+    categoryId: "other-expense",
+  }, categories)).toBe("groceries/drinks");
   expect(resolveReceiptCategory({ name: "Halls", price: 1 }, categories)).toBe(
     "groceries/pantry",
   );

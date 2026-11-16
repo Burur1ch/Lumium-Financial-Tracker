@@ -71,14 +71,15 @@ function formatAmount(value: number | null, currency: string) {
 }
 
 function receiptItemInference(item: ReceiptScanResult["items"][number]) {
-  if (item.categoryKey) {
+  const inferred = inferReceiptCategory(item.name);
+  if (item.categoryKey && (item.categoryKey !== "other-expense" || inferred.key === "other-expense")) {
     return {
       key: item.categoryKey,
       confidence: item.categoryConfidence ?? item.confidence ?? 0.5,
       matched: [],
     };
   }
-  return inferReceiptCategory(item.name);
+  return inferred;
 }
 
 export function MobileReceiptScanner() {
@@ -376,9 +377,12 @@ export function MobileReceiptScanner() {
         firstRecognition.data.blocks,
         firstRecognition.data.text,
       );
-      const candidates = [parseReceiptText(firstText, firstRecognition.data.confidence)];
+      const candidates = [
+        parseReceiptText(firstRecognition.data.text, firstRecognition.data.confidence),
+        parseReceiptText(firstText, firstRecognition.data.confidence),
+      ];
 
-      if (receiptRecognitionNeedsRetry(candidates[0])) {
+      if (receiptRecognitionNeedsRetry(chooseBestReceiptResult(candidates))) {
         recognitionPass = 1;
         setProgress(0.62);
         await worker.setParameters({
@@ -392,10 +396,13 @@ export function MobileReceiptScanner() {
           { text: true, blocks: true },
         );
         if (runId !== runIdRef.current) return;
-        candidates.push(parseReceiptText(
-          reconstructReceiptText(secondRecognition.data.blocks, secondRecognition.data.text),
-          secondRecognition.data.confidence,
-        ));
+        candidates.push(
+          parseReceiptText(secondRecognition.data.text, secondRecognition.data.confidence),
+          parseReceiptText(
+            reconstructReceiptText(secondRecognition.data.blocks, secondRecognition.data.text),
+            secondRecognition.data.confidence,
+          ),
+        );
       }
 
       const bestResult = chooseBestReceiptResult(candidates);
