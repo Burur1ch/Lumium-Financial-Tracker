@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -40,7 +41,12 @@ export interface QuickPreset {
   amount: number;
   type: "expense" | "income";
   icon: string;
-  category: { id: string; name: string; color: string; icon?: string | null } | null;
+  category: {
+    id: string;
+    name: string;
+    color: string;
+    icon?: string | null;
+  } | null;
 }
 
 interface QuickCategory {
@@ -96,7 +102,7 @@ function getIcon(iconKey: string) {
 
 export function QuickActions({ presets, categories }: QuickActionsProps) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, categoryName } = useI18n();
   const { currency, exchangeRates } = usePrefs();
   const [presetOverrides, setPresetOverrides] = useState<
     Record<string, QuickPreset>
@@ -106,9 +112,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   );
   const [pendingPresetId, setPendingPresetId] = useState<string | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
-  const [formMode, setFormMode] = useState<"list" | "create" | "edit">(
-    "list",
-  );
+  const [formMode, setFormMode] = useState<"list" | "create" | "edit">("list");
   const [editingPreset, setEditingPreset] = useState<QuickPreset | null>(null);
   const [selectedType, setSelectedType] = useState<"expense" | "income">(
     "expense",
@@ -203,7 +207,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     const matchingCategory = categories.find(
       (category) =>
         category.type === "expense" &&
-        category.name.trim().toLocaleLowerCase() ===
+        categoryName(category).trim().toLocaleLowerCase() ===
           localizedName.trim().toLocaleLowerCase(),
     );
 
@@ -223,7 +227,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     setSelectedCategoryId(preset.category?.id ?? "");
     setName(preset.name);
     setAmount(
-      String(Number((preset.amount * (exchangeRates[currency] ?? 1)).toFixed(2))),
+      String(
+        Number((preset.amount * (exchangeRates[currency] ?? 1)).toFixed(2)),
+      ),
     );
     setError(null);
     setFormMode("edit");
@@ -373,10 +379,14 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           />
         )}
         <span className="min-w-0">
-          <span className={`${mobile ? "text-xs" : "text-sm"} block truncate font-semibold text-slate-900 dark:text-slate-100`}>
+          <span
+            className={`${mobile ? "text-xs" : "text-sm"} block truncate font-semibold text-slate-900 dark:text-slate-100`}
+          >
             {preset.name}
           </span>
-          <span className={`mt-0.5 block max-w-full truncate text-[11px] font-bold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>
+          <span
+            className={`mt-0.5 block max-w-full truncate text-[11px] font-bold tabular-nums ${preset.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}
+          >
             {preset.type === "income" ? "+" : ""}
             <Money amount={preset.amount} decimals />
           </span>
@@ -387,7 +397,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
 
   return (
     <>
-      <section data-tour="quick-actions" className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900">
+      <section
+        data-tour="quick-actions"
+        className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900"
+      >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
@@ -409,7 +422,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
             >
               <Settings2 className="hidden h-4 w-4 sm:block" />
               <span className="sm:hidden">{t("edit")}</span>
-              <span className="hidden sm:inline">{t("manageQuickActions")}</span>
+              <span className="hidden sm:inline">
+                {t("manageQuickActions")}
+              </span>
             </button>
           )}
         </div>
@@ -429,7 +444,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     onClick={() => openStarterExpense(starter)}
                     className="flex min-h-[4.6rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-center text-[11px] font-semibold leading-tight text-slate-700 hover:bg-slate-50 active:scale-[0.98] dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                   >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700" style={{ color: starter.color }}>
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700"
+                      style={{ color: starter.color }}
+                    >
                       <Icon className="h-5 w-5" strokeWidth={1.9} />
                     </span>
                     <span className="max-w-full truncate">
@@ -451,7 +469,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-3 sm:hidden">
-              {visiblePresets.slice(0, 5).map((preset) => renderPreset(preset, true))}
+              {visiblePresets
+                .slice(0, 5)
+                .map((preset) => renderPreset(preset, true))}
               {visiblePresets.length < 8 && (
                 <button
                   type="button"
@@ -461,7 +481,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-200">
                     <Plus className="h-5 w-5" />
                   </span>
-                  <span className="hidden min-[375px]:inline">{t("addQuickAction")}</span>
+                  <span className="hidden min-[375px]:inline">
+                    {t("addQuickAction")}
+                  </span>
                 </button>
               )}
             </div>
@@ -469,7 +491,11 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
             <div className="hidden gap-2 overflow-x-auto pb-1 sm:flex">
               {visiblePresets.map((preset) => renderPreset(preset))}
               {visiblePresets.length < 8 && (
-                <button type="button" onClick={openCreate} className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400">
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="flex min-h-16 min-w-32 items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 text-sm font-bold text-slate-500 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:border-red-600 dark:hover:text-red-400"
+                >
                   <Plus className="h-4 w-4" />
                   {t("addQuickAction")}
                 </button>
@@ -549,7 +575,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                         fallback={
                           <span
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                            style={{ backgroundColor: preset.category?.color || "#D92D3A" }}
+                            style={{
+                              backgroundColor:
+                                preset.category?.color || "#D92D3A",
+                            }}
                           >
                             <Icon className="h-5 w-5" />
                           </span>
@@ -643,13 +672,13 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                               const matchingCategory = categories.find(
                                 (category) =>
                                   category.type === "expense" &&
-                                  category.name.trim().toLocaleLowerCase() ===
+                                  categoryName(category)
+                                    .trim()
+                                    .toLocaleLowerCase() ===
                                     localizedName.trim().toLocaleLowerCase(),
                               );
                               setSelectedIcon(starter.icon);
-                              setSelectedCategoryId(
-                                matchingCategory?.id ?? "",
-                              );
+                              setSelectedCategoryId(matchingCategory?.id ?? "");
                               setName(localizedName);
                             }}
                             className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold active:scale-[0.98] ${selected ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" : "border-slate-200 text-slate-600 hover:border-red-300 dark:border-slate-800 dark:text-slate-300"}`}
@@ -704,18 +733,14 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                   <span className="mb-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
                     {t("category")}
                   </span>
-                  <select
+                  <CategoryPicker
                     value={selectedCategoryId}
-                    onChange={(event) => setSelectedCategoryId(event.target.value)}
+                    onChange={(event) =>
+                      setSelectedCategoryId(event.target.value)
+                    }
                     className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                  >
-                    <option value="">{t("uncategorizedOption")}</option>
-                    {filteredCategories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                    categories={filteredCategories}
+                  />
                 </label>
 
                 <fieldset>
@@ -781,7 +806,11 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
               onClick={() => void handleUndo()}
               className="min-h-11 rounded-xl px-3 text-sm font-bold text-red-400 disabled:opacity-60"
             >
-              {undoing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("undo")}
+              {undoing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("undo")
+              )}
             </button>
           )}
         </div>

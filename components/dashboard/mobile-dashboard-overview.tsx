@@ -105,7 +105,7 @@ export function MobileDashboardOverview({
   trend,
   budget,
 }: MobileDashboardOverviewProps) {
-  const { fmt, t, language, currencyRate } = useI18n();
+  const { fmt, t, language, currencyRate, categoryName } = useI18n();
   const { balanceHidden, toggleBalanceHidden } = usePrefs();
   const locale = LOCALES[language];
   const [monthYear, monthNumber] = month.split("-").map(Number);
@@ -230,7 +230,7 @@ export function MobileDashboardOverview({
                     }
                   />
                   <span className="min-w-0">
-                    <span className="block truncate text-[11px] font-medium text-slate-500 dark:text-neutral-400">{category.name}</span>
+                    <span className="block truncate text-[11px] font-medium text-slate-500 dark:text-neutral-400">{categoryName(category)}</span>
                     <strong className="block truncate text-xs text-slate-800 dark:text-slate-100">{fmt(category.limit)}</strong>
                   </span>
                 </div>

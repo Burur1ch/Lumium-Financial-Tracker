@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import React, { useState, useTransition } from "react";
 import Link from "next/link";
@@ -174,22 +175,13 @@ export default function SetBudgetModal({
                 <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {t("category")}
                 </label>
-                <select
+                <CategoryPicker
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   disabled={isEditing}
                   className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-red-500 focus:outline-none text-sm text-slate-800 dark:text-slate-200"
                   required
-                >
-                  <option value="">{t("selectCategory")}</option>
-                  {categories
-                    .filter((cat) => cat.type === "expense")
-                    .map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                </select>
+                 categories={categories.filter(category => category.type === "expense")} />
               </div>
 
               <div>

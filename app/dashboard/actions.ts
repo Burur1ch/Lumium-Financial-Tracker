@@ -8,7 +8,6 @@ import {
   eq,
   gte,
   ilike,
-  isNull,
   lt,
   lte,
   sql,
@@ -42,6 +41,22 @@ import { getCurrencyRate } from "@/utils/currency-server";
 import { extractReceiptWithGemini } from "@/utils/gemini-receipt";
 import { revalidatePath } from "next/cache";
 import {
+  CATEGORY_CATALOG,
+  INCOME_CATEGORY_KEYS,
+  categoryTranslationKey,
+  displayCategory,
+  categorySelectionIds,
+  categoryHasName,
+  isCategoryArchived,
+  type CategoryLike,
+} from "@/utils/category-catalog";
+import {
+  allocateTransactions,
+  sumCategoryAllocations,
+  rebalanceAllocationAmounts,
+} from "@/utils/financial-allocations";
+import { translations } from "@/store/translations";
+import {
   getAppBaseUrl,
   getPriceIdForPlan,
   getStripeClient,
@@ -73,22 +88,7 @@ const QUICK_PRESET_ICONS = new Set([
 ]);
 const CATEGORY_NAME_MAX_LENGTH = 60;
 const CATEGORY_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
-const DEFAULT_CATEGORIES = [
-  { key: "groceries", name: "Groceries", type: "expense", color: "#24845C", icon: "shoppingCart" },
-  { key: "transport", name: "Transport", type: "expense", color: "#3478C8", icon: "bus" },
-  { key: "housing", name: "Housing", type: "expense", color: "#9A6A3A", icon: "home" },
-  { key: "utilities", name: "Utilities", type: "expense", color: "#EAB308", icon: "zap" },
-  { key: "health", name: "Health", type: "expense", color: "#D92D3A", icon: "stethoscope" },
-  { key: "shopping", name: "Shopping", type: "expense", color: "#EC4899", icon: "shoppingBag" },
-  { key: "eating-out", name: "Eating out", type: "expense", color: "#F97316", icon: "utensils" },
-  { key: "entertainment", name: "Entertainment", type: "expense", color: "#287D91", icon: "gamepad" },
-  { key: "education", name: "Education", type: "expense", color: "#06B6D4", icon: "book" },
-  { key: "subscriptions", name: "Subscriptions", type: "expense", color: "#64748B", icon: "creditCard" },
-  { key: "other-expense", name: "Other expenses", type: "expense", color: "#737373", icon: "tag" },
-  { key: "salary", name: "Salary", type: "income", color: "#24845C", icon: "wallet" },
-  { key: "freelance", name: "Freelance", type: "income", color: "#3478C8", icon: "briefcase" },
-  { key: "other-income", name: "Other income", type: "income", color: "#14B8A6", icon: "banknote" },
-] as const;
+const CATEGORY_SPLIT_LIMIT = 100;
 
 function isStripePlanActive(
   status: StripeSubscriptionStatus,
@@ -153,59 +153,109 @@ async function getCurrentUser() {
 }
 
 async function ensureDefaultCategories(userId: string) {
-  const existing = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      type: categories.type,
-      systemKey: categories.system_key,
-    })
-    .from(categories)
-    .where(eq(categories.user_id, userId));
-
-  const existingSystemKeys = new Set(
-    existing.flatMap((category) =>
-      category.systemKey ? [category.systemKey] : [],
-    ),
-  );
-
-  for (const category of DEFAULT_CATEGORIES) {
-    if (existingSystemKeys.has(category.key)) continue;
-
-    const matchingCustomCategory = existing.find(
-      (item) =>
-        item.systemKey === null &&
-        item.type === category.type &&
-        item.name.trim().toLocaleLowerCase("en") ===
-          category.name.toLocaleLowerCase("en"),
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`,
     );
-
-    if (matchingCustomCategory) {
-      await db
-        .update(categories)
-        .set({ system_key: category.key })
-        .where(
-          and(
-            eq(categories.id, matchingCustomCategory.id),
-            eq(categories.user_id, userId),
-            isNull(categories.system_key),
-          ),
+    const existing = await tx
+      .select()
+      .from(categories)
+      .where(eq(categories.user_id, userId));
+    const known = new Map(
+      existing.filter((c) => c.system_key).map((c) => [c.system_key!, c]),
+    );
+    for (const [key, icon, color, archived, children] of CATEGORY_CATALOG) {
+      const type = INCOME_CATEGORY_KEYS.has(key) ? "income" : "expense";
+      const name = translations.en[categoryTranslationKey(key)];
+      let parent = known.get(key);
+      if (!parent) {
+        const match = existing.find(
+          (c) =>
+            !c.system_key &&
+            !c.parent_id &&
+            c.type === type &&
+            c.name.trim().toLowerCase() === name.toLowerCase(),
         );
-      continue;
+        [parent] = match
+          ? await tx
+              .update(categories)
+              .set({ system_key: key })
+              .where(eq(categories.id, match.id))
+              .returning()
+          : await tx
+              .insert(categories)
+              .values({
+                user_id: userId,
+                name,
+                type,
+                color,
+                icon,
+                system_key: key,
+                is_archived: archived,
+                sort_order: CATEGORY_CATALOG.findIndex((c) => c[0] === key),
+              })
+              .returning();
+        known.set(key, parent);
+      }
+      const missing = children
+        .filter((child) => !known.has(`${key}/${child}`))
+        .map((child, index) => ({
+          user_id: userId,
+          name: translations.en[categoryTranslationKey(`${key}/${child}`)],
+          type,
+          color,
+          icon,
+          system_key: `${key}/${child}`,
+          parent_id: parent.id,
+          sort_order: index,
+        }));
+      if (missing.length)
+        await tx.insert(categories).values(missing).onConflictDoNothing();
     }
+  });
+}
 
-    await db
-      .insert(categories)
-      .values({
-        user_id: userId,
-        name: category.name,
-        type: category.type,
-        color: category.color,
-        icon: category.icon,
-        system_key: category.key,
-      })
-      .onConflictDoNothing();
-  }
+async function userCategoryRows(userId: string) {
+  return db.select().from(categories).where(eq(categories.user_id, userId));
+}
+
+async function financialAllocations(
+  userId: string,
+  conditions: ReturnType<typeof eq>[],
+) {
+  const rows = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.user_id, userId), ...conditions));
+  const splits = await db
+    .select({
+      transaction_id: transactionSplits.transaction_id,
+      category_id: transactionSplits.category_id,
+      amount: transactionSplits.amount,
+    })
+    .from(transactionSplits)
+    .innerJoin(
+      transactions,
+      eq(transactionSplits.transaction_id, transactions.id),
+    )
+    .where(
+      and(
+        eq(transactionSplits.user_id, userId),
+        eq(transactions.user_id, userId),
+        ...conditions,
+      ),
+    );
+  return allocateTransactions(rows, splits);
+}
+
+async function categoryFilter(userId: string, categoryId: string) {
+  const all = await userCategoryRows(userId);
+  if (!all.some((c) => c.id === categoryId)) return sql`false`;
+  const ids = sql.join(
+    [...categorySelectionIds(categoryId, all)].map((id) => sql`${id}::uuid`),
+    sql`, `,
+  );
+  return sql`((not exists (select 1 from transaction_splits s where s.transaction_id = ${transactions.id} and s.user_id = ${userId}) and ${transactions.category_id} in (${ids})) or exists (select 1 from transaction_splits s where s.transaction_id = ${transactions.id} and s.user_id = ${userId} and s.category_id in (${ids})))`;
 }
 
 function revalidateFinancialViews() {
@@ -300,15 +350,16 @@ async function categoryBelongsToUser(
   userId: string,
   categoryId: string,
   type?: "expense" | "income",
+  allowArchived = false,
 ) {
   if (!UUID_PATTERN.test(categoryId)) return false;
-  const [ownedCategory] = await db
-    .select({ id: categories.id, type: categories.type })
-    .from(categories)
-    .where(and(eq(categories.id, categoryId), eq(categories.user_id, userId)))
-    .limit(1);
-
-  return Boolean(ownedCategory && (!type || ownedCategory.type === type));
+  const all = await userCategoryRows(userId);
+  const ownedCategory = all.find((c) => c.id === categoryId);
+  return Boolean(
+    ownedCategory &&
+      (!type || ownedCategory.type === type) &&
+      (allowArchived || !isCategoryArchived(ownedCategory, all)),
+  );
 }
 
 async function parseQuickPresetForm(formData: FormData) {
@@ -328,9 +379,7 @@ async function parseQuickPresetForm(formData: FormData) {
         ? "income"
         : null;
   const categoryId =
-    typeof categoryInput === "string" && categoryInput
-      ? categoryInput
-      : null;
+    typeof categoryInput === "string" && categoryInput ? categoryInput : null;
   const icon =
     typeof iconInput === "string" && QUICK_PRESET_ICONS.has(iconInput)
       ? iconInput
@@ -834,10 +883,16 @@ export async function scanReceiptWithGemini(formData: FormData) {
     const result = await extractReceiptWithGemini({
       base64: Buffer.from(await image.arrayBuffer()).toString("base64"),
       mimeType: image.type,
+      categories: (await getCategories())
+        .filter(
+          (c, _, all) => c.type === "expense" && !isCategoryArchived(c, all),
+        )
+        .map(({ id, name, parent_id }) => ({ id, name, parent_id })),
     });
     return { success: true as const, result };
   } catch (error) {
-    const code = error instanceof Error ? error.message : "GEMINI_UNKNOWN_ERROR";
+    const code =
+      error instanceof Error ? error.message : "GEMINI_UNKNOWN_ERROR";
     console.error("Gemini receipt recognition failed:", code);
     return { success: false as const, error: "GEMINI_SCAN_FAILED" };
   }
@@ -864,7 +919,7 @@ export async function createScannedTransaction(input: {
     input.amount <= 0 ||
     !isCurrency(input.currency) ||
     !transactionDate ||
-    input.splits.length > 12
+    input.splits.length > CATEGORY_SPLIT_LIMIT
   ) {
     return { success: false, error: "INVALID_RECEIPT" };
   }
@@ -901,8 +956,23 @@ export async function createScannedTransaction(input: {
   }));
   const primaryCategoryId =
     input.categoryId ??
-    [...normalizedSplits].sort((left, right) => right.amountInUsd - left.amountInUsd)[0]?.categoryId ??
+    [...normalizedSplits].sort(
+      (left, right) => right.amountInUsd - left.amountInUsd,
+    )[0]?.categoryId ??
     null;
+
+  let storedSplitAmounts: string[] = [];
+  try {
+    if (normalizedSplits.length >= 2)
+      storedSplitAmounts = rebalanceAllocationAmounts(
+        formatUsdStorageAmount(amountInUsd),
+        normalizedSplits.map((split) =>
+          formatUsdStorageAmount(split.amountInUsd),
+        ),
+      );
+  } catch {
+    return { success: false, error: "INVALID_SPLITS" };
+  }
 
   const transactionId = await db.transaction(async (tx) => {
     const [created] = await tx
@@ -922,11 +992,11 @@ export async function createScannedTransaction(input: {
 
     if (normalizedSplits.length >= 2) {
       await tx.insert(transactionSplits).values(
-        normalizedSplits.map((split) => ({
+        normalizedSplits.map((split, index) => ({
           transaction_id: created.id,
           user_id: user.id,
           category_id: split.categoryId,
-          amount: formatUsdStorageAmount(split.amountInUsd),
+          amount: storedSplitAmounts[index],
           note: split.note?.trim().slice(0, 500) || null,
         })),
       );
@@ -1161,9 +1231,7 @@ export async function updateTransaction(id: string, formData: FormData) {
   const type =
     typeInput === "expense" || typeInput === "income" ? typeInput : null;
   const categoryId =
-    typeof categoryInput === "string" && categoryInput
-      ? categoryInput
-      : null;
+    typeof categoryInput === "string" && categoryInput ? categoryInput : null;
   const note = typeof noteInput === "string" ? noteInput.trim() : "";
 
   if (
@@ -1177,45 +1245,116 @@ export async function updateTransaction(id: string, formData: FormData) {
   ) {
     return { success: false, error: "INVALID_TRANSACTION" };
   }
+  const [original] = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+    .limit(1);
+  if (!original) return { success: false, error: "TRANSACTION_NOT_FOUND" };
   if (
     categoryId &&
-    !(await categoryBelongsToUser(user.id, categoryId, type))
+    !(await categoryBelongsToUser(
+      user.id,
+      categoryId,
+      type,
+      original.category_id === categoryId,
+    ))
   ) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
 
   const currencyRate = await getCurrencyRate(currencyInput);
-  const [updated] = await db
-    .update(transactions)
-    .set({
-      category_id: categoryId,
-      description,
-      amount: formatUsdStorageAmount(amount / currencyRate),
-      type,
-      note: note || null,
-      review_status: "reviewed",
-      date: transactionDate,
-    })
-    .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
-    .returning({
-      id: transactions.id,
-      description: transactions.description,
-      amount: transactions.amount,
-      type: transactions.type,
-      status: transactions.status,
-      note: transactions.note,
-      reviewStatus: transactions.review_status,
-      categoryId: transactions.category_id,
-      recurringTransactionId: transactions.recurring_transaction_id,
-      date: transactions.date,
-    });
+  const updated = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+      .for("update");
+    if (!locked) return null;
+    const [updated] = await tx
+      .update(transactions)
+      .set({
+        category_id: categoryId,
+        description,
+        amount: formatUsdStorageAmount(amount / currencyRate),
+        type,
+        note: note || null,
+        review_status: "reviewed",
+        date: transactionDate,
+      })
+      .where(and(eq(transactions.id, id), eq(transactions.user_id, user.id)))
+      .returning({
+        id: transactions.id,
+        description: transactions.description,
+        amount: transactions.amount,
+        type: transactions.type,
+        status: transactions.status,
+        note: transactions.note,
+        reviewStatus: transactions.review_status,
+        categoryId: transactions.category_id,
+        recurringTransactionId: transactions.recurring_transaction_id,
+        date: transactions.date,
+      });
+    const parts = await tx
+      .select()
+      .from(transactionSplits)
+      .where(
+        and(
+          eq(transactionSplits.transaction_id, id),
+          eq(transactionSplits.user_id, user.id),
+        ),
+      )
+      .orderBy(asc(transactionSplits.id));
+    if (
+      parts.length &&
+      (locked.type !== type || locked.category_id !== categoryId)
+    ) {
+      await tx
+        .delete(transactionSplits)
+        .where(
+          and(
+            eq(transactionSplits.transaction_id, id),
+            eq(transactionSplits.user_id, user.id),
+          ),
+        );
+    } else if (parts.length && locked.amount !== updated.amount) {
+      const amounts = rebalanceAllocationAmounts(
+        updated.amount,
+        parts.map((part) => part.amount),
+      );
+      for (let index = 0; index < parts.length; index++)
+        await tx
+          .update(transactionSplits)
+          .set({ amount: amounts[index] })
+          .where(eq(transactionSplits.id, parts[index].id));
+    }
+    return updated;
+  });
 
   if (!updated) return { success: false, error: "TRANSACTION_NOT_FOUND" };
+  const savedSplits = await db
+    .select({
+      id: transactionSplits.id,
+      categoryId: transactionSplits.category_id,
+      amount: transactionSplits.amount,
+      note: transactionSplits.note,
+    })
+    .from(transactionSplits)
+    .where(
+      and(
+        eq(transactionSplits.transaction_id, id),
+        eq(transactionSplits.user_id, user.id),
+      ),
+    );
   revalidateFinancialViews();
   return {
     success: true,
     transaction: {
       id: updated.id,
+      splits: savedSplits.map((part) => ({
+        ...part,
+        amount: Number(part.amount),
+      })),
       description: updated.description,
       amount: Number(updated.amount),
       type: updated.type as "income" | "expense",
@@ -1294,7 +1433,7 @@ export async function saveTransactionSplits(input: {
     !UUID_PATTERN.test(input.transactionId) ||
     !isCurrency(input.currency) ||
     input.splits.length < 2 ||
-    input.splits.length > 12
+    input.splits.length > CATEGORY_SPLIT_LIMIT
   ) {
     return { success: false, error: "INVALID_SPLITS" };
   }
@@ -1342,6 +1481,16 @@ export async function saveTransactionSplits(input: {
     return { success: false, error: "SPLIT_TOTAL_MISMATCH" };
   }
 
+  let storedAmounts: string[];
+  try {
+    storedAmounts = rebalanceAllocationAmounts(
+      transaction.amount,
+      normalized.map((split) => formatUsdStorageAmount(split.amountInUsd)),
+    );
+  } catch {
+    return { success: false, error: "INVALID_SPLITS" };
+  }
+
   await db.transaction(async (tx) => {
     await tx
       .delete(transactionSplits)
@@ -1352,11 +1501,11 @@ export async function saveTransactionSplits(input: {
         ),
       );
     await tx.insert(transactionSplits).values(
-      normalized.map((split) => ({
+      normalized.map((split, index) => ({
         transaction_id: input.transactionId,
         user_id: user.id,
         category_id: split.categoryId,
-        amount: formatUsdStorageAmount(split.amountInUsd),
+        amount: storedAmounts[index],
         note: split.note?.trim() || null,
       })),
     );
@@ -1478,9 +1627,7 @@ export async function createRecurringTransaction(formData: FormData) {
       ? frequencyInput
       : null;
   const categoryId =
-    typeof categoryInput === "string" && categoryInput
-      ? categoryInput
-      : null;
+    typeof categoryInput === "string" && categoryInput ? categoryInput : null;
 
   if (
     !name ||
@@ -1494,10 +1641,7 @@ export async function createRecurringTransaction(formData: FormData) {
   ) {
     return { success: false, error: "INVALID_RECURRING" };
   }
-  if (
-    categoryId &&
-    !(await categoryBelongsToUser(user.id, categoryId, type))
-  ) {
+  if (categoryId && !(await categoryBelongsToUser(user.id, categoryId, type))) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
 
@@ -1669,18 +1813,13 @@ export async function createTransactionRule(formData: FormData) {
   const matchText =
     typeof matchInput === "string" ? matchInput.trim().toLocaleLowerCase() : "";
   const categoryId =
-    typeof categoryInput === "string" && categoryInput
-      ? categoryInput
-      : null;
+    typeof categoryInput === "string" && categoryInput ? categoryInput : null;
   const type =
     typeInput === "expense" || typeInput === "income" ? typeInput : null;
   if (!name || !matchText || matchText.length < 2 || !type) {
     return { success: false, error: "INVALID_RULE" };
   }
-  if (
-    categoryId &&
-    !(await categoryBelongsToUser(user.id, categoryId, type))
-  ) {
+  if (categoryId && !(await categoryBelongsToUser(user.id, categoryId, type))) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
   await db.insert(transactionRules).values({
@@ -1748,9 +1887,7 @@ export async function createSavingsGoal(formData: FormData) {
   const name = typeof nameInput === "string" ? nameInput.trim() : "";
   const target = typeof targetInput === "string" ? Number(targetInput) : NaN;
   const current =
-    typeof currentInput === "string" && currentInput
-      ? Number(currentInput)
-      : 0;
+    typeof currentInput === "string" && currentInput ? Number(currentInput) : 0;
   const colorInput = formData.get("color");
   const color =
     typeof colorInput === "string" && /^#[0-9a-f]{6}$/i.test(colorInput)
@@ -1842,96 +1979,116 @@ export async function signOut() {
 // Получить все категории текущего пользователя
 export async function getCategories() {
   const user = await getCurrentUser();
-
   if (!user) return [];
-
   await ensureDefaultCategories(user.id);
-
-  const rows = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.user_id, user.id))
-    .orderBy(desc(categories.created_at));
-  return rows.map((row) => ({
-    ...row,
-    type: row.type as "expense" | "income",
-  }));
+  const rows = await userCategoryRows(user.id);
+  return rows
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    .map((row) => ({
+      ...row,
+      ...displayCategory(row, rows),
+      type: row.type as "expense" | "income",
+    }));
 }
 
-// Создать новую кастомную категорию
 export async function createCategory(formData: FormData) {
+  return saveCategory(null, formData);
+}
+
+export async function updateCategory(id: string, formData: FormData) {
+  return saveCategory(id, formData);
+}
+
+async function saveCategory(id: string | null, formData: FormData) {
   const user = await getCurrentUser();
-
-  if (!user) return { success: false, error: "Неавторизован" };
-
-  const nameInput = formData.get("name");
-  const name = typeof nameInput === "string" ? nameInput.trim() : "";
-  const type = formData.get("type") as "expense" | "income";
-  const color = String(formData.get("color") ?? "");
-  const icon = (formData.get("icon") as string) || "tag";
-
+  if (!user) return { success: false, error: "UNAUTHORIZED" };
+  const name = String(formData.get("name") ?? "").trim();
+  const type = String(formData.get("type"));
+  const color = String(formData.get("color") ?? "#24845C");
+  const icon = String(formData.get("icon") ?? "tag");
+  const parentId = String(formData.get("parent_id") ?? "") || null;
   if (
     !name ||
     name.length > CATEGORY_NAME_MAX_LENGTH ||
     !CATEGORY_COLOR_PATTERN.test(color) ||
-    (type !== "expense" && type !== "income")
-  ) {
-    return { success: false, error: "Заполните все поля" };
-  }
-
-  const [duplicate] = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(
-      and(
-        eq(categories.user_id, user.id),
-        eq(categories.type, type),
-        sql`lower(${categories.name}) = lower(${name})`,
-      ),
+    !/^[a-zA-Z0-9-]{1,64}$/.test(icon) ||
+    !["income", "expense"].includes(type) ||
+    (id && !UUID_PATTERN.test(id))
+  )
+    return { success: false, error: "INVALID_CATEGORY" };
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${user.id}, 0))`,
+    );
+    const rows = await tx
+      .select()
+      .from(categories)
+      .where(eq(categories.user_id, user.id));
+    const current = rows.find((c) => c.id === id);
+    if (id && !current) return { success: false, error: "INVALID_CATEGORY" };
+    const parent = rows.find((c) => c.id === parentId);
+    if (
+      parentId &&
+      (!parent ||
+        parent.parent_id ||
+        parent.type !== type ||
+        (parent.is_archived && current?.parent_id !== parentId) ||
+        parentId === id)
     )
-    .limit(1);
-  if (duplicate) {
-    return { success: false, error: "DUPLICATE_CATEGORY" };
-  }
-
-  await db.insert(categories).values({
-    user_id: user.id,
-    name,
-    type,
-    color,
-    icon,
+      return { success: false, error: "INVALID_PARENT" };
+    if (
+      current &&
+      (current.type !== type || (current.parent_id ?? null) !== parentId)
+    )
+      return { success: false, error: "CATEGORY_IN_USE" };
+    if (
+      rows.some(
+        (c) =>
+          c.id !== id &&
+          c.type === type &&
+          c.parent_id === parentId &&
+          categoryHasName(c, name),
+      )
+    )
+      return { success: false, error: "DUPLICATE_CATEGORY" };
+    if (current)
+      await tx
+        .update(categories)
+        .set({ name, color, icon, system_key: current.system_key })
+        .where(
+          and(eq(categories.id, current.id), eq(categories.user_id, user.id)),
+        );
+    else
+      await tx.insert(categories).values({
+        user_id: user.id,
+        name,
+        type,
+        color,
+        icon,
+        parent_id: parentId,
+      });
+    revalidateFinancialViews();
+    return { success: true };
   });
+}
 
+export async function setCategoryArchived(id: string, archived: boolean) {
+  const user = await getCurrentUser();
+  if (!user || !UUID_PATTERN.test(id) || typeof archived !== "boolean")
+    return { success: false, error: "INVALID_CATEGORY" };
+  const updated = await db
+    .update(categories)
+    .set({ is_archived: archived })
+    .where(and(eq(categories.id, id), eq(categories.user_id, user.id)))
+    .returning({ id: categories.id });
+  if (!updated.length) return { success: false, error: "INVALID_CATEGORY" };
   revalidateFinancialViews();
   return { success: true };
 }
 
-// Удалить категорию
+// Keep the old action safe for existing callers: deletion now preserves history.
 export async function deleteCategory(id: string) {
-  const user = await getCurrentUser();
-
-  if (!user) return { success: false, error: "Неавторизован" };
-  if (!UUID_PATTERN.test(id)) {
-    return { success: false, error: "INVALID_CATEGORY" };
-  }
-
-  const deleted = await db
-    .delete(categories)
-    .where(
-      and(
-        eq(categories.id, id),
-        eq(categories.user_id, user.id),
-        isNull(categories.system_key),
-      ),
-    )
-    .returning({ id: categories.id });
-
-  if (deleted.length === 0) {
-    return { success: false, error: "DEFAULT_CATEGORY" };
-  }
-
-  revalidateFinancialViews();
-  return { success: true };
+  return setCategoryArchived(id, true);
 }
 
 // Получение транзакций с учетом поиска и фильтров
@@ -1961,8 +2118,12 @@ export async function getFilteredTransactions(filters: {
   if (monthMatch) {
     const year = Number(monthMatch[1]);
     const monthIndex = Number(monthMatch[2]) - 1;
-    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
-    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
+    conditions.push(
+      gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))),
+    );
+    conditions.push(
+      lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))),
+    );
   }
 
   // Фильтр по поисковому слову (регистронезависимый поиск)
@@ -1978,7 +2139,7 @@ export async function getFilteredTransactions(filters: {
 
   // Фильтр по конкретной категории
   if (filters.categoryId && filters.categoryId !== "all") {
-    conditions.push(eq(transactions.category_id, filters.categoryId));
+    conditions.push(await categoryFilter(user.id, filters.categoryId));
   }
 
   if (
@@ -2042,6 +2203,11 @@ export async function getFilteredTransactions(filters: {
     splitsByTransaction.set(split.transactionId, current);
   });
 
+  const allCategories = await userCategoryRows(user.id);
+  const selectedIds =
+    filters.categoryId && filters.categoryId !== "all"
+      ? categorySelectionIds(filters.categoryId, allCategories)
+      : null;
   return rows.map((row) => ({
     ...row,
     amount: Number(row.amount),
@@ -2049,202 +2215,165 @@ export async function getFilteredTransactions(filters: {
     status: row.status as "completed" | "pending",
     date: row.date.toISOString(),
     review_status: row.review_status as "reviewed" | "needs_review",
-    categories: row.categories ? [row.categories] : null,
+    categories: allCategories
+      .filter((c) => c.id === row.category_id)
+      .map((c) => displayCategory(c, allCategories)),
+    matched_amount: selectedIds
+      ? splitsByTransaction.get(row.id)?.length
+        ? splitsByTransaction
+            .get(row.id)!
+            .filter(
+              (split) => split.categoryId && selectedIds.has(split.categoryId),
+            )
+            .reduce((sum, split) => sum + split.amount, 0)
+        : Number(row.amount)
+      : null,
     splits: splitsByTransaction.get(row.id) ?? [],
   }));
 }
 
-export async function exportTransactionsWorkbook(filters: {
-  search?: string;
-  type?: string;
-  categoryId?: string;
-  month?: string;
-}) {
+export async function exportTransactionsWorkbook(
+  filters: {
+    search?: string;
+    type?: string;
+    categoryId?: string;
+    month?: string;
+  },
+  language: string = "en",
+) {
   const { user, plan, profileName } = await getExportUserContext();
-
-  if (!user) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  if (!canAccessCsvExport(plan)) {
+  if (!user || !canAccessCsvExport(plan))
     return { success: false, error: "Plan upgrade required" };
-  }
-
-  const conditions = [eq(transactions.user_id, user.id)];
-
-  const monthMatch = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(filters.month ?? "");
-  if (monthMatch) {
-    const year = Number(monthMatch[1]);
-    const monthIndex = Number(monthMatch[2]) - 1;
-    conditions.push(gte(transactions.date, new Date(Date.UTC(year, monthIndex, 1))));
-    conditions.push(lt(transactions.date, new Date(Date.UTC(year, monthIndex + 1, 1))));
-  }
-
-  if (filters.search) {
-    conditions.push(ilike(transactions.description, `%${filters.search}%`));
-  }
-
-  if (filters.type && filters.type !== "all") {
-    if (filters.type === "expense" || filters.type === "income")
-      conditions.push(eq(transactions.type, filters.type));
-  }
-
-  if (filters.categoryId && filters.categoryId !== "all") {
-    conditions.push(eq(transactions.category_id, filters.categoryId));
-  }
-
-  const data = await db
-    .select({
-      description: transactions.description,
-      amount: transactions.amount,
-      type: transactions.type,
-      status: transactions.status,
-      date: transactions.date,
-      categories: {
-        name: categories.name,
-        color: categories.color,
-        icon: categories.icon,
-      },
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.category_id, categories.id))
-    .where(and(...conditions))
-    .orderBy(desc(transactions.date));
-
-  const rows = (data ?? []).map((tx) => {
-    const categories = tx.categories as
-      | { name?: string }[]
-      | { name?: string }
-      | null;
-    const category = Array.isArray(categories)
-      ? categories[0]?.name
-      : categories?.name;
-
-    return {
-      Date: tx.date.toISOString(),
-      Type: tx.type,
-      Status: tx.status,
-      Description: tx.description,
-      Amount: Number(tx.amount),
-      Category: category ?? "Uncategorized",
-    };
+  const data = await getFilteredTransactions(filters);
+  const all = await userCategoryRows(user.id);
+  const selected =
+    filters.categoryId && filters.categoryId !== "all"
+      ? categorySelectionIds(filters.categoryId, all)
+      : null;
+  const rows = data.flatMap((tx) => {
+    const parts = tx.splits.length
+      ? tx.splits
+      : [{ categoryId: tx.category_id, amount: tx.amount }];
+    return parts
+      .filter(
+        (part) =>
+          !selected || (part.categoryId && selected.has(part.categoryId)),
+      )
+      .map((part) =>
+        exportAllocation(
+          { ...tx, category_id: part.categoryId, amount: part.amount },
+          all,
+          language,
+        ),
+      );
   });
-
-  const workbook = buildWorkbookBase64([{ name: "Transactions", rows }]);
-  const filename = `${slugifyFilePart(profileName)}-transactions.xlsx`;
-
-  return { success: true, workbook, filename };
+  return {
+    success: true,
+    workbook: buildWorkbookBase64([{ name: "Transactions", rows }]),
+    filename: `${slugifyFilePart(profileName)}-transactions.xlsx`,
+  };
 }
 
-export async function exportReportWorkbook(period: string = "30d") {
+function exportAllocation(
+  tx: {
+    id: string;
+    description: string;
+    date: Date | string;
+    type: string;
+    amount: number;
+    category_id: string | null;
+  },
+  all: CategoryLike[],
+  language: string,
+) {
+  const locale =
+    language === "ru" || language === "de" || language === "fr"
+      ? language
+      : "en";
+  const t = (key: keyof typeof translations.en): string =>
+    (translations[locale] as Record<string, string>)[key] ??
+    translations.en[key];
+  const category = all.find((c) => c.id === tx.category_id);
+  const parent = all.find((c) => c.id === category?.parent_id);
+  const label = (c: CategoryLike) =>
+    c.system_key &&
+    c.name === translations.en[categoryTranslationKey(c.system_key)]
+      ? t(categoryTranslationKey(c.system_key))
+      : c.name;
+  return {
+    ID: tx.id,
+    [t("date")]: new Date(tx.date).toISOString(),
+    [t("description")]: tx.description,
+    [t("type")]: t(tx.type === "income" ? "income" : "expense"),
+    [t("category")]: category
+      ? label(parent ?? category)
+      : t("uncategorizedOption"),
+    [t("subcategory")]: parent && category ? label(category) : "",
+    [t("amount")]: tx.amount,
+  };
+}
+
+export async function exportReportWorkbook(
+  period: string = "30d",
+  language: string = "en",
+) {
   const { user, plan, profileName } = await getExportUserContext();
-
-  if (!user) {
-    return { success: false, error: "Unauthorized" };
-  }
-
-  if (!canAccessAdvancedReports(plan)) {
+  if (!user || !canAccessAdvancedReports(plan))
     return { success: false, error: "Plan upgrade required" };
-  }
-
-  const periodStart = getPeriodStartDate(period);
-  const conditions = [
-    eq(transactions.user_id, user.id),
+  const start = getPeriodStartDate(period);
+  const all = await userCategoryRows(user.id);
+  const allocations = await financialAllocations(user.id, [
     eq(transactions.status, "completed"),
-  ];
-
-  if (periodStart) {
-    conditions.push(gte(transactions.date, periodStart));
-  }
-
-  const transactionRowsData = await db
-    .select({
-      description: transactions.description,
-      amount: transactions.amount,
-      type: transactions.type,
-      status: transactions.status,
-      date: transactions.date,
-      category_id: transactions.category_id,
-      categories: { name: categories.name, color: categories.color },
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.category_id, categories.id))
-    .where(and(...conditions))
-    .orderBy(desc(transactions.date));
-
-  let totalIncome = 0;
-  let totalExpense = 0;
-  const categoryTotals = new Map<string, { income: number; expense: number }>();
-
-  const transactionRows = transactionRowsData.map((tx) => {
-    const categories = tx.categories as
-      | { name?: string }[]
-      | { name?: string }
-      | null;
-    const category = Array.isArray(categories)
-      ? categories[0]?.name
-      : categories?.name;
-    const categoryName = category ?? "Uncategorized";
-    const amount = Number(tx.amount);
-    const totals = categoryTotals.get(categoryName) ?? {
-      income: 0,
-      expense: 0,
-    };
-
-    if (tx.type === "income") {
-      totalIncome += amount;
-      totals.income += amount;
-    } else {
-      totalExpense += amount;
-      totals.expense += amount;
-    }
-
-    categoryTotals.set(categoryName, totals);
-
-    return {
-      Date: tx.date.toISOString(),
-      Type: tx.type,
-      Status: tx.status,
-      Description: tx.description,
-      Category: categoryName,
-      Amount: amount,
-    };
-  });
-
-  const summaryRows = [
-    { Metric: "Profile", Value: profileName },
-    { Metric: "Period", Value: period },
-    { Metric: "Transactions", Value: transactionRowsData.length },
-    { Metric: "Total income", Value: totalIncome },
-    { Metric: "Total expense", Value: totalExpense },
-    { Metric: "Net balance", Value: totalIncome - totalExpense },
+    ...(start ? [gte(transactions.date, start)] : []),
+  ]);
+  const rows = allocations.map((tx) => exportAllocation(tx, all, language));
+  const report = await getReportData(period);
+  const locale =
+    language === "ru" || language === "de" || language === "fr"
+      ? language
+      : "en";
+  const t = (key: keyof typeof translations.en): string =>
+    (translations[locale] as Record<string, string>)[key] ??
+    translations.en[key];
+  const label = (category: CategoryLike) =>
+    category.system_key &&
+    category.name ===
+      translations.en[categoryTranslationKey(category.system_key)]
+      ? t(categoryTranslationKey(category.system_key))
+      : category.name;
+  const summary = [
     {
-      Metric: "Savings rate",
-      Value:
-        totalIncome > 0
-          ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100)
-          : 0,
+      [t("reports")]: t("totalIncome"),
+      [t("amount")]: report?.totalIncome ?? 0,
+    },
+    {
+      [t("reports")]: t("totalExpenses"),
+      [t("amount")]: report?.totalExpense ?? 0,
+    },
+    { [t("reports")]: t("netBalance"), [t("amount")]: report?.net ?? 0 },
+    {
+      [t("reports")]: t("savingsRate"),
+      [t("amount")]: report?.savingsRate ?? 0,
     },
   ];
-
-  const categoryRows = Array.from(categoryTotals.entries()).map(
-    ([name, totals]) => ({
-      Category: name,
-      Income: totals.income,
-      Expense: totals.expense,
-      Net: totals.income - totals.expense,
-    }),
+  const categoryRows = (report?.categoryBreakdown ?? []).flatMap((root) =>
+    root.children.map((child) => ({
+      [t("category")]: label(root),
+      [t("subcategory")]: child.isDirect ? t("noSubcategory") : label(child),
+      [t("income")]: child.income,
+      [t("expenses")]: child.expense,
+    })),
   );
-
   const workbook = buildWorkbookBase64([
-    { name: "Summary", rows: summaryRows },
-    { name: "Transactions", rows: transactionRows },
+    { name: "Summary", rows: summary },
+    { name: "Transactions", rows },
     { name: "Categories", rows: categoryRows },
   ]);
-
-  const filename = `${slugifyFilePart(profileName)}-${period}-report.xlsx`;
-
-  return { success: true, workbook, filename };
+  return {
+    success: true,
+    workbook,
+    filename: `${slugifyFilePart(profileName)}-${period}-report.xlsx`,
+  };
 }
 
 // Получение бюджетов с агрегацией расходов за выбранный календарный месяц
@@ -2260,9 +2389,7 @@ export async function getBudgetsWithProgress(month?: string) {
   const selectedMonthIndex = monthMatch
     ? Number(monthMatch[2]) - 1
     : now.getUTCMonth();
-  const startOfMonth = new Date(
-    Date.UTC(selectedYear, selectedMonthIndex, 1),
-  );
+  const startOfMonth = new Date(Date.UTC(selectedYear, selectedMonthIndex, 1));
   const startOfNextMonth = new Date(
     Date.UTC(selectedYear, selectedMonthIndex + 1, 1),
   );
@@ -2275,61 +2402,19 @@ export async function getBudgetsWithProgress(month?: string) {
   const currentMonthYear = startOfMonth.toISOString().slice(0, 10);
   const previousMonthYear = startOfPreviousMonth.toISOString().slice(0, 10);
 
-  // 1. Получаем лимиты бюджетов за выбранный месяц
-  const budgetsData = await db
-    .select({
-      id: budgets.id,
-      monthly_limit: budgets.monthly_limit,
-      rollover_enabled: budgets.rollover_enabled,
-      alert_threshold: budgets.alert_threshold,
-      category_id: budgets.category_id,
-      categories: {
-        name: categories.name,
-        color: categories.color,
-        icon: categories.icon,
-      },
-    })
-    .from(budgets)
-    .leftJoin(categories, eq(budgets.category_id, categories.id))
-    .where(
-      and(
-        eq(budgets.user_id, user.id),
-        eq(budgets.month_year, currentMonthYear),
-      ),
-    );
-
-  // 2. Получаем расходы только внутри выбранного месяца
-  const spending = await db
-    .select({
-      amount: transactions.amount,
-      category_id: transactions.category_id,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.user_id, user.id),
-        eq(transactions.type, "expense"),
-        eq(transactions.status, "completed"),
-        gte(transactions.date, startOfMonth),
-        lt(transactions.date, startOfNextMonth),
-      ),
-    );
-
-  // Считаем сумму расходов по каждой категории
-  const spentMap: Record<string, number> = {};
-  spending.forEach((tx) => {
-    if (!tx.category_id) return;
-    spentMap[tx.category_id] =
-      (spentMap[tx.category_id] || 0) + Number(tx.amount);
-  });
-
-  const [previousBudgets, previousSpending, historicalSpending] =
-    await Promise.all([
+  const all = await userCategoryRows(user.id);
+  const [current, previous, allocations] = await Promise.all([
     db
-      .select({
-        category_id: budgets.category_id,
-        monthly_limit: budgets.monthly_limit,
-      })
+      .select()
+      .from(budgets)
+      .where(
+        and(
+          eq(budgets.user_id, user.id),
+          eq(budgets.month_year, currentMonthYear),
+        ),
+      ),
+    db
+      .select()
       .from(budgets)
       .where(
         and(
@@ -2337,80 +2422,45 @@ export async function getBudgetsWithProgress(month?: string) {
           eq(budgets.month_year, previousMonthYear),
         ),
       ),
-    db
-      .select({
-        amount: transactions.amount,
-        category_id: transactions.category_id,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.user_id, user.id),
-          eq(transactions.type, "expense"),
-          eq(transactions.status, "completed"),
-          gte(transactions.date, startOfPreviousMonth),
-          lt(transactions.date, startOfMonth),
-        ),
-      ),
-    db
-      .select({
-        amount: transactions.amount,
-        category_id: transactions.category_id,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.user_id, user.id),
-          eq(transactions.type, "expense"),
-          eq(transactions.status, "completed"),
-          gte(transactions.date, startOfThreeMonthsAgo),
-          lt(transactions.date, startOfMonth),
-        ),
-      ),
-  ]);
-  const previousLimitMap = new Map(
-    previousBudgets.map((budget) => [
-      budget.category_id,
-      Number(budget.monthly_limit),
+    financialAllocations(user.id, [
+      eq(transactions.type, "expense"),
+      eq(transactions.status, "completed"),
+      gte(transactions.date, startOfThreeMonthsAgo),
+      lt(transactions.date, startOfNextMonth),
     ]),
+  ]);
+  const spent = sumCategoryAllocations(
+    allocations.filter((a) => a.date >= startOfMonth),
+    all,
   );
-  const previousSpentMap = new Map<string, number>();
-  previousSpending.forEach((transaction) => {
-    if (!transaction.category_id) return;
-    previousSpentMap.set(
-      transaction.category_id,
-      (previousSpentMap.get(transaction.category_id) ?? 0) +
-        Number(transaction.amount),
+  const prior = sumCategoryAllocations(
+    allocations.filter(
+      (a) => a.date >= startOfPreviousMonth && a.date < startOfMonth,
+    ),
+    all,
+  );
+  const historical = sumCategoryAllocations(
+    allocations.filter((a) => a.date < startOfMonth),
+    all,
+  );
+  return current.map((b) => {
+    const category = all.find((c) => c.id === b.category_id);
+    const base = Number(b.monthly_limit);
+    const previousLimit = Number(
+      previous.find((p) => p.category_id === b.category_id)?.monthly_limit ?? 0,
     );
-  });
-  const historicalSpentMap = new Map<string, number>();
-  historicalSpending.forEach((transaction) => {
-    if (!transaction.category_id) return;
-    historicalSpentMap.set(
-      transaction.category_id,
-      (historicalSpentMap.get(transaction.category_id) ?? 0) +
-        Number(transaction.amount),
-    );
-  });
-
-  // Объединяем лимиты с реальными расходами
-  return budgetsData.map((b) => {
-    const baseLimit = Number(b.monthly_limit);
-    const rolloverAmount = b.rollover_enabled
-      ? Math.max(
-          (previousLimitMap.get(b.category_id) ?? 0) -
-            (previousSpentMap.get(b.category_id) ?? 0),
-          0,
-        )
+    const rollover = b.rollover_enabled
+      ? Math.max(previousLimit - (prior.get(b.category_id) ?? 0), 0)
       : 0;
     return {
       ...b,
-      current_spent: spentMap[b.category_id] || 0,
-      base_limit: baseLimit,
-      rollover_amount: rolloverAmount,
-      average_monthly_spent:
-        (historicalSpentMap.get(b.category_id) ?? 0) / 3,
-      monthly_limit: baseLimit + rolloverAmount,
+      categories: category ? displayCategory(category, all) : null,
+      parent_id: category?.parent_id ?? null,
+      current_spent: spent.get(b.category_id) ?? 0,
+      base_limit: base,
+      rollover_amount: rollover,
+      average_monthly_spent: (historical.get(b.category_id) ?? 0) / 3,
+      monthly_limit: base + rollover,
     };
   });
 }
@@ -2449,7 +2499,11 @@ export async function upsertBudget(formData: {
       ),
     )
     .limit(1);
-  if (!ownedCategory) throw new Error("Invalid category");
+  if (
+    !ownedCategory ||
+    !(await categoryBelongsToUser(user.id, formData.categoryId, "expense"))
+  )
+    throw new Error("Invalid category");
 
   // month_year хранит первый день текущего месяца
   const now = new Date();
@@ -2610,14 +2664,61 @@ export async function getReportData(period: string = "30d") {
     .where(and(...conditions))
     .orderBy(transactions.date);
 
+  const allCategories = await userCategoryRows(user.id);
+  const allocations = await financialAllocations(user.id, conditions);
+  type CategoryStat = {
+    id: string;
+    category_id: string | null;
+    name: string;
+    system_key: string | null;
+    color: string;
+    income: number;
+    expense: number;
+    isDirect?: boolean;
+  };
+  const breakdown = new Map<
+    string,
+    CategoryStat & { children: CategoryStat[] }
+  >();
+  for (const allocation of allocations) {
+    const category = allCategories.find((c) => c.id === allocation.category_id);
+    const parent = allCategories.find((c) => c.id === category?.parent_id);
+    const root = parent ?? category;
+    const rootId = root?.id ?? `uncategorized/${allocation.type}`;
+    const group = breakdown.get(rootId) ?? {
+      id: rootId,
+      category_id: root?.id ?? null,
+      name: root?.name ?? "",
+      system_key: root?.system_key ?? null,
+      color: root?.color ?? "#94a3b8",
+      income: 0,
+      expense: 0,
+      children: [],
+    };
+    const field = allocation.type === "income" ? "income" : "expense";
+    group[field] += allocation.amount;
+    const childId = parent ? category!.id : rootId + "/direct";
+    let child = group.children.find((c) => c.id === childId);
+    if (!child) {
+      child = {
+        id: childId,
+        category_id: category?.id ?? null,
+        name: category?.name ?? "",
+        system_key: category?.system_key ?? null,
+        color: category?.color ?? "#94a3b8",
+        income: 0,
+        expense: 0,
+        isDirect: !parent,
+      };
+      group.children.push(child);
+    }
+    child[field] += allocation.amount;
+    breakdown.set(rootId, group);
+  }
   // Aggregations
   let totalIncome = 0;
   let totalExpense = 0;
   const byMonth: Record<string, { income: number; expense: number }> = {};
-  const byCategory: Record<
-    string,
-    { name: string; color: string; income: number; expense: number }
-  > = {};
   const byDay: Record<string, { income: number; expense: number }> = {};
 
   reportTransactions.forEach((tx) => {
@@ -2625,45 +2726,28 @@ export async function getReportData(period: string = "30d") {
     const date = new Date(tx.date);
     const monthKey = date.toISOString().slice(0, 7);
     const dayKey = date.toISOString().slice(0, 10);
-    const cat = tx.categories;
-    const catName = cat?.name || "Uncategorized";
-    const catColor = cat?.color || "#94a3b8";
-    const catKey = tx.category_id || "uncategorized";
-
     if (!byMonth[monthKey]) byMonth[monthKey] = { income: 0, expense: 0 };
     if (!byDay[dayKey]) byDay[dayKey] = { income: 0, expense: 0 };
-    if (!byCategory[catKey])
-      byCategory[catKey] = {
-        name: catName,
-        color: catColor,
-        income: 0,
-        expense: 0,
-      };
-
     if (tx.type === "income") {
       totalIncome += amount;
       byMonth[monthKey].income += amount;
       byDay[dayKey].income += amount;
-      byCategory[catKey].income += amount;
     } else {
       totalExpense += amount;
       byMonth[monthKey].expense += amount;
       byDay[dayKey].expense += amount;
-      byCategory[catKey].expense += amount;
     }
   });
 
   // Top spending categories
-  const topExpenseCategories = Object.values(byCategory)
+  const topExpenseCategories = [...breakdown.values()]
     .filter((c) => c.expense > 0)
-    .sort((a, b) => b.expense - a.expense)
-    .slice(0, 6);
+    .sort((a, b) => b.expense - a.expense);
 
   // Top income categories
-  const topIncomeCategories = Object.values(byCategory)
+  const topIncomeCategories = [...breakdown.values()]
     .filter((c) => c.income > 0)
-    .sort((a, b) => b.income - a.income)
-    .slice(0, 6);
+    .sort((a, b) => b.income - a.income);
 
   // Monthly trend (sorted)
   const monthlyTrend = Object.entries(byMonth).map(([label, v]) => ({
@@ -2721,6 +2805,9 @@ export async function getReportData(period: string = "30d") {
     avgDailyExpense,
     monthlyTrend,
     dailyTrend,
+    categoryBreakdown: [...breakdown.values()].sort(
+      (a, b) => b.expense - a.expense || b.income - a.income,
+    ),
     topExpenseCategories,
     topIncomeCategories,
     largest,

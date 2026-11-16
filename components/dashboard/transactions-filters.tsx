@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import React, { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,7 +22,7 @@ export default function TransactionsFilters({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const { t } = useI18n();
+  const { t, categoryName } = useI18n();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -99,14 +100,14 @@ export default function TransactionsFilters({
               {type === "income" ? t("totalIncome") : t("totalExpenses")}
             </button>
           ))}
-          {categories.slice(0, 2).map((category) => (
+          {categories.filter(category => !(category as { parent_id?: string; is_archived?: boolean }).parent_id && !(category as { is_archived?: boolean }).is_archived).slice(0, 2).map((category) => (
             <button
               key={category.id}
               type="button"
               onClick={() => updateFilters({ categoryId: category.id, type: "all" })}
               className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-semibold ${searchParams.get("categoryId") === category.id ? "bg-red-500 text-white" : "bg-slate-200/70 text-slate-700 dark:bg-white/[0.07] dark:text-slate-200"}`}
             >
-              {category.name}
+              {categoryName(category)}
             </button>
           ))}
           <button
@@ -136,10 +137,7 @@ export default function TransactionsFilters({
                 <option value="expense">{t("expenses")}</option>
                 <option value="income">{t("income")}</option>
               </select>
-              <select value={searchParams.get("categoryId") || "all"} onChange={(event) => updateFilter("categoryId", event.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                <option value="all">{t("allCategories")}</option>
-                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
+              <CategoryPicker value={searchParams.get("categoryId") || "all"} onChange={(event) => updateFilter("categoryId", event.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200" categories={categories} includeArchived emptyValue="all" emptyLabel={t("allCategories")} />
               <select value={searchParams.get("reviewStatus") || "all"} onChange={(event) => updateFilter("reviewStatus", event.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
                 <option value="all">{t("allReviews")}</option>
                 <option value="needs_review">{t("needsReview")}</option>
@@ -185,18 +183,11 @@ export default function TransactionsFilters({
 
       {/* 3. Фильтр: Категории */}
       <div className="relative flex items-center">
-        <select
+        <CategoryPicker
           defaultValue={searchParams.get("categoryId") || "all"}
           onChange={(e) => updateFilter("categoryId", e.target.value)}
           className="min-h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-red-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
-        >
-          <option value="all">{t("allCategories")}</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+         categories={categories} includeArchived emptyValue="all" emptyLabel={t("allCategories")} />
 
         {/* Индикатор загрузки во время фильтрации */}
         {isPending && (

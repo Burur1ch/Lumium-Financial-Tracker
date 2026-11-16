@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -83,7 +84,7 @@ export function PlanningContent({
   goals: GoalItem[];
 }) {
   const router = useRouter();
-  const { t, fmtDate } = useI18n();
+  const { t, fmtDate, categoryName } = useI18n();
   const { currency, exchangeRates } = usePrefs();
   const rate = exchangeRates[currency] ?? 1;
   const [tab, setTab] = useState<"recurring" | "rules" | "goals">("recurring");
@@ -179,7 +180,7 @@ export function PlanningContent({
           <input name="name" required placeholder={t("recurringNamePlaceholder")} className={inputClass} />
           <input name="amount" type="number" min="0.01" step="0.01" required placeholder={t("amount")} className={inputClass} />
           <select name="type" value={recurringType} onChange={(event) => setRecurringType(event.target.value as "expense" | "income")} className={inputClass}><option value="expense">{t("expense")}</option><option value="income">{t("income")}</option></select>
-          <select name="category_id" className={inputClass}><option value="">{t("uncategorizedOption")}</option>{categories.filter((category) => category.type === recurringType).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+          <CategoryPicker name="category_id" className={inputClass} categories={categories.filter(category => category.type === recurringType)} />
           <select name="frequency" className={inputClass}><option value="weekly">{t("weekly")}</option><option value="monthly">{t("monthly")}</option><option value="yearly">{t("yearly")}</option></select>
           <input name="next_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
           <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300"><input name="auto_create" type="checkbox" className="h-4 w-4 accent-red-500" />{t("autoCreateTransaction")}</label>
@@ -192,7 +193,7 @@ export function PlanningContent({
           <input name="name" required placeholder={t("ruleNamePlaceholder")} className={inputClass} />
           <input name="match_text" required minLength={2} placeholder={t("matchTextPlaceholder")} className={inputClass} />
           <select name="type" value={ruleType} onChange={(event) => setRuleType(event.target.value as "expense" | "income")} className={inputClass}><option value="expense">{t("expense")}</option><option value="income">{t("income")}</option></select>
-          <select name="category_id" className={inputClass}><option value="">{t("uncategorizedOption")}</option>{categories.filter((category) => category.type === ruleType).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+          <CategoryPicker name="category_id" className={inputClass} categories={categories.filter(category => category.type === ruleType)} />
           <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300"><input name="mark_reviewed" type="checkbox" defaultChecked className="h-4 w-4 accent-red-500" />{t("markMatchingReviewed")}</label>
           <button type="submit" disabled={saving} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{t("createRule")}</button>
         </form>
@@ -214,7 +215,7 @@ export function PlanningContent({
           {recurring.length === 0 ? <EmptyState icon={CalendarClock} title={t("noRecurringTransactions")} description={t("noRecurringTransactionsHint")} /> : recurring.map((item) => (
             <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: item.categoryColor ?? "#D92D3A" }}><Repeat2 className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{item.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.categoryName ?? t("uncategorized")} · {t(item.frequency)} · {t("nextPayment")}: {fmtDate(item.nextDate)}</p></div>
+              <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{item.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{categories.find(c => c.id === item.categoryId) ? categoryName(categories.find(c => c.id === item.categoryId)!) : t("uncategorized")} · {t(item.frequency)} · {t("nextPayment")}: {fmtDate(item.nextDate)}</p></div>
               <strong className={item.type === "income" ? "text-emerald-500" : "text-slate-900 dark:text-slate-100"}>{item.type === "income" ? "+" : "-"}<Money amount={item.amount} decimals /></strong>
               <div className="flex gap-1"><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => materializeRecurringTransaction(item.id))} className="min-h-11 rounded-xl bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-50">{pendingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("createNow")}</button><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => deleteRecurringTransaction(item.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
             </article>
@@ -227,7 +228,7 @@ export function PlanningContent({
           {rules.length === 0 ? <EmptyState icon={WandSparkles} title={t("noAutomationRules")} description={t("noAutomationRulesHint")} /> : rules.map((rule) => (
             <article key={rule.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/30"><WandSparkles className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{rule.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t("containsText")}: “{rule.matchText}” → {rule.categoryName ?? t("uncategorized")}</p></div>
+              <div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{rule.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t("containsText")}: “{rule.matchText}” → {categories.find(c => c.id === rule.categoryId) ? categoryName(categories.find(c => c.id === rule.categoryId)!) : t("uncategorized")}</p></div>
               <div className="flex gap-1"><button type="button" disabled={pendingId === rule.id} onClick={() => void run(rule.id, () => applyTransactionRule(rule.id))} className="min-h-11 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300">{pendingId === rule.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("applyToExisting")}</button><button type="button" disabled={pendingId === rule.id} onClick={() => void run(rule.id, () => deleteTransactionRule(rule.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
             </article>
           ))}

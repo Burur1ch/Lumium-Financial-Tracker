@@ -18,7 +18,7 @@ export function ExportTransactionsButton({
     month?: string;
   };
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { plan } = usePrefs();
   const [showPaywall, setShowPaywall] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -30,7 +30,7 @@ export function ExportTransactionsButton({
     }
 
     startTransition(async () => {
-      const result = await exportTransactionsWorkbook(filters);
+      const result = await exportTransactionsWorkbook(filters, language);
       if (!result.success || !result.workbook || !result.filename) {
         window.alert(result.error ?? "Export failed");
         return;
@@ -64,7 +64,7 @@ export function ExportTransactionsButton({
         ) : (
           <FileSpreadsheet className="w-4 h-4 text-red-500" />
         )}
-        {isPending ? t("exportingEllipsis") : t("exportCsv")}
+        {isPending ? t("exportingEllipsis") : t("exportExcel")}
       </button>
 
       {showPaywall && (

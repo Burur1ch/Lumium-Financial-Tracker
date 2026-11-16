@@ -1,3 +1,5 @@
+import { isCategoryArchived, type CategoryLike } from "./category-catalog";
+
 export type ReceiptScanSource = "receipt" | "qr";
 
 export interface ReceiptScanItem {
@@ -7,6 +9,8 @@ export interface ReceiptScanItem {
   unitPrice?: number;
   confidence?: number;
   categoryKey?: ReceiptExpenseCategoryKey;
+  subcategoryKey?: string;
+  categoryId?: string;
   categoryConfidence?: number;
 }
 
@@ -32,6 +36,7 @@ export type ReceiptExpenseCategoryKey =
   | "entertainment"
   | "education"
   | "subscriptions"
+  | "children" | "pets" | "travel" | "sport" | "personal-care" | "gifts-charity" | "taxes-fees" | "insurance"
   | "other-expense";
 
 export interface ReceiptCategoryInference {
@@ -45,12 +50,17 @@ const CATEGORY_RULES: Array<{
   phrases?: string[];
   roots: string[];
 }> = [
+  { key: "pets", roots: ["корм для", "кошек", "собак", "ветеринар", "cat food", "dog food", "pet food", "tierfutter"] },
+  { key: "personal-care", roots: ["шампун", "зубная паста", "космет", "парикмах", "toothpaste", "shampoo", "haircut", "cosmetic"] },
+  { key: "children", roots: ["детское питание", "подгуз", "baby food", "diaper", "детский сад"] },
+  { key: "sport", roots: ["спортзал", "фитнес", "gym", "fitness"] },
+  { key: "travel", roots: ["авиабилет", "отель", "hotel", "flight ticket"] },
   {
     key: "health",
     phrases: ["медицинские услуги", "зубная паста", "medical service"],
     roots: [
-      "аптек", "лекар", "таблет", "витамин", "шампун", "гигиен", "стоматолог", "антисепт",
-      "pharmacy", "medicine", "medical", "vitamin", "toothpaste", "shampoo", "clinic",
+      "аптек", "лекар", "таблет", "витамин", "стоматолог", "антисепт",
+      "pharmacy", "medicine", "medical", "vitamin", "clinic",
     ],
   },
   {
@@ -162,6 +172,34 @@ export function inferReceiptCategory(value: string): ReceiptCategoryInference {
 
 export function inferReceiptCategoryKey(value: string): ReceiptExpenseCategoryKey {
   return inferReceiptCategory(value).key;
+}
+
+const SUBCATEGORY_RULES: Array<[string, RegExp]> = [
+  ["groceries/milk", /молок|\bmilk\b|milch|\blait\b/i],
+  ["groceries/meat-fish", /мяс|куриц|рыб|meat|chicken|fish|fleisch|poisson/i],
+  ["groceries/produce", /яблок|банан|картоф|овощ|фрукт|apple|banana|potato|vegetable|fruit/i],
+  ["groceries/bread", /хлеб|батон|bread|brot|\bpain\b/i],
+  ["groceries/drinks", /вода|сок|чай|кофе|water|juice|tea|coffee/i],
+  ["shopping/electronics", /usb|кабель|заряд|телефон|наушник|cable|phone|charger/i],
+  ["shopping/clothes", /футболк|одежд|shirt|clothes/i], ["shopping/shoes", /обув|shoes/i],
+  ["housing/household", /бытовая химия|порошок|салфет|губк|detergent|cleaning/i],
+  ["transport/fuel", /бензин|дизел|топлив|fuel|petrol|diesel/i], ["transport/taxi", /такси|taxi|uber/i],
+  ["health/medicine", /лекар|таблет|витамин|medicine|vitamin/i],
+  ["personal-care/hygiene", /шампун|зубная паста|shampoo|toothpaste/i],
+  ["pets/food", /корм|food|futter/i], ["children/food", /питани|baby food/i],
+];
+
+export function resolveReceiptCategory(item: ReceiptScanItem, categories: CategoryLike[]) {
+  const active = categories.filter(c => !isCategoryArchived(c, categories));
+  const explicit = active.find(c => c.id === item.categoryId);
+  if (explicit) return explicit.id;
+  const inferred = inferReceiptCategory(item.name);
+  const rootKey = item.categoryKey ?? inferred.key;
+  const suggestedKey = item.subcategoryKey ?? SUBCATEGORY_RULES.find(([key, rule]) => key.startsWith(rootKey + "/") && rule.test(item.name))?.[0];
+  const root = active.find(c => c.system_key === rootKey && !c.parent_id);
+  if (!root) return active.find(c => c.system_key === "other-expense")?.id ?? "";
+  const child = active.find(c => c.parent_id === root.id && c.system_key === suggestedKey);
+  return child?.id ?? root.id;
 }
 
 export function allocateReceiptCategorySplits(

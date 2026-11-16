@@ -1,5 +1,7 @@
 import { usePrefs } from "@/store/prefs";
 import { translations, TranslationKey } from "@/store/translations";
+import { categoryDisplayLabel, type CategoryLike } from "@/utils/category-catalog";
+import { useCallback } from "react";
 
 const CURRENCY_LOCALES: Record<string, string> = {
   USD: "en-US",
@@ -24,13 +26,14 @@ const LANGUAGE_LOCALES: Record<string, string> = {
 export function useI18n() {
   const { currency, language, dateFormat, exchangeRates } = usePrefs();
 
-  const t = (key: TranslationKey): string => {
+  const t = useCallback((key: TranslationKey): string => {
     return (
       (translations[language] as Record<TranslationKey, string>)[key] ??
       translations.en[key] ??
       key
     );
-  };
+  }, [language]);
+  const categoryName = useCallback((category: Omit<CategoryLike, "id">) => categoryDisplayLabel(category, t), [t]);
 
   const fmt = (
     amount: number,
@@ -70,6 +73,7 @@ export function useI18n() {
 
   return {
     t,
+    categoryName,
     fmt,
     fmtDate,
     currency,

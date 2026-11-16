@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -11,12 +12,10 @@ import {
   FileText,
   DollarSign,
   Calendar,
-  ChevronDown,
 } from "lucide-react";
 import { createTransaction, createCategory } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
-import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface Category {
   id: string;
@@ -100,9 +99,7 @@ export default function AddExpenseModal({
   };
   const draftCurrency = draft.currency ?? currency;
   const currencySymbol = CURRENCY_SYMBOLS[draftCurrency] ?? draftCurrency;
-  const [catOpen, setCatOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
-  const catRef = useRef<HTMLDivElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
 
   const [showNewCat, setShowNewCat] = useState(false);
@@ -116,9 +113,6 @@ export default function AddExpenseModal({
   const [date, setDate] = useState(today);
 
   const filteredCategories = categories.filter((c) => c.type === selectedType);
-  const selectedCat = filteredCategories.find(
-    (c) => c.id === selectedCategoryId,
-  );
 
   const openModal = useCallback((nextDraft: TransactionDraft = {}) => {
     setDraft(nextDraft);
@@ -146,19 +140,9 @@ export default function AddExpenseModal({
       setShowNewCat(false);
       setNewCatName("");
       setSelectedCategoryId("");
-      setCatOpen(false);
     }, 220);
   };
 
-  useEffect(() => {
-    if (!catOpen) return;
-    const h = (e: MouseEvent) => {
-      if (catRef.current && !catRef.current.contains(e.target as Node))
-        setCatOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [catOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -331,7 +315,6 @@ export default function AddExpenseModal({
                           setSelectedType(txType);
                           setSelectedCategoryId("");
                           setShowNewCat(false);
-                          setCatOpen(false);
                         }}
                         className={`flex min-h-11 items-center justify-center gap-2 rounded-lg text-xs font-bold transition-[color,background-color,transform] duration-150 ${
                           selectedType === txType
@@ -483,109 +466,7 @@ export default function AddExpenseModal({
                     </div>
                     )}
 
-                    {filteredCategories.length === 0 && !showNewCat ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowNewCat(true)}
-                        className="flex min-h-11 w-full items-center justify-between rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-400 hover:border-red-400 hover:text-red-500 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-red-600"
-                      >
-                        <span>{t("noCategoriesCreate")}</span>
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <div className="relative" ref={catRef}>
-                        <button
-                          type="button"
-                          onClick={() => setCatOpen((v) => !v)}
-                          className={`flex min-h-11 w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-sm transition-colors ${
-                            catOpen
-                              ? "border-red-500 ring-1 ring-red-500 bg-white dark:bg-slate-950"
-                              : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700"
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            {selectedCat ? (
-                              <>
-                                <CategoryArtwork
-                                  icon={selectedCat.icon}
-                                  name={selectedCat.name}
-                                  className="h-7 w-7 rounded-lg"
-                                  fallback={
-                                    <span
-                                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                                      style={{ backgroundColor: selectedCat.color ?? "#94a3b8" }}
-                                    />
-                                  }
-                                />
-                                <span className="text-slate-800 dark:text-slate-200 font-medium">
-                                  {selectedCat.name}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-600">
-                                {t("uncategorizedOption")}
-                              </span>
-                            )}
-                          </span>
-                          <ChevronDown
-                            className={`w-4 h-4 text-slate-400 transition-transform duration-150 ${catOpen ? "rotate-180" : ""}`}
-                          />
-                        </button>
-
-                        {catOpen && (
-                        <div className="mobile-inline-popover absolute left-0 right-0 top-full z-20 mt-1.5 max-h-56 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedCategoryId("");
-                              setCatOpen(false);
-                            }}
-                            className={`flex min-h-11 w-full items-center gap-2 px-3.5 py-2.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${!selectedCategoryId ? "text-red-500 font-semibold" : "text-slate-500 dark:text-slate-400"}`}
-                          >
-                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0" />
-                            {t("uncategorizedOption")}
-                          </button>
-                          {filteredCategories.map((cat) => (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCategoryId(cat.id);
-                                setCatOpen(false);
-                              }}
-                              className={`flex min-h-11 w-full items-center justify-between gap-2 px-3.5 py-2.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${selectedCategoryId === cat.id ? "text-red-500 font-semibold" : "text-slate-700 dark:text-slate-300"}`}
-                            >
-                              <span className="flex items-center gap-2">
-                                <CategoryArtwork
-                                  icon={cat.icon}
-                                  name={cat.name}
-                                  className="h-7 w-7 rounded-lg"
-                                  fallback={
-                                    <span
-                                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                                      style={{ backgroundColor: cat.color ?? "#94a3b8" }}
-                                    />
-                                  }
-                                />
-                                {cat.name}
-                              </span>
-                              {selectedCategoryId === cat.id && (
-                                <Check
-                                  className="w-3.5 h-3.5 text-red-500"
-                                  strokeWidth={3}
-                                />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                        )}
-                        <input
-                          type="hidden"
-                          name="category_id"
-                          value={selectedCategoryId}
-                        />
-                      </div>
-                    )}
+                    <CategoryPicker categories={filteredCategories} value={selectedCategoryId} onChange={event => setSelectedCategoryId(event.target.value)} name="category_id" aria-label={t("category")} />
                   </div>
 
                   {/* Date */}

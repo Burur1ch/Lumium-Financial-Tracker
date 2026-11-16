@@ -1,4 +1,5 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -54,7 +55,7 @@ export function TransactionDetailSheet({
   onUpdated?: (transaction: Transaction) => void;
 }) {
   const router = useRouter();
-  const { t, fmtDate } = useI18n();
+  const { t, fmtDate, categoryName } = useI18n();
   const { currency, exchangeRates } = usePrefs();
   const rate = exchangeRates[currency] ?? 1;
   const [mode, setMode] = useState<"details" | "edit" | "split">("details");
@@ -73,7 +74,11 @@ export function TransactionDetailSheet({
     }
     const first = Number((localAmount / 2).toFixed(2));
     return [
-      { categoryId: transaction.category_id ?? "", amount: String(first), note: "" },
+      {
+        categoryId: transaction.category_id ?? "",
+        amount: String(first),
+        note: "",
+      },
       {
         categoryId: "",
         amount: String(Number((localAmount - first).toFixed(2))),
@@ -137,9 +142,7 @@ export function TransactionDetailSheet({
       onUpdated?.({
         ...transaction,
         ...result.transaction,
-        categories: category
-          ? { name: category.name, color: category.color, icon: category.icon }
-          : null,
+        categories: category ? { ...category } : null,
       });
       finish();
     } catch {
@@ -157,7 +160,11 @@ export function TransactionDetailSheet({
       note: split.note,
     }));
     const total = parsed.reduce((sum, split) => sum + split.amount, 0);
-    if (parsed.some((split) => !Number.isFinite(split.amount) || split.amount <= 0)) {
+    if (
+      parsed.some(
+        (split) => !Number.isFinite(split.amount) || split.amount <= 0,
+      )
+    ) {
       setError(t("invalidSplitAmounts"));
       return;
     }
@@ -182,7 +189,9 @@ export function TransactionDetailSheet({
   const transactionCategory = Array.isArray(transaction.categories)
     ? transaction.categories[0]
     : transaction.categories;
-  const categoryColor = transactionCategory?.color ?? (transaction.type === "income" ? "#24845C" : "#D92D3A");
+  const categoryColor =
+    transactionCategory?.color ??
+    (transaction.type === "income" ? "#24845C" : "#D92D3A");
 
   return (
     <div
@@ -199,7 +208,10 @@ export function TransactionDetailSheet({
         <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-700 sm:hidden" />
         <header className="hidden min-h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800 sm:flex">
           <div>
-            <h2 id="transaction-detail-title" className="text-lg font-bold text-slate-950 dark:text-slate-50">
+            <h2
+              id="transaction-detail-title"
+              className="text-lg font-bold text-slate-950 dark:text-slate-50"
+            >
               {mode === "edit"
                 ? t("editTransaction")
                 : mode === "split"
@@ -210,7 +222,12 @@ export function TransactionDetailSheet({
               {transaction.description}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t("close")}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            aria-label={t("close")}
+          >
             <X className="h-5 w-5" />
           </button>
         </header>
@@ -231,65 +248,158 @@ export function TransactionDetailSheet({
                     name={transactionCategory?.name}
                     className="h-12 w-12 rounded-2xl"
                     fallback={
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white" style={{ backgroundColor: categoryColor }}>
-                        {transaction.description.trim().charAt(0).toUpperCase() || (transaction.type === "income" ? "+" : "−")}
+                      <span
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white"
+                        style={{ backgroundColor: categoryColor }}
+                      >
+                        {transaction.description
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase() ||
+                          (transaction.type === "income" ? "+" : "−")}
                       </span>
                     }
                   />
                   <div className="min-w-0 flex-1">
-                    <h2 id="transaction-detail-title" className="truncate text-base font-bold text-slate-950 dark:text-white">{transaction.description}</h2>
-                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{transactionCategory?.name ?? t("uncategorized")}</p>
+                    <h2
+                      id="transaction-detail-title"
+                      className="truncate text-base font-bold text-slate-950 dark:text-white"
+                    >
+                      {transaction.description}
+                    </h2>
+                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {transactionCategory
+                        ? categoryName(transactionCategory)
+                        : t("uncategorized")}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className={`text-xl font-extrabold tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-white"}`}>
-                      {transaction.type === "income" ? "+" : "−"}<Money amount={transaction.amount} decimals />
+                    <p
+                      className={`text-xl font-extrabold tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-white"}`}
+                    >
+                      {transaction.type === "income" ? "+" : "−"}
+                      <Money amount={transaction.amount} decimals />
                     </p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">{fmtDate(transaction.date)}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {fmtDate(transaction.date)}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-4 gap-2">
-                  <MobileAction icon={Pencil} label={t("edit")} onClick={() => setMode("edit")} />
-                  <MobileAction icon={Copy} label={t("duplicate")} disabled={pending} onClick={() => void run(() => duplicateTransaction(transaction.id))} />
-                  <MobileAction icon={Scissors} label={t("split")} onClick={() => setMode("split")} />
-                  <MobileAction icon={MoreHorizontal} label={t("more")} onClick={() => setMoreOpen((open) => !open)} />
+                  <MobileAction
+                    icon={Pencil}
+                    label={t("edit")}
+                    onClick={() => setMode("edit")}
+                  />
+                  <MobileAction
+                    icon={Copy}
+                    label={t("duplicate")}
+                    disabled={pending}
+                    onClick={() =>
+                      void run(() => duplicateTransaction(transaction.id))
+                    }
+                  />
+                  <MobileAction
+                    icon={Scissors}
+                    label={t("split")}
+                    onClick={() => setMode("split")}
+                  />
+                  <MobileAction
+                    icon={MoreHorizontal}
+                    label={t("more")}
+                    onClick={() => setMoreOpen((open) => !open)}
+                  />
                 </div>
 
                 {moreOpen && (
                   <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-slate-200 p-2 dark:border-slate-700">
-                    <button type="button" disabled={pending} onClick={() => void run(() => setTransactionReviewStatus(transaction.id, transaction.review_status === "needs_review" ? "reviewed" : "needs_review"))} className="min-h-11 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      {transaction.review_status === "needs_review" ? t("markReviewed") : t("markForReview")}
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        void run(() =>
+                          setTransactionReviewStatus(
+                            transaction.id,
+                            transaction.review_status === "needs_review"
+                              ? "reviewed"
+                              : "needs_review",
+                          ),
+                        )
+                      }
+                      className="min-h-11 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300"
+                    >
+                      {transaction.review_status === "needs_review"
+                        ? t("markReviewed")
+                        : t("markForReview")}
                     </button>
-                    <button type="button" disabled={pending} onClick={() => { if (window.confirm(t("deleteTransactionConfirm"))) void run(() => deleteTransaction(transaction.id)); }} className="min-h-11 rounded-lg text-xs font-semibold text-red-500">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        if (window.confirm(t("deleteTransactionConfirm")))
+                          void run(() => deleteTransaction(transaction.id));
+                      }}
+                      className="min-h-11 rounded-lg text-xs font-semibold text-red-500"
+                    >
                       {t("deleteTransaction")}
                     </button>
                   </div>
                 )}
 
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/[0.06]">
-                  <DetailRow icon={Tag} label={t("category")} value={transactionCategory?.name ?? t("uncategorized")} />
-                  <DetailRow icon={WalletCards} label={t("account")} value={t("mainAccount")} />
-                  <DetailRow icon={FileText} label={t("note")} value={transaction.note || t("addNote")} muted={!transaction.note} />
+                  <DetailRow
+                    icon={Tag}
+                    label={t("category")}
+                    value={
+                      transactionCategory
+                        ? categoryName(transactionCategory)
+                        : t("uncategorized")
+                    }
+                  />
+                  <DetailRow
+                    icon={WalletCards}
+                    label={t("account")}
+                    value={t("mainAccount")}
+                  />
+                  <DetailRow
+                    icon={FileText}
+                    label={t("note")}
+                    value={transaction.note || t("addNote")}
+                    muted={!transaction.note}
+                  />
                 </div>
               </div>
 
               <div className="hidden rounded-2xl bg-slate-50 p-4 dark:bg-slate-950 sm:block">
-                <p className={`text-3xl font-black tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-slate-50"}`}>
+                <p
+                  className={`text-3xl font-black tabular-nums ${transaction.type === "income" ? "text-emerald-500" : "text-slate-950 dark:text-slate-50"}`}
+                >
                   {transaction.type === "income" ? "+" : "-"}
                   <Money amount={transaction.amount} decimals />
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <span className="block text-slate-400">{t("date")}</span>
-                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">{fmtDate(transaction.date)}</strong>
+                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">
+                      {fmtDate(transaction.date)}
+                    </strong>
                   </div>
                   <div>
-                    <span className="block text-slate-400">{t("category")}</span>
-                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">{transactionCategory?.name ?? t("uncategorized")}</strong>
+                    <span className="block text-slate-400">
+                      {t("category")}
+                    </span>
+                    <strong className="mt-1 block text-slate-700 dark:text-slate-200">
+                      {transactionCategory
+                        ? categoryName(transactionCategory)
+                        : t("uncategorized")}
+                    </strong>
                   </div>
                 </div>
                 {transaction.note && (
-                  <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">{transaction.note}</p>
+                  <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                    {transaction.note}
+                  </p>
                 )}
                 {transaction.splits && transaction.splits.length > 0 && (
                   <p className="mt-3 text-xs font-semibold text-red-500">
@@ -299,17 +409,49 @@ export function TransactionDetailSheet({
               </div>
 
               <div className="hidden grid-cols-2 gap-2 sm:grid">
-                <button type="button" onClick={() => setMode("edit")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setMode("edit")}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                >
                   <Pencil className="h-4 w-4" /> {t("edit")}
                 </button>
-                <button type="button" onClick={() => setMode("split")} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setMode("split")}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200"
+                >
                   <Scissors className="h-4 w-4" /> {t("splitTransaction")}
                 </button>
-                <button type="button" disabled={pending} onClick={() => void run(() => duplicateTransaction(transaction.id))} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:text-slate-200">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    void run(() => duplicateTransaction(transaction.id))
+                  }
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:text-slate-200"
+                >
                   <Copy className="h-4 w-4" /> {t("duplicate")}
                 </button>
-                <button type="button" disabled={pending} onClick={() => void run(() => setTransactionReviewStatus(transaction.id, transaction.review_status === "needs_review" ? "reviewed" : "needs_review"))} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:text-slate-200">
-                  <Check className="h-4 w-4" /> {transaction.review_status === "needs_review" ? t("markReviewed") : t("markForReview")}
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    void run(() =>
+                      setTransactionReviewStatus(
+                        transaction.id,
+                        transaction.review_status === "needs_review"
+                          ? "reviewed"
+                          : "needs_review",
+                      ),
+                    )
+                  }
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 disabled:opacity-50 dark:border-slate-800 dark:text-slate-200"
+                >
+                  <Check className="h-4 w-4" />{" "}
+                  {transaction.review_status === "needs_review"
+                    ? t("markReviewed")
+                    : t("markForReview")}
                 </button>
               </div>
               <button
@@ -322,7 +464,11 @@ export function TransactionDetailSheet({
                 }}
                 className="hidden min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30 sm:flex"
               >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {pending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
                 {t("deleteTransaction")}
               </button>
             </>
@@ -330,25 +476,79 @@ export function TransactionDetailSheet({
 
           {mode === "edit" && (
             <form onSubmit={handleUpdate} className="space-y-4">
+              {Boolean(transaction.splits?.length) && (
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  {t("splitEditHint")}
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 {(["expense", "income"] as const).map((type) => (
-                  <button key={type} type="button" onClick={() => setSelectedType(type)} className={`min-h-11 rounded-xl text-sm font-bold ${selectedType === type ? "bg-red-500 text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-950 dark:text-slate-400"}`}>
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setSelectedType(type)}
+                    className={`min-h-11 rounded-xl text-sm font-bold ${selectedType === type ? "bg-red-500 text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-950 dark:text-slate-400"}`}
+                  >
                     {type === "expense" ? t("expense") : t("income")}
                   </button>
                 ))}
               </div>
-              <input name="amount" type="number" min="0.01" step="0.01" required defaultValue={localAmount} className={inputClass} aria-label={t("amount")} />
-              <input name="description" required defaultValue={transaction.description} className={inputClass} aria-label={t("description")} />
-              <select name="category_id" defaultValue={transaction.category_id ?? ""} className={inputClass} aria-label={t("category")}>
-                <option value="">{t("uncategorizedOption")}</option>
-                {filteredCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-              <input name="date" type="date" defaultValue={transaction.date.slice(0, 10)} className={inputClass} aria-label={t("date")} />
-              <textarea name="note" defaultValue={transaction.note ?? ""} placeholder={t("transactionNotePlaceholder")} className={`${inputClass} min-h-24 py-3`} />
+              <input
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                defaultValue={localAmount}
+                className={inputClass}
+                aria-label={t("amount")}
+              />
+              <input
+                name="description"
+                required
+                defaultValue={transaction.description}
+                className={inputClass}
+                aria-label={t("description")}
+              />
+              <CategoryPicker
+                name="category_id"
+                defaultValue={transaction.category_id ?? ""}
+                className={inputClass}
+                aria-label={t("category")}
+                categories={filteredCategories}
+              />
+              <input
+                name="date"
+                type="date"
+                defaultValue={transaction.date.slice(0, 10)}
+                className={inputClass}
+                aria-label={t("date")}
+              />
+              <textarea
+                name="note"
+                defaultValue={transaction.note ?? ""}
+                placeholder={t("transactionNotePlaceholder")}
+                className={`${inputClass} min-h-24 py-3`}
+              />
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setMode("details")} className="min-h-11 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 dark:border-slate-800">{t("cancel")}</button>
-                <button type="submit" disabled={pending} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 text-sm font-bold text-white disabled:opacity-50">
-                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />} {t("saveChanges")}
+                <button
+                  type="button"
+                  onClick={() => setMode("details")}
+                  className="min-h-11 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 dark:border-slate-800"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {pending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Pencil className="h-4 w-4" />
+                  )}{" "}
+                  {t("saveChanges")}
                 </button>
               </div>
             </form>
@@ -356,26 +556,107 @@ export function TransactionDetailSheet({
 
           {mode === "split" && (
             <form onSubmit={handleSplit} className="space-y-3">
-              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{t("splitTransactionHint")}</p>
+              <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {t("splitTransactionHint")}
+              </p>
               {splits.map((split, index) => (
-                <div key={index} className="grid grid-cols-[1fr_7rem_2.75rem] gap-2">
-                  <select value={split.categoryId} onChange={(event) => setSplits((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, categoryId: event.target.value } : item))} className={inputClass} aria-label={t("category")}>
-                    <option value="">{t("uncategorizedOption")}</option>
-                    {categories.filter((category) => category.type === transaction.type).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                  <input type="number" min="0.01" step="0.01" value={split.amount} onChange={(event) => setSplits((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, amount: event.target.value } : item))} className={inputClass} aria-label={t("amount")} />
-                  <button type="button" disabled={splits.length <= 2} onClick={() => setSplits((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 disabled:opacity-30" aria-label={t("deleteButton")}><X className="h-4 w-4" /></button>
+                <div
+                  key={index}
+                  className="grid grid-cols-[1fr_7rem_2.75rem] gap-2"
+                >
+                  <CategoryPicker
+                    value={split.categoryId}
+                    onChange={(event) =>
+                      setSplits((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, categoryId: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    className={inputClass}
+                    aria-label={t("category")}
+                    categories={categories.filter(
+                      (category) => category.type === transaction.type,
+                    )}
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={split.amount}
+                    onChange={(event) =>
+                      setSplits((current) =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? { ...item, amount: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    className={inputClass}
+                    aria-label={t("amount")}
+                  />
+                  <button
+                    type="button"
+                    disabled={splits.length <= 2}
+                    onClick={() =>
+                      setSplits((current) =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                    className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 disabled:opacity-30"
+                    aria-label={t("deleteButton")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
-              <button type="button" onClick={() => setSplits((current) => [...current, { categoryId: "", amount: "", note: "" }])} className="min-h-11 w-full rounded-xl border border-dashed border-slate-300 text-sm font-bold text-slate-500 dark:border-slate-700">{t("addSplit")}</button>
+              <button
+                type="button"
+                disabled={splits.length >= 100}
+                onClick={() =>
+                  setSplits((current) => [
+                    ...current,
+                    { categoryId: "", amount: "", note: "" },
+                  ])
+                }
+                className="min-h-11 w-full rounded-xl border border-dashed border-slate-300 text-sm font-bold text-slate-500 disabled:opacity-50 dark:border-slate-700"
+              >
+                {t("addSplit")}
+              </button>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-950">
                 <span className="text-slate-500">{t("splitTotal")}</span>
-                <strong className="tabular-nums text-slate-900 dark:text-slate-100">{splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0).toFixed(2)} / {localAmount.toFixed(2)} {currency}</strong>
+                <strong className="tabular-nums text-slate-900 dark:text-slate-100">
+                  {splits
+                    .reduce(
+                      (sum, split) => sum + (Number(split.amount) || 0),
+                      0,
+                    )
+                    .toFixed(2)}{" "}
+                  / {localAmount.toFixed(2)} {currency}
+                </strong>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setMode("details")} className="min-h-11 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 dark:border-slate-800">{t("cancel")}</button>
-                <button type="submit" disabled={pending} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 text-sm font-bold text-white disabled:opacity-50">
-                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />} {t("saveSplit")}
+                <button
+                  type="button"
+                  onClick={() => setMode("details")}
+                  className="min-h-11 rounded-xl border border-slate-200 text-sm font-bold text-slate-500 dark:border-slate-800"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {pending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Scissors className="h-4 w-4" />
+                  )}{" "}
+                  {t("saveSplit")}
                 </button>
               </div>
             </form>
@@ -398,7 +679,12 @@ function MobileAction({
   disabled?: boolean;
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className="flex min-h-[4.35rem] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 px-1 text-[10px] font-semibold text-slate-700 disabled:opacity-50 dark:border-white/[0.055] dark:bg-white/[0.045] dark:text-slate-200">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-[4.35rem] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 px-1 text-[10px] font-semibold text-slate-700 disabled:opacity-50 dark:border-white/[0.055] dark:bg-white/[0.045] dark:text-slate-200"
+    >
       <Icon className="h-5 w-5" strokeWidth={1.9} />
       <span className="max-w-full truncate">{label}</span>
     </button>
@@ -418,9 +704,18 @@ function DetailRow({
 }) {
   return (
     <div className="flex min-h-14 items-center gap-3 border-b border-slate-200/80 px-3 last:border-b-0 dark:border-white/[0.06]">
-      <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" strokeWidth={1.8} />
-      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
-      <span className={`ml-auto max-w-[55%] truncate text-right text-xs font-medium ${muted ? "text-slate-400 dark:text-slate-600" : "text-slate-800 dark:text-slate-100"}`}>{value}</span>
+      <Icon
+        className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400"
+        strokeWidth={1.8}
+      />
+      <span className="text-xs text-slate-500 dark:text-slate-400">
+        {label}
+      </span>
+      <span
+        className={`ml-auto max-w-[55%] truncate text-right text-xs font-medium ${muted ? "text-slate-400 dark:text-slate-600" : "text-slate-800 dark:text-slate-100"}`}
+      >
+        {value}
+      </span>
       <span className="text-slate-400">›</span>
     </div>
   );

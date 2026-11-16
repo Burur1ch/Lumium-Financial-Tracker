@@ -16,6 +16,7 @@ import ReportCharts from "@/components/dashboard/report-charts";
 import { ExportReportButton } from "@/components/dashboard/export-report-button";
 import { useI18n } from "@/hooks/useI18n";
 import { PaywallModal } from "@/components/dashboard/paywall-modal";
+import { CategoryBreakdown, type CategoryBreakdownRow } from "./category-breakdown";
 
 interface LargestTx {
   id: string;
@@ -40,6 +41,7 @@ interface TrendPoint {
 }
 
 interface ReportData {
+  categoryBreakdown: Array<CategoryBreakdownRow & { children: CategoryBreakdownRow[] }>;
   totalIncome: number;
   totalExpense: number;
   net: number;
@@ -312,52 +314,7 @@ export default function ReportContent({
                   {t("topSpendingCategories")}
                 </h3>
               </div>
-              {data.topExpenseCategories.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  {t("noExpenseData")}
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {data.topExpenseCategories.map((cat) => {
-                    const pct =
-                      data.totalExpense > 0
-                        ? (cat.expense / data.totalExpense) * 100
-                        : 0;
-                    return (
-                      <div key={cat.name} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ backgroundColor: cat.color }}
-                            />
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                              {cat.name}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                              {pct.toFixed(1)}%
-                            </span>
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                              {fmt(cat.expense)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
-                            style={{
-                              transform: `scaleX(${pct / 100})`,
-                              backgroundColor: cat.color,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <CategoryBreakdown rows={data.categoryBreakdown} />
             </div>
           </div>
         </>

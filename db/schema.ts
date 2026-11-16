@@ -1,6 +1,8 @@
 import {
   boolean,
+  type AnyPgColumn,
   check,
+  foreignKey,
   date,
   index,
   integer,
@@ -125,10 +127,18 @@ export const categories = pgTable(
     color: varchar("color", { length: 32 }).notNull(),
     icon: varchar("icon", { length: 64 }).notNull().default("tag"),
     system_key: varchar("system_key", { length: 64 }),
+    parent_id: uuid("parent_id").references((): AnyPgColumn => categories.id, { onDelete: "restrict" }),
+    is_archived: boolean("is_archived").notNull().default(false),
+    sort_order: integer("sort_order").notNull().default(0),
     created_at: createdAt(),
   },
   (table) => [
     index("categories_user_id_idx").on(table.user_id),
+    index("categories_parent_idx").on(table.user_id, table.parent_id),
+    unique("categories_id_owner_type_unique").on(table.id, table.user_id, table.type),
+    foreignKey({ name: "categories_parent_owner_type_fk", columns: [table.parent_id, table.user_id, table.type], foreignColumns: [table.id, table.user_id, table.type] }),
+    uniqueIndex("categories_sibling_name_unique").on(table.user_id, table.type, sql`coalesce(${table.parent_id}::text, '')`, sql`lower(btrim(${table.name}))`),
+    check("categories_not_own_parent", sql`${table.parent_id} is null or ${table.parent_id} <> ${table.id}`),
     uniqueIndex("categories_user_system_key_unique").on(
       table.user_id,
       table.system_key,

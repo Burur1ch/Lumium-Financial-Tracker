@@ -1,4 +1,6 @@
 "use client";
+import { CategoryPicker } from "@/components/dashboard/category-picker";
+import { isCategoryArchived } from "@/utils/category-catalog";
 
 import {
   ArrowLeft,
@@ -33,6 +35,7 @@ import {
   allocateReceiptCategorySplits,
   chooseBestReceiptResult,
   inferReceiptCategory,
+  resolveReceiptCategory,
   parseReceiptQr,
   parseReceiptText,
   receiptRecognitionNeedsRetry,
@@ -49,6 +52,8 @@ type ExpenseCategory = {
   name: string;
   color: string;
   system_key: string | null;
+  parent_id?: string | null;
+  is_archived?: boolean;
 };
 
 type FlowScreen = "closed" | "chooser" | "scanner" | "processing" | "review";
@@ -141,8 +146,9 @@ export function MobileReceiptScanner() {
       .then((rows) => {
         if (cancelled) return;
         const expense = rows
-          .filter((category) => category.type === "expense")
+          .filter((category, _, all) => category.type === "expense" && !isCategoryArchived(category, all))
           .map((category) => ({
+            ...category,
             id: category.id,
             name: category.name,
             color: category.color,
@@ -157,8 +163,7 @@ export function MobileReceiptScanner() {
         setItemCategoryIds((current) => {
           if (current.length === result.items.length && current.every(Boolean)) return current;
           return result.items.map((item) => {
-            const inferredKey = receiptItemInference(item).key;
-            return expense.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+            return resolveReceiptCategory(item, expense) || fallback;
           });
         });
       })
@@ -327,8 +332,7 @@ export function MobileReceiptScanner() {
               expenseCategories[0]?.id ??
               "";
             setItemCategoryIds(aiResult.items.map((item) => {
-              const inferredKey = receiptItemInference(item).key;
-              return expenseCategories.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+              return resolveReceiptCategory(item, expenseCategories) || fallback;
             }));
           }
           setProgress(1);
@@ -402,8 +406,7 @@ export function MobileReceiptScanner() {
           expenseCategories[0]?.id ??
           "";
         setItemCategoryIds(bestResult.items.map((item) => {
-          const inferredKey = receiptItemInference(item).key;
-          return expenseCategories.find((category) => category.system_key === inferredKey)?.id ?? fallback;
+          return resolveReceiptCategory(item, expenseCategories) || fallback;
         }));
       }
       setProgress(1);
@@ -491,8 +494,7 @@ export function MobileReceiptScanner() {
   const recategorizeReceiptItem = (index: number, name: string) => {
     const inference = inferReceiptCategory(name);
     const inferredKey = inference.key;
-    const inferredCategory = expenseCategories.find((category) =>
-      category.system_key === inferredKey);
+    const inferredCategory = expenseCategories.find(category => category.id === resolveReceiptCategory({ name, price: 1 }, expenseCategories));
     if (!inferredCategory) return;
     updateReceiptItem(index, {
       categoryKey: inferredKey,
@@ -714,9 +716,7 @@ export function MobileReceiptScanner() {
           </div>
           {result.items.length === 0 && (
             <label className="block text-xs font-bold text-[#aeb9c3]">{t("category")}
-              <select data-testid="receipt-fallback-category" className={`${reviewInputClass} mt-1.5`} value={fallbackCategoryId} onChange={(event) => setFallbackCategoryId(event.target.value)}>
-                {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
+              <CategoryPicker data-testid="receipt-fallback-category" className={`${reviewInputClass} mt-1.5`} value={fallbackCategoryId} onChange={(event) => setFallbackCategoryId(event.target.value)} categories={expenseCategories} />
             </label>
           )}
         </section>
@@ -763,15 +763,13 @@ export function MobileReceiptScanner() {
                     <p className="text-[0.68rem] text-[#8d99a5]">{item.quantity} × {formatAmount(item.unitPrice, reviewCurrency)}</p>
                   )}
                   <div className="space-y-1.5">
-                    <select
+                    <CategoryPicker
                       data-testid={`receipt-item-category-${index}`}
                       aria-label={`${t("category")}: ${item.name}`}
                       className="min-h-10 w-full rounded-lg border border-[#333] bg-[#111] px-2 text-xs font-semibold text-white outline-none focus:border-[#ff5964]"
                       value={itemCategoryIds[index] ?? ""}
                       onChange={(event) => setItemCategoryIds((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.value : value))}
-                    >
-                      {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
+                     categories={expenseCategories} />
                     <span className={`block text-[0.65rem] font-bold ${inference.confidence >= 0.7 ? "text-emerald-400" : "text-amber-300"}`}>
                       {inference.confidence >= 0.7 ? t("categoryMatched") : t("categoryNeedsCheck")}
                     </span>

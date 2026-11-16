@@ -1,4 +1,9 @@
 import React from "react";
+import {
+  allocateTransactions,
+  independentBudgets,
+} from "@/utils/financial-allocations";
+import { displayCategory } from "@/utils/category-catalog";
 import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -7,6 +12,7 @@ import {
   categories,
   quickTransactionPresets,
   transactions,
+  transactionSplits,
 } from "@/db/schema";
 import { auth } from "@/utils/auth/server";
 import MetricCard from "@/components/dashboard/metric-card";
@@ -86,14 +92,22 @@ export default async function DashboardPage({
     icon: string;
   }> = [];
   let dashboardBudgets: Array<{
+    category_id: string;
+    parent_id: string | null;
     monthly_limit: number;
     current_spent: number;
     categories: { name: string; color: string; icon: string | null } | null;
   }> = [];
   const chartDataMap: { [key: string]: { income: number; expense: number } } =
     {};
-  const categoryDataMap: { [key: string]: { value: number; color: string } } =
-    {};
+  const categoryDataMap: {
+    [key: string]: {
+      value: number;
+      color: string;
+      name: string;
+      system_key: string | null;
+    };
+  } = {};
 
   const COLORS = [
     "#D92D3A",
@@ -112,9 +126,12 @@ export default async function DashboardPage({
       presetData,
       categoryOptions,
       budgetData,
+      splitData,
     ] = await Promise.all([
       db
         .select({
+          id: transactions.id,
+          category_id: transactions.category_id,
           amount: transactions.amount,
           type: transactions.type,
           date: transactions.date,
@@ -154,8 +171,8 @@ export default async function DashboardPage({
           status: transactions.status,
           note: transactions.note,
           review_status: transactions.review_status,
-          category_id: transactions.category_id,
           recurring_transaction_id: transactions.recurring_transaction_id,
+          category_id: transactions.category_id,
           date: transactions.date,
           categories: {
             name: categories.name,
@@ -199,9 +216,30 @@ export default async function DashboardPage({
         .limit(8),
       getCategories(),
       getBudgetsWithProgress(monthRange.key),
+      db
+        .select({
+          transaction_id: transactionSplits.transaction_id,
+          category_id: transactionSplits.category_id,
+          amount: transactionSplits.amount,
+        })
+        .from(transactionSplits)
+        .innerJoin(
+          transactions,
+          eq(transactionSplits.transaction_id, transactions.id),
+        )
+        .where(
+          and(
+            eq(transactionSplits.user_id, user.id),
+            owner,
+            gte(transactions.date, monthRange.start),
+            lt(transactions.date, monthRange.end),
+          ),
+        ),
     ]);
 
     dashboardBudgets = budgetData.map((budget) => ({
+      category_id: budget.category_id,
+      parent_id: budget.parent_id,
       monthly_limit: Number(budget.monthly_limit),
       current_spent: Number(budget.current_spent),
       categories: budget.categories,
@@ -216,6 +254,13 @@ export default async function DashboardPage({
       category:
         preset.categoryId && preset.categoryName && preset.categoryColor
           ? {
+              ...displayCategory(
+                categoryOptions.find((c) => c.id === preset.categoryId) ?? {
+                  id: preset.categoryId,
+                  name: preset.categoryName,
+                },
+                categoryOptions,
+              ),
               id: preset.categoryId,
               name: preset.categoryName,
               color: preset.categoryColor,
@@ -237,7 +282,7 @@ export default async function DashboardPage({
     }
 
     if (txAll) {
-      txAll.forEach((tx, idx) => {
+      txAll.forEach((tx) => {
         const amount = Number(tx.amount);
         const groupKey = tx.date.toISOString().slice(0, 10);
 
@@ -250,20 +295,40 @@ export default async function DashboardPage({
         } else if (tx.type === "expense") {
           totalExpenses += amount;
           chartDataMap[groupKey].expense += amount;
-
-          const cat = tx.categories;
-          const categoryName = cat?.name || "Other";
-          const categoryColor = cat?.color || COLORS[idx % COLORS.length];
-          if (!categoryDataMap[categoryName]) {
-            categoryDataMap[categoryName] = { value: 0, color: categoryColor };
-          }
-          categoryDataMap[categoryName].value += amount;
         }
       });
     }
 
+    for (const allocation of allocateTransactions(txAll, splitData)) {
+      if (allocation.type !== "expense") continue;
+      const category = categoryOptions.find(
+        (c) => c.id === allocation.category_id,
+      );
+      const root =
+        categoryOptions.find((c) => c.id === category?.parent_id) ?? category;
+      const id = root?.id ?? "uncategorized";
+      const total = categoryDataMap[id] ?? {
+        value: 0,
+        color: root?.color ?? COLORS[0],
+        name: root?.name ?? "",
+        system_key: root?.system_key ?? null,
+      };
+      total.value += allocation.amount;
+      categoryDataMap[id] = total;
+    }
     recentTransactions = recentData.map((tx) => ({
       ...tx,
+      categories: categoryOptions
+        .filter((c) => c.id === tx.category_id)
+        .map((c) => displayCategory(c, categoryOptions)),
+      splits: splitData
+        .filter((part) => part.transaction_id === tx.id)
+        .map((part, index) => ({
+          id: tx.id + index,
+          categoryId: part.category_id,
+          amount: Number(part.amount),
+          note: null,
+        })),
       amount: Number(tx.amount),
       date: tx.date.toISOString(),
     }));
@@ -274,20 +339,30 @@ export default async function DashboardPage({
     .sort((a, b) => new Date(a.label).getTime() - new Date(b.label).getTime());
 
   const categoryChartData = Object.entries(categoryDataMap).map(
-    ([name, obj]) => ({ name, value: obj.value, color: obj.color }),
+    ([id, obj]) => ({ id, ...obj }),
   );
 
-  const mobileTrend = expenseChartData.reduce<number[]>((trend, point) => {
-    const previous = trend.at(-1) ?? 0;
-    return [...trend, previous + point.income - point.expense];
-  }, [0]);
+  const mobileTrend = expenseChartData.reduce<number[]>(
+    (trend, point) => {
+      const previous = trend.at(-1) ?? 0;
+      return [...trend, previous + point.income - point.expense];
+    },
+    [0],
+  );
   const mobileBudget = {
-    spent: dashboardBudgets.reduce((sum, budget) => sum + budget.current_spent, 0),
-    limit: dashboardBudgets.reduce((sum, budget) => sum + budget.monthly_limit, 0),
+    spent: independentBudgets(dashboardBudgets).reduce(
+      (sum, budget) => sum + budget.current_spent,
+      0,
+    ),
+    limit: independentBudgets(dashboardBudgets).reduce(
+      (sum, budget) => sum + budget.monthly_limit,
+      0,
+    ),
     categories: [...dashboardBudgets]
       .sort((a, b) => b.monthly_limit - a.monthly_limit)
       .slice(0, 3)
       .map((budget) => ({
+        ...budget.categories,
         name: budget.categories?.name ?? "Other",
         color: budget.categories?.color ?? "#64748b",
         icon: budget.categories?.icon ?? null,
@@ -301,7 +376,9 @@ export default async function DashboardPage({
         <MobileDashboardOverview
           month={monthRange.key}
           balance={totalIncome - totalExpenses}
-          balanceDelta={(totalIncome - totalExpenses) - (prevIncome - prevExpenses)}
+          balanceDelta={
+            totalIncome - totalExpenses - (prevIncome - prevExpenses)
+          }
           income={totalIncome}
           expense={totalExpenses}
           incomeChange={calcChange(totalIncome, prevIncome)}
@@ -318,61 +395,61 @@ export default async function DashboardPage({
       </div>
 
       <div className="mx-auto hidden w-full max-w-7xl space-y-5 p-4 md:space-y-8 md:p-8 lg:block">
-      <div className="hidden items-center justify-between gap-4 lg:flex">
-        <DashboardHeader />
-        <div className="flex items-center gap-3">
-          <Suspense>
-            <MonthSelector variant="stepper" />
-          </Suspense>
-          <AddTransactionButton />
+        <div className="hidden items-center justify-between gap-4 lg:flex">
+          <DashboardHeader />
+          <div className="flex items-center gap-3">
+            <Suspense>
+              <MonthSelector variant="stepper" />
+            </Suspense>
+            <AddTransactionButton />
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-        <MetricCard
-          amount={totalIncome - totalExpenses}
-          change={calcChange(
-            totalIncome - totalExpenses,
-            prevIncome - prevExpenses,
-          )}
-          type="net"
-          changeLabelKey={changeLabelKey}
-          featured
-        />
-        <MetricCard
-          amount={totalIncome}
-          change={calcChange(totalIncome, prevIncome)}
-          type="income"
-          changeLabelKey={changeLabelKey}
-        />
-        <MetricCard
-          amount={totalExpenses}
-          change={calcChange(totalExpenses, prevExpenses)}
-          type="expense"
-          changeLabelKey={changeLabelKey}
-        />
-      </div>
-
-      <QuickActions presets={quickPresets} categories={quickCategories} />
-
-      {/* Графики */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
-        <div className="lg:col-span-2 w-full overflow-hidden">
-          <ExpenseChart data={expenseChartData} periodKey={periodKey} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+          <MetricCard
+            amount={totalIncome - totalExpenses}
+            change={calcChange(
+              totalIncome - totalExpenses,
+              prevIncome - prevExpenses,
+            )}
+            type="net"
+            changeLabelKey={changeLabelKey}
+            featured
+          />
+          <MetricCard
+            amount={totalIncome}
+            change={calcChange(totalIncome, prevIncome)}
+            type="income"
+            changeLabelKey={changeLabelKey}
+          />
+          <MetricCard
+            amount={totalExpenses}
+            change={calcChange(totalExpenses, prevExpenses)}
+            type="expense"
+            changeLabelKey={changeLabelKey}
+          />
         </div>
+
+        <QuickActions presets={quickPresets} categories={quickCategories} />
+
+        {/* Графики */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+          <div className="lg:col-span-2 w-full overflow-hidden">
+            <ExpenseChart data={expenseChartData} periodKey={periodKey} />
+          </div>
+          <div className="w-full overflow-hidden">
+            <CategoryChart data={categoryChartData} periodKey={periodKey} />
+          </div>
+        </div>
+
+        {/* Таблица транзакций */}
         <div className="w-full overflow-hidden">
-          <CategoryChart data={categoryChartData} periodKey={periodKey} />
+          <TransactionsTable
+            transactions={recentTransactions}
+            categories={quickCategories}
+            showViewAll
+          />
         </div>
-      </div>
-
-      {/* Таблица транзакций */}
-      <div className="w-full overflow-hidden">
-        <TransactionsTable
-          transactions={recentTransactions}
-          categories={quickCategories}
-          showViewAll
-        />
-      </div>
       </div>
     </>
   );

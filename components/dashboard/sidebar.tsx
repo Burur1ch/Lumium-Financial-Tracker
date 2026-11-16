@@ -83,7 +83,11 @@ const menuItemDefs = [
   { key: "users" as const, href: "/dashboard/users", icon: Users },
   { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
-  { key: "planning" as const, href: "/dashboard/planning", icon: CalendarClock },
+  {
+    key: "planning" as const,
+    href: "/dashboard/planning",
+    icon: CalendarClock,
+  },
   { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
@@ -123,16 +127,20 @@ function makeNumericId(seed: string): number {
   return Math.abs(hash);
 }
 
-function getCategoryName(budget: BudgetForNotif): string {
+function getCategoryName(
+  budget: BudgetForNotif,
+  label: (category: { name: string }) => string,
+): string {
   const category = Array.isArray(budget.categories)
     ? budget.categories[0]
     : budget.categories;
-  return category?.name ?? "Category";
+  return category ? label(category) : "Category";
 }
 
 function buildDynamicNotifications(
   budgets: BudgetForNotif[],
   today: Date,
+  label: (category: { name: string }) => string,
 ): Notification[] {
   const daysInMonth = new Date(
     today.getFullYear(),
@@ -149,7 +157,7 @@ function buildDynamicNotifications(
     const spent = Number(b.current_spent ?? 0);
     if (limit <= 0) continue;
 
-    const categoryName = getCategoryName(b);
+    const categoryName = getCategoryName(b, label);
     const usagePct = (spent / limit) * 100;
     const remaining = limit - spent;
 
@@ -218,7 +226,7 @@ function buildDynamicNotifications(
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
-  const { t } = useI18n();
+  const { t, categoryName } = useI18n();
   const { avatarColor, avatarIcon, avatarPreset, plan, setPlan } = usePrefs();
   const [profile, setProfile] = useState<{
     name: string | null;
@@ -248,10 +256,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       const dynamic = buildDynamicNotifications(
         budgets as BudgetForNotif[],
         new Date(),
+        categoryName,
       );
       setNotifications(dynamic);
     });
-  }, [setNotifications]);
+  }, [setNotifications, categoryName]);
 
   // Close on outside click
   useEffect(() => {
@@ -390,88 +399,88 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
           {/* Popover stays inline below the button to avoid clipping. */}
           {showNotifs && (
-          <div className="mobile-inline-reveal mt-2 overflow-hidden">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-lg overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                    {t("notifications")}
-                  </span>
-                  {unreadCount > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white leading-none">
-                      {unreadCount}
+            <div className="mobile-inline-reveal mt-2 overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-lg overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                      {t("notifications")}
                     </span>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white leading-none">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-[11px] font-semibold text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      {t("markAllRead")}
+                    </button>
                   )}
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllRead}
-                    className="text-[11px] font-semibold text-red-500 hover:text-red-600 transition-colors"
-                  >
-                    {t("markAllRead")}
-                  </button>
-                )}
-              </div>
 
-              {/* List */}
-              <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
-                {notifications.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
-                    {t("allCaughtUp")}
-                  </div>
-                ) : (
-                  notifications.map((n) => {
-                    const {
-                      icon: Icon,
-                      color,
-                      bg,
-                    } = NOTIF_ICON_MAP[n.iconType];
-                    return (
-                      <div
-                        key={n.id}
-                        onClick={() => markRead(n.id)}
-                        className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
-                          n.unread ? "bg-red-50/40 dark:bg-red-950/10" : ""
-                        }`}
-                      >
+                {/* List */}
+                <div className="max-h-56 overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/60">
+                  {notifications.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
+                      {t("allCaughtUp")}
+                    </div>
+                  ) : (
+                    notifications.map((n) => {
+                      const {
+                        icon: Icon,
+                        color,
+                        bg,
+                      } = NOTIF_ICON_MAP[n.iconType];
+                      return (
                         <div
-                          className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}
+                          key={n.id}
+                          onClick={() => markRead(n.id)}
+                          className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
+                            n.unread ? "bg-red-50/40 dark:bg-red-950/10" : ""
+                          }`}
                         >
-                          <Icon className={`w-3.5 h-3.5 ${color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                              {n.title}
-                            </p>
-                            {n.unread && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                            )}
+                          <div
+                            className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}
+                          >
+                            <Icon className={`w-3.5 h-3.5 ${color}`} />
                           </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 leading-snug">
-                            {n.desc}
-                          </p>
-                          <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
-                            {n.time}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                {n.title}
+                              </p>
+                              {n.unread && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 leading-snug">
+                              {n.desc}
+                            </p>
+                            <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
+                              {n.time}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dismiss(n.id);
+                            }}
+                            className="shrink-0 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 p-0.5 mt-0.5 rounded transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            dismiss(n.id);
-                          }}
-                          className="shrink-0 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 p-0.5 mt-0.5 rounded transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
 

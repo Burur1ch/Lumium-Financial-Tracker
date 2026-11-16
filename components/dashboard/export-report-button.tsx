@@ -9,7 +9,7 @@ import { usePrefs } from "@/store/prefs";
 import { canAccessAdvancedReports } from "@/utils/monetization/limits";
 
 export function ExportReportButton({ period }: { period: string }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { plan } = usePrefs();
   const [showPaywall, setShowPaywall] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -21,7 +21,7 @@ export function ExportReportButton({ period }: { period: string }) {
     }
 
     startTransition(async () => {
-      const result = await exportReportWorkbook(period);
+      const result = await exportReportWorkbook(period, language);
       if (!result.success || !result.workbook || !result.filename) {
         window.alert(result.error ?? "Export failed");
         return;

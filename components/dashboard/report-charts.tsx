@@ -90,7 +90,7 @@ export default function ReportCharts({
 }: ReportChartsProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { fmt, t, language } = useI18n();
+  const { fmt, t, language, categoryName } = useI18n();
   const gridColor = isDark ? "#1e293b" : "#f1f5f9";
   const tickColor = isDark ? "#475569" : "#94a3b8";
 
@@ -116,12 +116,12 @@ export default function ReportCharts({
   }));
 
   const pieExpenseData = topExpenseCategories.map((c) => ({
-    name: c.name,
+    name: categoryName(c) || t("uncategorized"),
     value: c.expense,
     color: c.color,
   }));
   const pieIncomeData = topIncomeCategories.map((c) => ({
-    name: c.name,
+    name: categoryName(c) || t("uncategorized"),
     value: c.income,
     color: c.color,
   }));

@@ -12,6 +12,9 @@
 - utils/gemini-receipt.ts: server-only Gemini receipt extraction, structured response schema, and untrusted model-output validation.
 - utils/receipt-image.ts: browser-side receipt resizing, enhancement, binarization, and upload compression.
 - utils/receipt-scanner.ts: shared receipt types, local OCR parsing, category inference, QR parsing, and split allocation.
+- utils/category-catalog.ts: standard parent/child catalog, localized labels/paths, archive visibility and descendant filter IDs.
+- utils/financial-allocations.ts: allocation replacement, exact share balancing, parent rollups and non-overlapping budget scopes.
+- db/migrations/0005_category_hierarchy.sql: parent/archive/order fields, sibling name uniqueness, owner/type foreign key and database depth guard; preserves existing IDs.
 - app/api/auth/[...all]/route.ts: Better Auth API route.
 - next.config.ts: Next.js config placeholder.
 - eslint.config.mjs: lint setup using next core-web-vitals + typescript presets.
@@ -39,7 +42,7 @@
 - app/dashboard/page.tsx: main dashboard metrics, charts, and recent transactions.
 - app/dashboard/transactions/page.tsx: filtered transactions page.
 - app/dashboard/transactions/loading.tsx: transactions skeleton.
-- app/dashboard/categories/page.tsx: category management UI.
+- app/dashboard/categories/page.tsx: authenticated category data loader; management UI lives in components/dashboard/categories-content.tsx.
 - app/dashboard/budget/page.tsx: budget page loader + content wiring.
 - app/dashboard/planning/page.tsx: recurring transactions, automation rules, and savings-goal data wiring.
 - app/dashboard/reports/page.tsx: reports page data wiring.
@@ -59,6 +62,9 @@
 - components/user-avatar.tsx: avatar renderer + options.
 
 ## Dashboard components
+- components/dashboard/categories-content.tsx: expandable category management, rename/create dialogs, archive and optional catalog groups.
+- components/dashboard/category-picker.tsx: shared searchable parent/subcategory selector, including archived selections in historical editing.
+- components/dashboard/category-breakdown.tsx: expandable report breakdown with separate direct-category amounts.
 - components/dashboard/sidebar.tsx: primary navigation, notifications popover, sign-out shortcut.
 - components/dashboard/mobile-app-chrome.tsx: mobile bottom navigation and overflow menu.
 - components/dashboard/dashboard-header.tsx: title/subtitle header.

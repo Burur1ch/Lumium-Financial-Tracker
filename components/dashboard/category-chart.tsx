@@ -42,12 +42,12 @@ const CustomTooltip = ({ active, payload, isDark, fmt }: any) => {
 export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const { fmt, t } = useI18n();
+  const { fmt, t, categoryName } = useI18n();
   const periodLabel = t(periodKey);
   const total = data.reduce((acc, item) => acc + item.value, 0);
 
   // Sort by value desc, show top 6
-  const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 6);
+  const sorted = data.map(item => ({ ...item, name: categoryName(item) || t("uncategorized") })).sort((a, b) => b.value - a.value);
 
   return (
     <div className="flex h-auto min-h-64 w-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:h-100 sm:p-6">
@@ -101,7 +101,7 @@ export default function CategoryChart({ data, periodKey }: CategoryChartProps) {
 
           {/* Legend */}
           <div className="flex flex-col gap-2 overflow-y-auto flex-1">
-            {sorted.map((item) => {
+            {sorted.slice(0, 6).map((item) => {
               const pct = total > 0 ? (item.value / total) * 100 : 0;
               return (
                 <div key={item.name} className="flex items-center gap-2.5">

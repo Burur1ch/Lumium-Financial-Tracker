@@ -36,6 +36,13 @@
       "when": 1794423107058,
       "tag": "0004_cynical_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794837837278,
+      "tag": "0005_category_hierarchy",
+      "breakpoints": true
     }
   ]
 }

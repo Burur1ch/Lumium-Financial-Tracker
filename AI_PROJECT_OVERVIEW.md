@@ -40,7 +40,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 - Create income/expense transactions with an optional note.
 - Open a transaction detail sheet to edit, duplicate, delete, split, or change its review status.
-- Split a transaction into 2-12 category allocations whose converted total must equal the original amount.
+- Split a transaction into 2-100 category allocations whose converted total must equal the original amount. Converted shares are balanced in the database's eight-decimal units.
 - Save one-tap presets for common transactions and create entries with idempotency protection.
 - Filter by text, type, category, and review status.
 - View recent transactions in dashboard and full list in transactions page.
@@ -48,9 +48,11 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 3. Categories
 
-- Every user receives a protected set of base income/expense categories on first category access.
-- Create and delete additional custom categories without a plan-based category count limit.
-- Color and icon metadata is supported in UI.
+- Categories have two levels: a main category and optional subcategories, for both income and expenses. An entry can still belong directly to a main category.
+- The localized standard catalog has 19 expense and 7 income groups. Additional thematic groups start archived and can be enabled in the catalog; their children become available with the group.
+- Create and rename custom categories, choose colors/icons, and archive/restore groups or children. Archiving preserves transactions, budgets, rules and history; it is not physical deletion.
+- Database constraints enforce owner/type consistency, unique names within a parent and two-level depth. Existing category IDs are preserved by migration `0005`.
+- Main-category filters include children and matching transaction splits. Filtered operations show both the full amount and the matching allocation when they differ.
 
 4. Budgets
 
@@ -58,6 +60,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Configure a 50-100% alert threshold and optional rollover of the previous month's unused limit.
 - Show spending progress, three-month average spending, and a current month-end forecast.
 - Sidebar notifications use each budget's configured warning threshold.
+- Spending uses split allocations when present and rolls up children into their main category. Summary budget totals exclude child budgets covered by an existing parent budget, while each individual limit remains visible.
 
 5. Planning and automation
 
@@ -70,6 +73,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 - Aggregate totals, net balance, savings rate, trends, and top categories.
 - Period filters: 7d, 30d, 3m, 1y, all.
+- Category breakdowns expand into subcategories and direct main-category spending. XLSX exports contain separate main/subcategory columns and allocation amounts, avoiding duplicate transaction totals.
 
 7. Settings and profile
 
@@ -108,6 +112,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - `transactions`: financial entries, notes, review state, and optional recurring source.
 - `quick_transaction_presets`: one-tap transaction templates.
 - `transaction_splits`: per-category allocations owned by the transaction owner.
+- `categories`: user-owned two-level hierarchy with stable system keys, archive state and ordering.
 - `recurring_transactions`: schedules and automatic-materialization state.
 - `transaction_rules`: description matching, target category, and review behavior.
 - `budgets`: monthly spending limits (planning caps, not account balances), rollover setting, and alert threshold.

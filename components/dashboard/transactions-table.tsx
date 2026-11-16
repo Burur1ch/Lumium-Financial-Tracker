@@ -27,6 +27,7 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
+  matched_amount?: number | null;
   type: "income" | "expense";
   status: "completed" | "pending";
   note?: string | null;
@@ -67,7 +68,7 @@ export default function TransactionsTable({
   clearFiltersHref = "/dashboard/transactions",
   categories = [],
 }: TransactionsTableProps) {
-  const { fmt, fmtDate, t, language } = useI18n();
+  const { fmt, fmtDate, t, language, categoryName } = useI18n();
   const { plan } = usePrefs();
   const [transactionOverrides, setTransactionOverrides] = React.useState<
     Record<string, Transaction>
@@ -161,8 +162,8 @@ export default function TransactionsTable({
             ? t("yesterday")
             : fmtDate(tx.date);
         const meta = showViewAll
-          ? `${cat?.name ?? t("uncategorized")} · ${relativeDate}, ${time}`
-          : `${cat?.name ?? t("uncategorized")} · ${time}`;
+          ? `${cat ? categoryName(cat) : t("uncategorized")} · ${relativeDate}, ${time}`
+          : `${cat ? categoryName(cat) : t("uncategorized")} · ${time}`;
         const avatarColor = cat?.color ?? (isExpense ? "#D92D3A" : "#24845C");
         return (
           <button
@@ -192,6 +193,7 @@ export default function TransactionsTable({
                 )}
               </span>
               <span className="mt-0.5 block truncate text-[11px] text-slate-400 dark:text-slate-500">{meta}</span>
+              {tx.matched_amount != null && tx.matched_amount !== tx.amount && <span className="block text-[11px] font-medium text-red-500">{t("categoryMatchedAmount")}: {fmt(tx.matched_amount)}</span>}
             </span>
             <span className={`max-w-[7.75rem] shrink-0 truncate text-right text-[13px] font-bold tabular-nums ${isExpense ? "text-slate-900 dark:text-slate-100" : "text-emerald-600 dark:text-emerald-400"}`}>
               {isExpense ? "−" : "+"}{fmt(Number(tx.amount))}
@@ -246,7 +248,7 @@ export default function TransactionsTable({
           renderMobileRows(mobileVisible)
         ) : (
           groupedMobileTransactions.map((group) => {
-            const total = group.items.reduce((sum, tx) => sum + (tx.type === "income" ? Number(tx.amount) : -Number(tx.amount)), 0);
+            const total = group.items.reduce((sum, tx) => sum + (tx.type === "income" ? 1 : -1) * Number(tx.matched_amount ?? tx.amount), 0);
             return (
               <section key={group.key}>
                 <div className="mb-2 flex items-center justify-between px-1">
@@ -333,7 +335,7 @@ export default function TransactionsTable({
                         >
                           <CategoryArtwork
                             icon={cat.icon}
-                            name={cat.name}
+                            name={categoryName(cat)}
                             className="h-5 w-5 rounded-md"
                           />
                           {cat.name}
@@ -349,6 +351,7 @@ export default function TransactionsTable({
                     >
                       {isExpense ? "-" : "+"}
                       {fmt(Number(tx.amount))}
+                      {tx.matched_amount != null && tx.matched_amount !== tx.amount && <span className="block text-[11px] font-medium text-red-500">{t("categoryMatchedAmount")}: {fmt(tx.matched_amount)}</span>}
                     </td>
                   </tr>
                 );

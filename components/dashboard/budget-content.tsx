@@ -1,4 +1,5 @@
 "use client";
+import { independentBudgets } from "@/utils/financial-allocations";
 
 import React, { useState } from "react";
 import {
@@ -23,6 +24,7 @@ export interface BudgetCategory {
 }
 
 export interface BudgetItem {
+  parent_id?: string | null;
   id: string;
   monthly_limit: number;
   base_limit?: number;
@@ -49,14 +51,14 @@ export default function BudgetContent({
   categories: BudgetCategory[];
   budgets: BudgetItem[];
 }) {
-  const { t } = useI18n();
+  const { t, categoryName } = useI18n();
   const { plan } = usePrefs();
   const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
   const b = budgets as BudgetItem[];
   const budgetLimit = getPlanBudgetLimit(plan);
-  const totalLimit = b.reduce((s, i) => s + Number(i.monthly_limit ?? 0), 0);
-  const totalSpent = b.reduce((s, i) => s + Number(i.current_spent ?? 0), 0);
+  const totalLimit = independentBudgets(b).reduce((s, i) => s + Number(i.monthly_limit ?? 0), 0);
+  const totalSpent = independentBudgets(b).reduce((s, i) => s + Number(i.current_spent ?? 0), 0);
   const overBudgetCount = b.filter(
     (i) => i.current_spent >= i.monthly_limit,
   ).length;
@@ -91,7 +93,7 @@ export default function BudgetContent({
       </div>
 
       <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-        {t("limitNotBalance")}
+        {t("limitNotBalance")} {t("categoryBudgetHelp")}
       </p>
 
       {/* Summary row */}
@@ -203,7 +205,7 @@ export default function BudgetContent({
                 key={budget.id}
                 onClick={() => setEditingBudget(budget)}
                 className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 text-left transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 hover:bg-slate-50/70 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-900/80 sm:p-5"
-                aria-label={`${t("openBudgetSettings")} ${cat?.name || t("uncategorized")}`}
+                aria-label={`${t("openBudgetSettings")} ${cat ? categoryName(cat) : t("uncategorized")}`}
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between">
@@ -223,7 +225,7 @@ export default function BudgetContent({
                     />
                     <div>
                       <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                        {cat?.name || t("uncategorized")}
+                        {cat ? categoryName(cat) : t("uncategorized")}
                       </h3>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
                         {budget.rollover_amount && budget.rollover_amount > 0
