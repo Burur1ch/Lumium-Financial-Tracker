@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
+  allocateReceiptCategorySplits,
   inferReceiptCategory,
   parseReceiptText,
+  resolveReceiptCategory,
   receiptRecognitionNeedsRetry,
 } from "@/utils/receipt-scanner";
 
@@ -28,4 +30,85 @@ test("uses product meaning instead of ambiguous utility words", () => {
   expect(inferReceiptCategory("Вода минеральная 1,5 л").key).toBe("groceries");
   expect(inferReceiptCategory("Смартфон Samsung").key).toBe("shopping");
   expect(inferReceiptCategory("Оплата водоканала").key).toBe("utilities");
+});
+
+test("ignores an item discount line even when OCR misses its first letter", () => {
+  const result = parseReceiptText(
+    `Молоко Минская марка
+2,19
+кидка на поз. -0,60
+ИТОГО 1,59 BYN`,
+    90,
+  );
+
+  expect(result.amount).toBe(1.59);
+  expect(result.items).toEqual([
+    expect.objectContaining({ name: "Молоко Минская марка", price: 2.19 }),
+  ]);
+});
+
+test("categorizes Russian supermarket drinks and confectionery into grocery subcategories", () => {
+  const categories = [
+    { id: "groceries", name: "Groceries", system_key: "groceries" },
+    ...["milk", "drinks", "pantry"].map((key) => ({
+      id: `groceries/${key}`,
+      name: key,
+      system_key: `groceries/${key}`,
+      parent_id: "groceries",
+    })),
+    { id: "other-expense", name: "Other expenses", system_key: "other-expense" },
+  ];
+  const items = [
+    { name: 'Молоко "Минская марка" 2,5%', price: 2.19 },
+    { name: 'Напиток "Бонаква" вкус малины', price: 2.49 },
+    { name: 'Пиво "Koronet Unfiltered"', price: 4.99 },
+    { name: 'Пиво "Koronet Lager"', price: 4.99 },
+    { name: 'Вода минеральная "Дарида" газированная', price: 0.99 },
+    { name: 'Напиток пивной безалкогольный "Аливария"', price: 1.99 },
+    { name: 'Напиток "Швеппс" лимон', price: 3.19 },
+    { name: 'Напиток безалкогольный "Фанта" апельсин', price: 4.69 },
+    { name: 'Напиток пивной "Garage Black Cherry"', price: 11.56 },
+    { name: 'Водка "Туманы" 40%', price: 25.22 },
+    { name: 'Напиток "Спрайт"', price: 14.07 },
+    { name: 'Карамель леденцовая "Halls" мёд-лимон', price: 1.55 },
+    { name: 'Вода питьевая "Дарида" негазированная', price: 3.59 },
+  ];
+  const categoryIds = items.map((item) =>
+    resolveReceiptCategory(item, categories),
+  );
+
+  expect(categoryIds).toEqual([
+    "groceries/milk",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/drinks",
+    "groceries/pantry",
+    "groceries/drinks",
+  ]);
+  for (const brand of ["Бонаква", "Коронет", "Швеппс", "Фанта", "Спрайт", "Аливария"]) {
+    expect(resolveReceiptCategory({ name: brand, price: 1 }, categories)).toBe(
+      "groceries/drinks",
+    );
+  }
+  expect(resolveReceiptCategory({ name: "Halls", price: 1 }, categories)).toBe(
+    "groceries/pantry",
+  );
+  const visibleItemsTotal = items.reduce((sum, item) => sum + item.price, 0);
+  expect(
+    allocateReceiptCategorySplits(items, categoryIds, visibleItemsTotal).map((split) => ({
+      categoryId: split.categoryId,
+      amount: split.amount,
+    })),
+  ).toEqual([
+    { categoryId: "groceries/milk", amount: 2.19 },
+    { categoryId: "groceries/drinks", amount: 77.77 },
+    { categoryId: "groceries/pantry", amount: 1.55 },
+  ]);
 });
