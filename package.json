@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/start.mjs",
     "lint": "eslint",
     "test:e2e": "playwright test",
+    "push:keys": "node scripts/push-keys.mjs",
     "icons:generate": "node scripts/generate-icons.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/migrate.mjs",
     "db:seed:railway": "node scripts/seed-railway-demo.cjs",
     "db:studio": "drizzle-kit studio"
   },
@@ -31,6 +32,7 @@
     "resend": "^6.18.1",
     "stripe": "^22.4.0",
     "tesseract.js": "^7.0.0",
+    "web-push": "^4.0.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.14"
   },
@@ -41,6 +43,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "agentation": "^3.1.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",

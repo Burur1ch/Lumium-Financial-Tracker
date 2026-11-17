@@ -5,6 +5,7 @@ import { usePrefs } from "@/store/prefs";
 import type { Currency } from "@/utils/currency";
 
 interface ExchangeRateResponse {
+  base: "BYN";
   rates: Partial<Record<Currency, number>>;
   source: "nbrb" | "fallback";
   rateDate: string | null;
@@ -25,7 +26,7 @@ export function CurrencyRateSync() {
         return (await response.json()) as ExchangeRateResponse;
       })
       .then((snapshot) => {
-        if (snapshot) {
+        if (snapshot?.base === "BYN") {
           setExchangeRates(
             snapshot.rates,
             snapshot.source,

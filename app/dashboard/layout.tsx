@@ -13,6 +13,7 @@ import { CurrencyRateSync } from "@/components/currency-rate-sync";
 import { MobileReceiptScanner } from "@/components/dashboard/mobile-receipt-scanner";
 import { DashboardLaunchLoader } from "@/components/dashboard/dashboard-launch-loader";
 import { FirstRunTour } from "@/components/dashboard/first-run-tour";
+import { ConnectionNotice, PushEntry } from "@/components/dashboard/connection-notice";
 
 export default function DashboardLayout({
   children,
@@ -34,6 +35,7 @@ export default function DashboardLayout({
         <Suspense fallback={null}>
           <MobileAppChrome />
         </Suspense>
+        <ConnectionNotice />
 
         <main className="dashboard-main flex-1 overflow-y-auto overscroll-contain bg-[var(--app-canvas)]">
           <Suspense>
@@ -44,6 +46,7 @@ export default function DashboardLayout({
       </div>
       <MobileReceiptScanner />
       <AddExpenseModal hideTrigger />
+      <PushEntry />
     </div>
   );
 }

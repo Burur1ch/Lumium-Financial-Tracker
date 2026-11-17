@@ -9,7 +9,7 @@ interface MoneyProps {
   className?: string;
 }
 
-/** Inline span that formats and converts a USD amount to the user's selected currency. */
+/** Inline span that formats and converts a BYN amount to the user's selected currency. */
 export function Money({ amount, decimals, noConvert, className }: MoneyProps) {
   const { fmt } = useI18n();
   return (

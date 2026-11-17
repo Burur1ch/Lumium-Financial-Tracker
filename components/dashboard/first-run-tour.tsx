@@ -314,6 +314,9 @@ export function FirstRunTour() {
         frame = requestAnimationFrame(start);
         return;
       }
+      // A notification or a quick user action can open entry before the launch
+      // screen finishes. Automatic onboarding must not close that form.
+      if (!manualStart && document.querySelector('[role="dialog"]')) return;
       previousFocus.current = document.activeElement;
       setStepIndex(0);
       setIsOpen(true);

@@ -13,7 +13,7 @@ import type { CategoryLike } from "@/utils/category-catalog";
 
 export interface BudgetDraft {
   categoryId: string;
-  limitAmountUsd: number;
+  limitAmountBase: number;
   rolloverEnabled: boolean;
   alertThreshold: number;
 }
@@ -101,7 +101,7 @@ function BudgetLimitForm({
   const [categoryId, setCategoryId] = useState(initialBudget?.categoryId ?? "");
   const [limitAmount, setLimitAmount] = useState(
     initialBudget
-      ? String(Number((initialBudget.limitAmountUsd * currencyRate).toFixed(2)))
+      ? String(Number((initialBudget.limitAmountBase * currencyRate).toFixed(2)))
       : "",
   );
   const [rolloverEnabled, setRolloverEnabled] = useState(
@@ -165,7 +165,7 @@ function BudgetLimitForm({
     const saved = existingBudgets.find((budget) => budget.categoryId === value);
     setLimitAmount(
       saved
-        ? String(Number((saved.limitAmountUsd * currencyRate).toFixed(2)))
+        ? String(Number((saved.limitAmountBase * currencyRate).toFixed(2)))
         : "",
     );
     setAlertThreshold(String(saved?.alertThreshold ?? 75));

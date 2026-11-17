@@ -127,7 +127,7 @@ test("category hierarchy preserves history and agrees across budgets, reports, f
       localStorage.setItem(
         "lumium_prefs",
         JSON.stringify({
-          state: { currency: "USD", language: "en" },
+          state: { currency: "BYN", language: "en" },
           version: 0,
         }),
       ),
@@ -182,10 +182,10 @@ test("category hierarchy preserves history and agrees across budgets, reports, f
 
     await page.goto("/dashboard/budget");
     await expect(
-      page.getByText("$150.00", { exact: true }).first(),
+      page.getByText("BYN 150.00", { exact: true }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("$105.00", { exact: true }).first(),
+      page.getByText("BYN 105.00", { exact: true }).first(),
     ).toBeVisible();
     await expect(
       page.getByText("Groceries / Milk", { exact: true }).first(),
@@ -195,7 +195,7 @@ test("category hierarchy preserves history and agrees across budgets, reports, f
       page.getByText("Mixed receipt", { exact: true }).first(),
     ).toBeVisible();
     await expect(
-      page.getByText("Amount in selected category: $70.00").first(),
+      page.getByText("Amount in selected category: BYN 70.00").first(),
     ).toBeVisible();
     await expect(
       page.getByText("Direct groceries", { exact: true }).first(),
@@ -215,18 +215,18 @@ test("category hierarchy preserves history and agrees across budgets, reports, f
     expect(exported.some((row) => row.Subcategory === "Milk")).toBe(true);
     await page.goto("/dashboard/reports?period=30d");
     await expect(
-      page.getByText("$105.00", { exact: true }).first(),
+      page.getByText("BYN 105.00", { exact: true }).first(),
     ).toBeVisible();
     const group = page
       .locator("details")
       .filter({ has: page.locator("summary", { hasText: "Groceries" }) });
     await group.locator("summary").click();
-    await expect(group.getByText("$75.00", { exact: true })).toBeVisible();
+    await expect(group.getByText("BYN 75.00", { exact: true })).toBeVisible();
     await expect(
       group.getByText("Without subcategory", { exact: true }),
     ).toBeVisible();
-    await expect(group.getByText("$65.00", { exact: true })).toBeVisible();
-    await expect(group.getByText("$10.00", { exact: true })).toBeVisible();
+    await expect(group.getByText("BYN 65.00", { exact: true })).toBeVisible();
+    await expect(group.getByText("BYN 10.00", { exact: true })).toBeVisible();
     await page.screenshot({
       path: "test-results/category-report-mobile.png",
       fullPage: true,
@@ -349,7 +349,7 @@ test("category hierarchy preserves history and agrees across budgets, reports, f
       `/dashboard/transactions?categoryId=${id("groceries/milk")}`,
     );
     await expect(
-      page.getByText("Amount in selected category: $20.00").first(),
+      page.getByText("Amount in selected category: BYN 20.00").first(),
     ).toBeVisible();
     expect(
       (

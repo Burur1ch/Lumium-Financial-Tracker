@@ -113,6 +113,7 @@ export default function LoginPage() {
             {loading ? t("signingIn") : t("signIn")}
           </button>
         </form>
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">{t("passwordRecoverySoon")}</p>
 
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
           {t("noAccount")}{" "}

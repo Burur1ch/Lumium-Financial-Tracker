@@ -84,7 +84,17 @@ npm run db:studio    # open Drizzle Studio
 
 ## Recurring transaction behavior
 
-Automatic recurring transactions are processed when an authenticated dashboard layout mounts. Creation is protected by an idempotency key, so refreshing the dashboard does not duplicate the same scheduled occurrence. This is not a background scheduler: deployments that require processing without user visits should call equivalent protected logic from a scheduled worker or cron job.
+`npm run start` starts Next.js and runs recurring processing and Web Push reminders every minute through a protected local endpoint. Set a random `CRON_SECRET` of at least 32 characters. The service must remain awake. Dashboard visits use the same transaction-safe materializer as a catch-up path. Row locks and occurrence keys prevent duplicate or skipped entries during concurrent processing.
+
+## Currency and reminders
+
+BYN is the stored base currency. USD and EUR are converted for input/display using NBRB rates. Back up the database before the first BYN deployment and run `npm run db:migrate`; existing USD amounts are converted once with a verified rate and recorded in `currency_migration_audit`. An old USD-based application must not run against the converted database. Restoring an old release also requires restoring its matching database backup.
+
+The migration runner takes the PostgreSQL advisory lock `hashtextextended('lumium:migrations', 0)` before inspecting or changing data. For the first BYN rollout, hold that lock while building the new deployment, drain/stop the old app, then release the lock so migration and the new app can start without an old app writing USD amounts into BYN storage.
+
+Run `npm run push:keys` once to create stable local VAPID keys and a scheduler secret in the ignored `.env.local`. Configure the same variable names in production and keep the key pair across releases. Reminders are opt-in per device at 14:00 and 21:00 in the user's time zone. iPhone/iPad users must install Lumium on the Home Screen. Test push delivery on a real device after deploying.
+
+Settings offer a full JSON data export on every plan. Billing, email support and password recovery are deliberately unavailable and shown as coming soon.
 
 ## Architecture
 

@@ -47,6 +47,9 @@ import {
 } from "@/components/scheduled-theme";
 import { getPlan, PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import { CURRENCIES, CURRENCY_SYMBOLS } from "@/utils/currency";
+import { PushSettings } from "@/components/dashboard/push-settings";
+import { AccountExport } from "@/components/dashboard/account-export";
+import { stopDeviceReminders } from "@/utils/push-client";
 
 interface Profile {
   id: string;
@@ -222,6 +225,7 @@ export default function SettingsPage() {
 
   const handleSignOut = () => {
     startTransition(async () => {
+      await stopDeviceReminders();
       await signOut();
       router.push("/login");
     });
@@ -312,108 +316,143 @@ export default function SettingsPage() {
               </button>
             </div>
             {avatarPickerOpen && (
-              <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 lg:items-center lg:p-6" role="dialog" aria-modal="true" aria-labelledby="avatar-picker-title">
-                <button type="button" className="absolute inset-0 bg-slate-950/65" onClick={() => setAvatarPickerOpen(false)} aria-label={t("close")} />
+              <div
+                className="fixed inset-0 z-[100] flex items-end justify-center p-0 lg:items-center lg:p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="avatar-picker-title"
+              >
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-slate-950/65"
+                  onClick={() => setAvatarPickerOpen(false)}
+                  aria-label={t("close")}
+                />
                 <div className="mobile-inline-sheet relative z-10 max-h-[88dvh] w-full max-w-xl space-y-5 overflow-y-auto rounded-t-[1.75rem] bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl dark:bg-slate-900 lg:rounded-[1.75rem] lg:p-6">
                   <div className="flex items-center justify-between">
-                    <h3 id="avatar-picker-title" className="text-base font-bold text-slate-900 dark:text-slate-100">{t("chooseAvatar")}</h3>
-                    <button type="button" className="icon-button" onClick={() => setAvatarPickerOpen(false)} aria-label={t("close")}><X className="h-5 w-5" /></button>
+                    <h3
+                      id="avatar-picker-title"
+                      className="text-base font-bold text-slate-900 dark:text-slate-100"
+                    >
+                      {t("chooseAvatar")}
+                    </h3>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => setAvatarPickerOpen(false)}
+                      aria-label={t("close")}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                   </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("generatedAvatars")}
-              </p>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-                {PROFILE_AVATARS.map((avatar) => (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {t("generatedAvatars")}
+                    </p>
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                      {PROFILE_AVATARS.map((avatar) => (
+                        <button
+                          key={avatar.key}
+                          type="button"
+                          onClick={() => setPendingAvatarPreset(avatar.key)}
+                          className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-transform hover:scale-[1.04] ${
+                            pendingAvatarPreset === avatar.key
+                              ? "border-red-500 ring-2 ring-red-500/20"
+                              : "border-transparent"
+                          }`}
+                          aria-label={`${t("selectAvatar")} ${avatar.key.slice(-2)}`}
+                        >
+                          <UserAvatar
+                            color={pendingColor}
+                            iconKey={pendingIcon}
+                            imageKey={avatar.key}
+                            size="lg"
+                            className="h-full w-full"
+                          />
+                          {pendingAvatarPreset === avatar.key && (
+                            <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
+                              <Check className="h-3 w-3" strokeWidth={3} />
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Color swatches */}
+                  <div>
+                    <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {t("avatarColor")}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {AVATAR_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setPendingColor(c);
+                            setPendingAvatarPreset("classic");
+                          }}
+                          className="w-7 h-7 rounded-full transition-transform hover:scale-110"
+                          style={{
+                            backgroundColor: c,
+                            outline:
+                              pendingAvatarPreset === "classic" &&
+                              pendingColor === c
+                                ? `3px solid ${c}`
+                                : "none",
+                            outlineOffset: "2px",
+                          }}
+                          aria-label={`${t("avatarColor")} ${c}`}
+                          aria-pressed={
+                            pendingAvatarPreset === "classic" &&
+                            pendingColor === c
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {/* Icon grid */}
+                  <div>
+                    <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      {t("classicIcons")}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {AVATAR_ICONS.map(({ key, icon: Icon }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setPendingIcon(key);
+                            setPendingAvatarPreset("classic");
+                          }}
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                            pendingAvatarPreset === "classic" &&
+                            pendingIcon === key
+                              ? "text-white"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          }`}
+                          style={
+                            pendingAvatarPreset === "classic" &&
+                            pendingIcon === key
+                              ? { backgroundColor: pendingColor }
+                              : {}
+                          }
+                          aria-label={`${t("classicIcons")} ${key}`}
+                          aria-pressed={
+                            pendingAvatarPreset === "classic" &&
+                            pendingIcon === key
+                          }
+                        >
+                          <Icon className="w-4 h-4" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <button
-                    key={avatar.key}
                     type="button"
-                    onClick={() => setPendingAvatarPreset(avatar.key)}
-                    className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-transform hover:scale-[1.04] ${
-                      pendingAvatarPreset === avatar.key
-                        ? "border-red-500 ring-2 ring-red-500/20"
-                        : "border-transparent"
-                    }`}
-                    aria-label={`${t("selectAvatar")} ${avatar.key.slice(-2)}`}
+                    onClick={() => setAvatarPickerOpen(false)}
+                    className="min-h-11 w-full rounded-xl bg-red-500 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98]"
                   >
-                    <UserAvatar
-                      color={pendingColor}
-                      iconKey={pendingIcon}
-                      imageKey={avatar.key}
-                      size="lg"
-                      className="h-full w-full"
-                    />
-                    {pendingAvatarPreset === avatar.key && (
-                      <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
-                        <Check className="h-3 w-3" strokeWidth={3} />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {/* Color swatches */}
-            <div>
-              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("avatarColor")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {AVATAR_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => {
-                      setPendingColor(c);
-                      setPendingAvatarPreset("classic");
-                    }}
-                    className="w-7 h-7 rounded-full transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor: c,
-                      outline:
-                        pendingAvatarPreset === "classic" && pendingColor === c
-                          ? `3px solid ${c}`
-                          : "none",
-                      outlineOffset: "2px",
-                    }}
-                    aria-label={`${t("avatarColor")} ${c}`}
-                    aria-pressed={pendingAvatarPreset === "classic" && pendingColor === c}
-                  />
-                ))}
-              </div>
-            </div>
-            {/* Icon grid */}
-            <div>
-              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("classicIcons")}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {AVATAR_ICONS.map(({ key, icon: Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      setPendingIcon(key);
-                      setPendingAvatarPreset("classic");
-                    }}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                      pendingAvatarPreset === "classic" && pendingIcon === key
-                        ? "text-white"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                    style={
-                      pendingAvatarPreset === "classic" && pendingIcon === key
-                        ? { backgroundColor: pendingColor }
-                        : {}
-                    }
-                    aria-label={`${t("classicIcons")} ${key}`}
-                    aria-pressed={pendingAvatarPreset === "classic" && pendingIcon === key}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </button>
-                ))}
-              </div>
-            </div>
-                  <button type="button" onClick={() => setAvatarPickerOpen(false)} className="min-h-11 w-full rounded-xl bg-red-500 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-[0.98]">
                     {t("done")}
                   </button>
                 </div>
@@ -637,6 +676,8 @@ export default function SettingsPage() {
         </Section>
       )}
 
+      <PushSettings />
+      <AccountExport />
       {/* ── Danger zone ── */}
       <Section
         icon={ShieldAlert}

@@ -17,6 +17,83 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+export const currencyMigrationAudit = pgTable("currency_migration_audit", {
+  id: text("id").primaryKey(),
+  from_currency: text("from_currency").notNull(),
+  to_currency: text("to_currency").notNull(),
+  rate: numeric("rate", { precision: 20, scale: 10 }),
+  converted_at: timestamp("converted_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const requestLimits = pgTable(
+  "request_limits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: varchar("kind", { length: 48 }).notNull(),
+    window_start: timestamp("window_start", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull().default(1),
+  },
+  (table) => [
+    unique("request_limits_window_unique").on(
+      table.user_id,
+      table.kind,
+      table.window_start,
+    ),
+    index("request_limits_window_idx").on(table.window_start),
+  ],
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    timezone: varchar("timezone", { length: 80 })
+      .notNull()
+      .default("Europe/Minsk"),
+    language: varchar("language", { length: 2 }).notNull().default("ru"),
+    last_test_at: timestamp("last_test_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("push_subscriptions_user_idx").on(table.user_id)],
+);
+
+export const pushDeliveries = pgTable(
+  "push_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subscription_id: uuid("subscription_id")
+      .notNull()
+      .references(() => pushSubscriptions.id, { onDelete: "cascade" }),
+    local_date: date("local_date", { mode: "string" }).notNull(),
+    slot: integer("slot").notNull(),
+    sent_at: timestamp("sent_at", { withTimezone: true }),
+    retry_at: timestamp("retry_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    attempts: integer("attempts").notNull().default(0),
+  },
+  (table) => [
+    unique("push_deliveries_slot_unique").on(
+      table.subscription_id,
+      table.local_date,
+      table.slot,
+    ),
+  ],
+);
+
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
@@ -127,7 +204,9 @@ export const categories = pgTable(
     color: varchar("color", { length: 32 }).notNull(),
     icon: varchar("icon", { length: 64 }).notNull().default("tag"),
     system_key: varchar("system_key", { length: 64 }),
-    parent_id: uuid("parent_id").references((): AnyPgColumn => categories.id, { onDelete: "restrict" }),
+    parent_id: uuid("parent_id").references((): AnyPgColumn => categories.id, {
+      onDelete: "restrict",
+    }),
     is_archived: boolean("is_archived").notNull().default(false),
     sort_order: integer("sort_order").notNull().default(0),
     created_at: createdAt(),
@@ -135,10 +214,26 @@ export const categories = pgTable(
   (table) => [
     index("categories_user_id_idx").on(table.user_id),
     index("categories_parent_idx").on(table.user_id, table.parent_id),
-    unique("categories_id_owner_type_unique").on(table.id, table.user_id, table.type),
-    foreignKey({ name: "categories_parent_owner_type_fk", columns: [table.parent_id, table.user_id, table.type], foreignColumns: [table.id, table.user_id, table.type] }),
-    uniqueIndex("categories_sibling_name_unique").on(table.user_id, table.type, sql`coalesce(${table.parent_id}::text, '')`, sql`lower(btrim(${table.name}))`),
-    check("categories_not_own_parent", sql`${table.parent_id} is null or ${table.parent_id} <> ${table.id}`),
+    unique("categories_id_owner_type_unique").on(
+      table.id,
+      table.user_id,
+      table.type,
+    ),
+    foreignKey({
+      name: "categories_parent_owner_type_fk",
+      columns: [table.parent_id, table.user_id, table.type],
+      foreignColumns: [table.id, table.user_id, table.type],
+    }),
+    uniqueIndex("categories_sibling_name_unique").on(
+      table.user_id,
+      table.type,
+      sql`coalesce(${table.parent_id}::text, '')`,
+      sql`lower(btrim(${table.name}))`,
+    ),
+    check(
+      "categories_not_own_parent",
+      sql`${table.parent_id} is null or ${table.parent_id} <> ${table.id}`,
+    ),
     uniqueIndex("categories_user_system_key_unique").on(
       table.user_id,
       table.system_key,
@@ -171,12 +266,18 @@ export const transactions = pgTable(
   },
   (table) => [
     index("transactions_user_date_idx").on(table.user_id, table.date),
-    index("transactions_user_category_idx").on(table.user_id, table.category_id),
+    index("transactions_user_category_idx").on(
+      table.user_id,
+      table.category_id,
+    ),
     unique("transactions_user_idempotency_unique").on(
       table.user_id,
       table.idempotency_key,
     ),
-    check("transactions_type_check", sql`${table.type} in ('expense', 'income')`),
+    check(
+      "transactions_type_check",
+      sql`${table.type} in ('expense', 'income')`,
+    ),
     check(
       "transactions_status_check",
       sql`${table.status} in ('completed', 'pending')`,
@@ -250,10 +351,7 @@ export const recurringTransactions = pgTable(
       "recurring_transactions_frequency_check",
       sql`${table.frequency} in ('weekly', 'monthly', 'yearly')`,
     ),
-    check(
-      "recurring_transactions_amount_check",
-      sql`${table.amount} > 0`,
-    ),
+    check("recurring_transactions_amount_check", sql`${table.amount} > 0`),
   ],
 );
 
@@ -349,7 +447,10 @@ export const budgets = pgTable(
     category_id: uuid("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
-    monthly_limit: numeric("monthly_limit", { precision: 20, scale: 8 }).notNull(),
+    monthly_limit: numeric("monthly_limit", {
+      precision: 20,
+      scale: 8,
+    }).notNull(),
     rollover_enabled: boolean("rollover_enabled").notNull().default(false),
     alert_threshold: integer("alert_threshold").notNull().default(75),
     month_year: date("month_year", { mode: "string" }).notNull(),

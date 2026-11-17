@@ -158,7 +158,10 @@ export const usePrefs = create<PrefsState>()(
           currency: isCurrency(stored?.currency)
             ? stored.currency
             : currentState.currency,
-          exchangeRates: normalizeExchangeRates(stored?.exchangeRates),
+          // Old persisted rates used a USD base. Fetch a fresh BYN snapshot.
+          exchangeRates: { ...RATES },
+          exchangeRateSource: "fallback",
+          exchangeRateDate: null,
         };
       },
       // Reading localStorage while the client store is being created makes its

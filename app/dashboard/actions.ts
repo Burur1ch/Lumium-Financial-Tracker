@@ -9,7 +9,6 @@ import {
   gte,
   ilike,
   lt,
-  lte,
   sql,
 } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -18,6 +17,7 @@ import {
   budgets,
   categories,
   profiles,
+  pushSubscriptions,
   quickTransactionPresets,
   recurringTransactions,
   savingsGoals,
@@ -37,7 +37,7 @@ import {
   isLimitReached,
 } from "@/utils/monetization/limits";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
-import { formatUsdStorageAmount, isCurrency } from "@/utils/currency";
+import { formatBaseStorageAmount, isCurrency } from "@/utils/currency";
 import { getCurrencyRate } from "@/utils/currency-server";
 import { extractReceiptWithGemini } from "@/utils/gemini-receipt";
 import { revalidatePath } from "next/cache";
@@ -63,6 +63,11 @@ import {
   getStripeClient,
 } from "@/utils/stripe/server";
 import type Stripe from "stripe";
+import { BILLING_ENABLED } from "@/utils/features";
+import { materializeRecurring, processRecurring } from "@/utils/recurring";
+import { pushConfiguration, sendDevicePush, validPushSubscription, type DevicePush } from "@/utils/push";
+import { validTimezone } from "@/utils/reminders";
+import { takeRequestLimit } from "@/utils/request-limits";
 
 type StripeSubscriptionStatus =
   | "incomplete"
@@ -289,40 +294,6 @@ function parseDateOnly(value: FormDataEntryValue | null) {
   return parsed ? value : null;
 }
 
-function addRecurringPeriod(
-  dateValue: string,
-  frequency: "weekly" | "monthly" | "yearly",
-) {
-  const [year, month, day] = dateValue.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-
-  if (frequency === "weekly") {
-    date.setUTCDate(date.getUTCDate() + 7);
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (frequency === "monthly") {
-    const monthIndex = date.getUTCMonth();
-    const nextMonthIndex = monthIndex + 1;
-    const targetYear = year + Math.floor(nextMonthIndex / 12);
-    const normalizedMonth = nextMonthIndex % 12;
-    const lastDay = new Date(
-      Date.UTC(targetYear, normalizedMonth + 1, 0, 12),
-    ).getUTCDate();
-
-    date.setUTCFullYear(targetYear, normalizedMonth, Math.min(day, lastDay));
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (frequency === "yearly") {
-    const lastDay = new Date(Date.UTC(year + 1, month, 0, 12)).getUTCDate();
-    date.setUTCFullYear(year + 1, month - 1, Math.min(day, lastDay));
-    return date.toISOString().slice(0, 10);
-  }
-
-  return date.toISOString().slice(0, 10);
-}
-
 async function findMatchingRule(
   userId: string,
   description: string,
@@ -400,7 +371,7 @@ async function parseQuickPresetForm(formData: FormData) {
 
   return {
     name,
-    amountInUsd: amount / (await getCurrencyRate(currencyInput)),
+    amountInBase: amount / (await getCurrencyRate(currencyInput)),
     type,
     categoryId,
     icon,
@@ -520,6 +491,7 @@ export async function createCheckoutSession(input: {
   plan: Exclude<PlanKey, "free">;
   interval: BillingInterval;
 }) {
+  if (!BILLING_ENABLED) return { success: false, error: "billingComingSoonTitle" };
   const user = await getCurrentUser();
 
   if (!user) {
@@ -621,6 +593,7 @@ export async function createCheckoutSession(input: {
 }
 
 export async function createBillingPortalSession() {
+  if (!BILLING_ENABLED) return { success: false, error: "billingComingSoonTitle" };
   const user = await getCurrentUser();
 
   if (!user) {
@@ -663,6 +636,7 @@ export async function createPaymentElementSession(input: {
   plan: Exclude<PlanKey, "free">;
   interval: BillingInterval;
 }) {
+  if (!BILLING_ENABLED) return { success: false, error: "billingComingSoonTitle" };
   const user = await getCurrentUser();
 
   if (!user) {
@@ -808,7 +782,7 @@ export async function createTransaction(formData: FormData) {
     return { success: false, error: "Заполните все обязательные поля" };
   }
 
-  const amountInUsd = amount / (await getCurrencyRate(currencyInput));
+  const amountInBase = amount / (await getCurrencyRate(currencyInput));
 
   const typedType = type as "expense" | "income";
   const matchingRule = await findMatchingRule(
@@ -836,7 +810,7 @@ export async function createTransaction(formData: FormData) {
       user_id: user.id,
       category_id,
       description: description.trim(),
-      amount: formatUsdStorageAmount(amountInUsd),
+      amount: formatBaseStorageAmount(amountInBase),
       type,
       status,
       note: note || null,
@@ -872,6 +846,10 @@ export async function scanReceiptWithGemini(formData: FormData) {
   }
 
   try {
+    if (!(await takeRequestLimit(db, user.id, "receipt-minute", 5, 60)) ||
+      !(await takeRequestLimit(db, user.id, "receipt-day", 100, 86400))) {
+      return { success: false as const, error: "RECEIPT_RATE_LIMITED" };
+    }
     const result = await extractReceiptWithGemini({
       base64: Buffer.from(await image.arrayBuffer()).toString("base64"),
       mimeType: image.type,
@@ -941,15 +919,15 @@ export async function createScannedTransaction(input: {
   }
 
   const currencyRate = await getCurrencyRate(input.currency);
-  const amountInUsd = input.amount / currencyRate;
+  const amountInBase = input.amount / currencyRate;
   const normalizedSplits = input.splits.map((split) => ({
     ...split,
-    amountInUsd: split.amount / currencyRate,
+    amountInBase: split.amount / currencyRate,
   }));
   const primaryCategoryId =
     input.categoryId ??
     [...normalizedSplits].sort(
-      (left, right) => right.amountInUsd - left.amountInUsd,
+      (left, right) => right.amountInBase - left.amountInBase,
     )[0]?.categoryId ??
     null;
 
@@ -957,9 +935,9 @@ export async function createScannedTransaction(input: {
   try {
     if (normalizedSplits.length >= 2)
       storedSplitAmounts = rebalanceAllocationAmounts(
-        formatUsdStorageAmount(amountInUsd),
+        formatBaseStorageAmount(amountInBase),
         normalizedSplits.map((split) =>
-          formatUsdStorageAmount(split.amountInUsd),
+          formatBaseStorageAmount(split.amountInBase),
         ),
       );
   } catch {
@@ -973,7 +951,7 @@ export async function createScannedTransaction(input: {
         user_id: user.id,
         category_id: primaryCategoryId,
         description,
-        amount: formatUsdStorageAmount(amountInUsd),
+        amount: formatBaseStorageAmount(amountInBase),
         type: "expense",
         status: "completed",
         note: input.note?.trim().slice(0, 1000) || null,
@@ -1029,7 +1007,7 @@ export async function createQuickPreset(formData: FormData) {
       user_id: user.id,
       category_id: input.categoryId,
       name: input.name,
-      amount: formatUsdStorageAmount(input.amountInUsd),
+      amount: formatBaseStorageAmount(input.amountInBase),
       type: input.type,
       icon: input.icon,
       sort_order: presetCount.count,
@@ -1062,7 +1040,7 @@ export async function updateQuickPreset(id: string, formData: FormData) {
     .set({
       category_id: input.categoryId,
       name: input.name,
-      amount: formatUsdStorageAmount(input.amountInUsd),
+      amount: formatBaseStorageAmount(input.amountInBase),
       type: input.type,
       icon: input.icon,
       updated_at: new Date(),
@@ -1268,7 +1246,7 @@ export async function updateTransaction(id: string, formData: FormData) {
       .set({
         category_id: categoryId,
         description,
-        amount: formatUsdStorageAmount(amount / currencyRate),
+        amount: formatBaseStorageAmount(amount / currencyRate),
         type,
         note: note || null,
         review_status: "reviewed",
@@ -1466,9 +1444,9 @@ export async function saveTransactionSplits(input: {
   const currencyRate = await getCurrencyRate(currency);
   const normalized = input.splits.map((split) => ({
     ...split,
-    amountInUsd: split.amount / currencyRate,
+    amountInBase: split.amount / currencyRate,
   }));
-  const total = normalized.reduce((sum, split) => sum + split.amountInUsd, 0);
+  const total = normalized.reduce((sum, split) => sum + split.amountInBase, 0);
   if (Math.abs(total - Number(transaction.amount)) > 0.011) {
     return { success: false, error: "SPLIT_TOTAL_MISMATCH" };
   }
@@ -1477,7 +1455,7 @@ export async function saveTransactionSplits(input: {
   try {
     storedAmounts = rebalanceAllocationAmounts(
       transaction.amount,
-      normalized.map((split) => formatUsdStorageAmount(split.amountInUsd)),
+      normalized.map((split) => formatBaseStorageAmount(split.amountInBase)),
     );
   } catch {
     return { success: false, error: "INVALID_SPLITS" };
@@ -1642,7 +1620,7 @@ export async function createRecurringTransaction(formData: FormData) {
     user_id: user.id,
     category_id: categoryId,
     name,
-    amount: formatUsdStorageAmount(amount / currencyRate),
+    amount: formatBaseStorageAmount(amount / currencyRate),
     type,
     frequency,
     next_date: nextDate,
@@ -1655,124 +1633,19 @@ export async function createRecurringTransaction(formData: FormData) {
 export async function materializeRecurringTransaction(id: string) {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "UNAUTHORIZED" };
-  if (!UUID_PATTERN.test(id)) {
+  if (!UUID_PATTERN.test(id))
     return { success: false, error: "INVALID_RECURRING" };
-  }
-  const [item] = await db
-    .select()
-    .from(recurringTransactions)
-    .where(
-      and(
-        eq(recurringTransactions.id, id),
-        eq(recurringTransactions.user_id, user.id),
-      ),
-    )
-    .limit(1);
-  if (!item) return { success: false, error: "RECURRING_NOT_FOUND" };
-
-  const idempotencyKey = `recurring-${item.id}-${item.next_date}`;
-  const [created] = await db
-    .insert(transactions)
-    .values({
-      user_id: user.id,
-      category_id: item.category_id,
-      description: item.name,
-      amount: item.amount,
-      type: item.type,
-      status: "completed",
-      review_status: "reviewed",
-      recurring_transaction_id: item.id,
-      idempotency_key: idempotencyKey,
-      date: parseTransactionDate(item.next_date) ?? new Date(),
-    })
-    .onConflictDoNothing({
-      target: [transactions.user_id, transactions.idempotency_key],
-    })
-    .returning({ id: transactions.id });
-
-  await db
-    .update(recurringTransactions)
-    .set({
-      next_date: addRecurringPeriod(
-        item.next_date,
-        item.frequency as "weekly" | "monthly" | "yearly",
-      ),
-      last_created_at: new Date(),
-      updated_at: new Date(),
-    })
-    .where(
-      and(
-        eq(recurringTransactions.id, id),
-        eq(recurringTransactions.user_id, user.id),
-      ),
-    );
-
+  const result = await materializeRecurring(id, user.id);
+  if (!result.found) return { success: false, error: "RECURRING_NOT_FOUND" };
   revalidateFinancialViews();
-  return { success: true, transactionId: created?.id ?? null };
+  return { success: true, transactionId: result.transactionId };
 }
 
 export async function processDueRecurringTransactions() {
   const user = await getCurrentUser();
   if (!user) return { success: false, createdCount: 0 };
-  const today = new Date().toISOString().slice(0, 10);
-  const due = await db
-    .select()
-    .from(recurringTransactions)
-    .where(
-      and(
-        eq(recurringTransactions.user_id, user.id),
-        eq(recurringTransactions.active, true),
-        eq(recurringTransactions.auto_create, true),
-        lte(recurringTransactions.next_date, today),
-      ),
-    );
-
-  let createdCount = 0;
-  for (const item of due) {
-    let nextDate = item.next_date;
-    let iterations = 0;
-    while (nextDate <= today && iterations < 24) {
-      const [created] = await db
-        .insert(transactions)
-        .values({
-          user_id: user.id,
-          category_id: item.category_id,
-          description: item.name,
-          amount: item.amount,
-          type: item.type,
-          status: "completed",
-          review_status: "reviewed",
-          recurring_transaction_id: item.id,
-          idempotency_key: `recurring-${item.id}-${nextDate}`,
-          date: parseTransactionDate(nextDate) ?? new Date(),
-        })
-        .onConflictDoNothing({
-          target: [transactions.user_id, transactions.idempotency_key],
-        })
-        .returning({ id: transactions.id });
-      if (created) createdCount += 1;
-      nextDate = addRecurringPeriod(
-        nextDate,
-        item.frequency as "weekly" | "monthly" | "yearly",
-      );
-      iterations += 1;
-    }
-    await db
-      .update(recurringTransactions)
-      .set({
-        next_date: nextDate,
-        last_created_at: new Date(),
-        updated_at: new Date(),
-      })
-      .where(
-        and(
-          eq(recurringTransactions.id, item.id),
-          eq(recurringTransactions.user_id, user.id),
-        ),
-      );
-  }
-
-  if (createdCount > 0) revalidateFinancialViews();
+  const createdCount = await processRecurring(user.id);
+  if (createdCount) revalidateFinancialViews();
   return { success: true, createdCount };
 }
 
@@ -1897,16 +1770,16 @@ export async function createSavingsGoal(formData: FormData) {
     return { success: false, error: "INVALID_GOAL" };
   }
   const currencyRate = await getCurrencyRate(currencyInput);
-  const targetUsd = target / currencyRate;
-  const currentUsd = current / currencyRate;
+  const targetBase = target / currencyRate;
+  const currentBase = current / currencyRate;
   await db.insert(savingsGoals).values({
     user_id: user.id,
     name,
-    target_amount: formatUsdStorageAmount(targetUsd),
-    current_amount: formatUsdStorageAmount(currentUsd),
+    target_amount: formatBaseStorageAmount(targetBase),
+    current_amount: formatBaseStorageAmount(currentBase),
     target_date: targetDate,
     color,
-    status: currentUsd >= targetUsd ? "completed" : "active",
+    status: currentBase >= targetBase ? "completed" : "active",
   });
   revalidateFinancialViews();
   return { success: true };
@@ -1935,12 +1808,12 @@ export async function setSavingsGoalProgress(input: {
     )
     .limit(1);
   if (!goal) return { success: false, error: "GOAL_NOT_FOUND" };
-  const amountUsd = input.amount / (await getCurrencyRate(input.currency));
+  const amountBase = input.amount / (await getCurrencyRate(input.currency));
   await db
     .update(savingsGoals)
     .set({
-      current_amount: formatUsdStorageAmount(amountUsd),
-      status: amountUsd >= Number(goal.target) ? "completed" : "active",
+      current_amount: formatBaseStorageAmount(amountBase),
+      status: amountBase >= Number(goal.target) ? "completed" : "active",
       updated_at: new Date(),
     })
     .where(
@@ -2329,7 +2202,7 @@ export async function exportReportWorkbook(
     translations.en[key];
   const rows = allocations.map((tx) => ({
     ...exportAllocation(tx, all, language),
-    [t("currency")]: "USD",
+    [t("currency")]: "BYN",
   }));
   const label = (category: CategoryLike) =>
     category.system_key &&
@@ -2341,17 +2214,17 @@ export async function exportReportWorkbook(
     {
       [t("reports")]: t("totalIncome"),
       [t("amount")]: report.totalIncome,
-      [t("currency")]: "USD",
+      [t("currency")]: "BYN",
     },
     {
       [t("reports")]: t("totalExpenses"),
       [t("amount")]: report.totalExpense,
-      [t("currency")]: "USD",
+      [t("currency")]: "BYN",
     },
     {
       [t("reports")]: t("netBalance"),
       [t("amount")]: report.net,
-      [t("currency")]: "USD",
+      [t("currency")]: "BYN",
     },
     {
       [t("reports")]: t("savingsRate"),
@@ -2365,7 +2238,7 @@ export async function exportReportWorkbook(
       [t("subcategory")]: child.isDirect ? t("noSubcategory") : label(child),
       [t("income")]: child.income,
       [t("expenses")]: child.expense,
-      [t("currency")]: "USD",
+      [t("currency")]: "BYN",
     })),
   );
   const workbook = buildWorkbookBase64([
@@ -2376,7 +2249,7 @@ export async function exportReportWorkbook(
   return {
     success: true,
     workbook,
-    filename: `${slugifyFilePart(profileName)}-${report.period}-usd-report.xlsx`,
+    filename: `${slugifyFilePart(profileName)}-${report.period}-byn-report.xlsx`,
   };
 }
 
@@ -2497,12 +2370,12 @@ export async function upsertBudget(formData: {
     alertThreshold > 100
   )
     return { success: false as const, error: "INVALID_BUDGET" };
-  const limitInUsd =
+  const limitInBase =
     formData.limitAmount / (await getCurrencyRate(formData.currency));
   if (
-    !Number.isFinite(limitInUsd) ||
-    limitInUsd < 0.00000001 ||
-    limitInUsd >= 1e12
+    !Number.isFinite(limitInBase) ||
+    limitInBase < 0.00000001 ||
+    limitInBase >= 1e12
   )
     return { success: false as const, error: "INVALID_BUDGET" };
   const plan = await getCurrentPlanForUser(user);
@@ -2536,7 +2409,7 @@ export async function upsertBudget(formData: {
       .values({
         user_id: user.id,
         category_id: category.id,
-        monthly_limit: formatUsdStorageAmount(limitInUsd),
+        monthly_limit: formatBaseStorageAmount(limitInBase),
         rollover_enabled: Boolean(formData.rolloverEnabled),
         alert_threshold: alertThreshold,
         month_year: monthYear,
@@ -2544,7 +2417,7 @@ export async function upsertBudget(formData: {
       .onConflictDoUpdate({
         target: [budgets.user_id, budgets.category_id, budgets.month_year],
         set: {
-          monthly_limit: formatUsdStorageAmount(limitInUsd),
+          monthly_limit: formatBaseStorageAmount(limitInBase),
           rollover_enabled: Boolean(formData.rolloverEnabled),
           alert_threshold: alertThreshold,
         },
@@ -2599,6 +2472,181 @@ export async function updateProfile(formData: FormData) {
 }
 
 // Удалить аккаунт
+export async function exportAccountData() {
+  const user = await getCurrentUser();
+  if (!user) return { success: false as const };
+  const data = await db.transaction(
+    async (tx) => ({
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      baseCurrency: "BYN",
+      account: { id: user.id, email: user.email, name: user.name },
+      profiles: await tx
+        .select()
+        .from(profiles)
+        .where(eq(profiles.id, user.id)),
+      transactions: await tx
+        .select()
+        .from(transactions)
+        .where(eq(transactions.user_id, user.id)),
+      transactionSplits: await tx
+        .select()
+        .from(transactionSplits)
+        .where(eq(transactionSplits.user_id, user.id)),
+      categories: await tx
+        .select()
+        .from(categories)
+        .where(eq(categories.user_id, user.id)),
+      budgets: await tx
+        .select()
+        .from(budgets)
+        .where(eq(budgets.user_id, user.id)),
+      quickPresets: await tx
+        .select()
+        .from(quickTransactionPresets)
+        .where(eq(quickTransactionPresets.user_id, user.id)),
+      recurringTransactions: await tx
+        .select()
+        .from(recurringTransactions)
+        .where(eq(recurringTransactions.user_id, user.id)),
+      rules: await tx
+        .select()
+        .from(transactionRules)
+        .where(eq(transactionRules.user_id, user.id)),
+      savingsGoals: await tx
+        .select()
+        .from(savingsGoals)
+        .where(eq(savingsGoals.user_id, user.id)),
+    }),
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
+  return { success: true as const, data };
+}
+
+export async function getPushSettings(endpoint?: string) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const [device] = endpoint
+    ? await db
+        .select({
+          id: pushSubscriptions.id,
+          timezone: pushSubscriptions.timezone,
+        })
+        .from(pushSubscriptions)
+        .where(
+          and(
+            eq(pushSubscriptions.user_id, user.id),
+            eq(pushSubscriptions.endpoint, endpoint),
+          ),
+        )
+        .limit(1)
+    : [];
+  return {
+    publicKey: pushConfiguration()?.publicKey ?? null,
+    enabled: Boolean(device),
+    timezone: device?.timezone ?? null,
+  };
+}
+
+export async function subscribePush(
+  input: DevicePush,
+  timezone: string,
+  language: string,
+) {
+  const user = await getCurrentUser();
+  if (
+    !user ||
+    !pushConfiguration() ||
+    !validPushSubscription(input) ||
+    !validTimezone(timezone) ||
+    !["en", "ru", "de", "fr"].includes(language)
+  )
+    return { success: false };
+  const devices = await db
+    .select({ id: pushSubscriptions.id })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.user_id, user.id));
+  if (devices.length >= 10 && !(await getPushSettings(input.endpoint))?.enabled)
+    return { success: false };
+  const [saved] = await db
+    .insert(pushSubscriptions)
+    .values({
+      user_id: user.id,
+      endpoint: input.endpoint,
+      auth: input.keys.auth,
+      p256dh: input.keys.p256dh,
+      timezone,
+      language,
+    })
+    .onConflictDoUpdate({
+      target: pushSubscriptions.endpoint,
+      set: {
+        auth: input.keys.auth,
+        p256dh: input.keys.p256dh,
+        timezone,
+        language,
+      },
+      setWhere: eq(pushSubscriptions.user_id, user.id),
+    })
+    .returning({ id: pushSubscriptions.id });
+  return { success: Boolean(saved) };
+}
+
+export async function unsubscribePush(endpoint: string) {
+  const user = await getCurrentUser();
+  if (!user || typeof endpoint !== "string") return { success: false };
+  await db
+    .delete(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.user_id, user.id),
+        eq(pushSubscriptions.endpoint, endpoint),
+      ),
+    );
+  return { success: true };
+}
+
+export async function testPush(endpoint: string) {
+  const user = await getCurrentUser();
+  if (!user || typeof endpoint !== "string") return { success: false };
+  const [device] = await db
+    .select()
+    .from(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.user_id, user.id),
+        eq(pushSubscriptions.endpoint, endpoint),
+      ),
+    )
+    .limit(1);
+  if (!device) return { success: false };
+  try {
+    // Limit test notifications independently of the scheduled reminder slots.
+    const [allowed] = await db
+      .update(pushSubscriptions)
+      .set({ last_test_at: new Date() })
+      .where(
+        and(
+          eq(pushSubscriptions.id, device.id),
+          sql`(${pushSubscriptions.last_test_at} is null or ${pushSubscriptions.last_test_at} < ${new Date(Date.now() - 60000)})`,
+        ),
+      )
+      .returning({ id: pushSubscriptions.id });
+    if (!allowed) return { success: false };
+    await sendDevicePush(
+      {
+        endpoint: device.endpoint,
+        keys: { auth: device.auth, p256dh: device.p256dh },
+      },
+      device.language,
+      "lumium-test",
+    );
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
 export async function deleteAccount() {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Unauthorized" };
@@ -2719,7 +2767,7 @@ export async function getReportData(requestedPeriod: string = "30d") {
     }
   });
 
-  const roundAmount = (value: number) => Number(formatUsdStorageAmount(value));
+  const roundAmount = (value: number) => Number(formatBaseStorageAmount(value));
   for (const group of breakdown.values()) {
     group.income = roundAmount(group.income);
     group.expense = roundAmount(group.expense);

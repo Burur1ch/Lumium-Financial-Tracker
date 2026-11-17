@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BILLING_ENABLED } from "@/utils/features";
 import type Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -118,6 +119,7 @@ async function syncSubscription(subscription: Stripe.Subscription) {
 }
 
 export async function POST(request: Request) {
+  if (!BILLING_ENABLED) return NextResponse.json({ error: "BILLING_DISABLED" }, { status: 503 });
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {

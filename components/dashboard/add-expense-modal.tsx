@@ -223,13 +223,18 @@ export default function AddExpenseModal({
     setLoading(true);
     setError(null);
     const formData = new FormData(e.currentTarget);
-    const result = await createTransaction(formData);
-    setLoading(false);
-    if (result.success) {
-      setSuccess(true);
-      setTimeout(() => closeModal(), 900);
-    } else {
-      setError(result.error || t("genericError"));
+    try {
+      const result = await createTransaction(formData);
+      if (result.success) {
+        setSuccess(true);
+        setTimeout(() => closeModal(), 900);
+      } else {
+        setError(result.error || t("genericError"));
+      }
+    } catch {
+      setError(navigator.onLine ? t("genericError") : t("offlineHint"));
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -65,7 +65,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 5. Planning and automation
 
 - Define weekly, monthly, or yearly recurring income/expense templates.
-- Materialize recurring entries manually or automatically when the dashboard opens.
+- Materialize recurring entries manually or automatically through a minute-based production scheduler. Dashboard visits also catch up due entries. Both paths share row locks, atomic date advancement and occurrence idempotency keys.
 - Apply description-matching rules to assign categories and review status to new or existing transactions.
 - Track savings goals with targets, progress, optional deadlines, color, and completion state.
 
@@ -74,7 +74,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Basic reports are available on Free for 7d and 30d. Pro/Family also allow 3m, 1y, all and XLSX export. The server resolves allowed periods and passes the authoritative plan to report controls.
 - Aggregate completed transactions through the current UTC calendar day; exclude future and pending entries. Short periods contain 7/30 full calendar days, including days without transactions. Net balance charts accumulate income minus expenses within the selected period.
 - Category breakdowns expand into subcategories and direct main-category spending, including archived categories with history. Largest transactions show actual descriptions and localized category paths.
-- XLSX exports share report date boundaries and contain separate main/subcategory columns, allocation amounts and explicit USD currency columns, avoiding duplicate transaction totals. On-screen values use the selected display currency.
+- XLSX exports share report date boundaries and contain separate main/subcategory columns, allocation amounts and explicit BYN currency columns, avoiding duplicate transaction totals. On-screen values use the selected display currency.
 
 7. Settings and profile
 
@@ -82,11 +82,14 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Theme control (light/dark/auto schedule).
 - Local preferences: currency, language, date format, avatar style.
 - Sign out and delete account flows.
+- Free full-account JSON export includes all financial history and local display preferences, excluding password hashes, sessions and push secrets.
+- Device-specific Web Push reminders are opt-in, at 14:00 and 21:00 in the detected IANA time zone. Subscriptions, delivery leases/retries and per-slot deduplication are stored in PostgreSQL; expired endpoints are removed. iOS requires a Home Screen installation.
+- Gemini recognition is limited per authenticated user to 5 requests/minute and 100/day by atomic PostgreSQL counters. Local OCR remains available when a quota is reached. The scheduled job cleans expired counters.
 
 8. Help and support
 
-- FAQ, quick docs links, and support form.
-- Server action sends support messages through Resend.
+- FAQ and quick docs links. Email support and password recovery are marked as coming soon. Email actions are disabled server-side.
+- Billing is temporarily disabled at the interface, server actions, Stripe client and webhook. No payment form is shown or payment API called, including when Stripe keys are configured.
 
 9. Shared finances placeholder
 
@@ -101,12 +104,19 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Some UI preferences persist in localStorage via Zustand persist middleware.
 - Reports, dashboard widgets, and transaction filters remain URL-driven where applicable.
 
+## Currency storage and migrations
+
+- BYN is the stored base currency. Input/display currencies are BYN, USD and EUR; rates express units of the selected currency per one BYN, so BYN is always 1.
+- `npm run db:migrate` uses `scripts/migrate.mjs`. Migration 0006 converts existing USD amounts in every money table with a verified NBRB rate (or explicit `LEGACY_USD_TO_BYN_RATE`), balances split rounding and records the rate. It refuses to convert existing data without a valid rate. Migration 0007 throttles test pushes.
+- Do not deploy old USD-based app builds against the converted database. Coordinate the first BYN deployment and database backup; roll back application and database together if needed.
+
 ## Recurring processing model
 
 - `RecurringProcessor` calls `processDueRecurringTransactions` when the authenticated dashboard layout mounts.
 - Each occurrence uses a unique key derived from recurring definition ID and scheduled date.
 - The database uniqueness constraint makes repeated processing idempotent.
-- The current implementation is visit-driven, not a background cron scheduler.
+- `npm run start` starts Next.js and invokes the protected `/api/internal/jobs` endpoint every minute using `CRON_SECRET`. It works without an open browser. Production must remain awake. Multiple instances share atomic claims for push slots and locked recurring rows.
+- `RUN_BACKGROUND_JOBS=0` disables the local launcher for isolated tests. Web Push needs stable VAPID keys and a public app URL; `npm run push:keys` creates missing local secrets without printing them.
 
 ## Main domain tables
 

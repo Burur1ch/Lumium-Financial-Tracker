@@ -43,6 +43,27 @@
       "when": 1794837837278,
       "tag": "0005_category_hierarchy",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794915174050,
+      "tag": "0006_byn_and_push",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794915649683,
+      "tag": "0007_push_test_throttle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794917355177,
+      "tag": "0008_recognition_limits",
+      "breakpoints": true
     }
   ]
 }

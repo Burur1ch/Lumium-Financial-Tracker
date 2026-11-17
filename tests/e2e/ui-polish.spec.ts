@@ -12,14 +12,14 @@ const databaseUrl =
   process.env.E2E_DATABASE_URL ??
   "postgres://lumium:lumium@127.0.0.1:55432/lumium";
 
-test("only BYN, USD and EUR are accepted and exchange rates use the USD base", () => {
+test("only BYN, USD and EUR are accepted and exchange rates use the BYN base", () => {
   expect(CURRENCIES).toEqual(["BYN", "USD", "EUR"]);
   for (const currency of CURRENCIES) expect(isCurrency(currency)).toBe(true);
   for (const currency of ["RUB", "GBP", "JPY", "CNY", "euro", "", null])
     expect(isCurrency(currency)).toBe(false);
   expect(
     normalizeExchangeRates({ USD: 10, BYN: 3.2, EUR: 0.9, ...{ GBP: 0.8 } }),
-  ).toEqual({ USD: 1, BYN: 3.2, EUR: 0.9 });
+  ).toEqual({ USD: 10, BYN: 1, EUR: 0.9 });
 });
 
 test("currency settings recover an old preference and offer the three supported currencies", async ({
@@ -54,6 +54,7 @@ test("currency settings recover an old preference and offer the three supported 
     await page.route("**/api/exchange-rates", (route) =>
       route.fulfill({
         json: {
+          base: "BYN",
           rates: { USD: 1, BYN: 3.2, EUR: 0.9, GBP: 0.8 },
           source: "fallback",
           rateDate: null,
@@ -136,7 +137,7 @@ for (const viewport of [
           localStorage.setItem(
             "lumium_prefs",
             JSON.stringify({
-              state: { currency: "USD", language },
+              state: { currency: "BYN", language },
               version: 0,
             }),
           ),
@@ -274,7 +275,7 @@ test("budget limit can be created for the selected month with an 85 percent aler
       localStorage.setItem(
         "lumium_prefs",
         JSON.stringify({
-          state: { currency: "USD", language: "en" },
+          state: { currency: "BYN", language: "en" },
           version: 0,
         }),
       ),
@@ -367,7 +368,7 @@ test("budget rollover, overspend, archived editing and plan quota stay consisten
       localStorage.setItem(
         "lumium_prefs",
         JSON.stringify({
-          state: { currency: "USD", language: "en" },
+          state: { currency: "BYN", language: "en" },
           version: 0,
         }),
       ),
@@ -436,7 +437,7 @@ test("budget rollover, overspend, archived editing and plan quota stay consisten
     });
     await expect(groceries).toContainText("Limit reached");
     await expect(groceries).toContainText("100% used");
-    await expect(groceries).toContainText("$150.00");
+    await expect(groceries).toContainText("BYN 150.00");
     await expect(transport).toContainText("125% used");
     await expect(transport).toContainText("Over limit");
     await expect(
@@ -504,10 +505,7 @@ test("budget rollover, overspend, archived editing and plan quota stay consisten
       .getByRole("button", { name: translations.en.saveLimit, exact: true })
       .click();
     await expect(
-      page.getByRole("heading", {
-        name: translations.en.budgetLockedTitle,
-        exact: true,
-      }),
+      page.getByRole("dialog").getByText(translations.en.billingComingSoonDesc, { exact: true }),
     ).toBeVisible();
     const saved = (
       await db.query(

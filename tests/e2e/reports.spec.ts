@@ -30,7 +30,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
       localStorage.setItem(
         "lumium_prefs",
         JSON.stringify({
-          state: { currency: "USD", language: "en", plan: "free" },
+          state: { currency: "BYN", language: "en", plan: "free" },
           version: 0,
         }),
       ),
@@ -95,9 +95,9 @@ test("reports are available on Free and preserve period boundaries, ownership an
       .getByRole("link", { name: translations.en.reports, exact: true })
       .click();
     const summary = page.getByTestId("report-summary");
-    await expect(summary).toContainText("$1,000.00");
-    await expect(summary).toContainText("$155.30");
-    await expect(summary).toContainText("+$844.70");
+    await expect(summary).toContainText("BYN 1,000.00");
+    await expect(summary).toContainText("BYN 155.30");
+    await expect(summary).toContainText("+BYN 844.70");
     await expect(page.getByText("Future expense", { exact: true })).toHaveCount(
       0,
     );
@@ -119,7 +119,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
     ).toBe(true);
     await page.getByRole("button", { name: "7d", exact: true }).click();
     await expect(page).toHaveURL(/period=7d/);
-    await expect(summary).toContainText("$115.30");
+    await expect(summary).toContainText("BYN 115.30");
     const expenseBreakdown = page.getByRole("region", {
       name: translations.en.expensesByCategory,
       exact: true,
@@ -127,10 +127,10 @@ test("reports are available on Free and preserve period boundaries, ownership an
     const groceries = expenseBreakdown
       .locator("details")
       .filter({ has: page.locator("summary", { hasText: "Groceries" }) });
-    await expect(groceries.locator("summary")).toContainText("$50.30");
+    await expect(groceries.locator("summary")).toContainText("BYN 50.30");
     await groceries.locator("summary").click();
-    await expect(groceries.getByText("$30.00", { exact: true })).toBeVisible();
-    await expect(groceries.getByText("$20.30", { exact: true })).toBeVisible();
+    await expect(groceries.getByText("BYN 30.00", { exact: true })).toBeVisible();
+    await expect(groceries.getByText("BYN 20.30", { exact: true })).toBeVisible();
     await expect(
       expenseBreakdown.getByText("Shopping", { exact: true }),
     ).toHaveCount(0);
@@ -139,7 +139,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
     });
     await page.goto("/dashboard/reports?period=all");
     await expect(page).toHaveURL(/period=30d/);
-    await expect(summary).toContainText("$155.30");
+    await expect(summary).toContainText("BYN 155.30");
 
     await db.query(
       "insert into subscriptions(user_id,plan,status) values($1,'pro','active')",
@@ -150,7 +150,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
     await expect(
       page.getByRole("button", { name: translations.en.all, exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(summary).toContainText("$243.30");
+    await expect(summary).toContainText("BYN 243.30");
     await expect(
       page.getByRole("link", { name: translations.en.reports, exact: true }),
     ).toBeVisible();

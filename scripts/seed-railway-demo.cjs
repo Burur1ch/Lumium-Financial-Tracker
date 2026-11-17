@@ -83,30 +83,7 @@ try {
       );
     }
 
-    let bynPerUsd = 3.01;
-    try {
-      const response = await fetch(
-        "https://api.nbrb.by/exrates/rates?periodicity=0",
-        { headers: { Accept: "application/json" } },
-      );
-      if (response.ok) {
-        const rates = await response.json();
-        const usd = Array.isArray(rates)
-          ? rates.find((rate) => rate?.Cur_Abbreviation === "USD")
-          : null;
-        if (
-          usd &&
-          Number.isFinite(usd.Cur_OfficialRate) &&
-          Number.isFinite(usd.Cur_Scale) &&
-          usd.Cur_Scale > 0
-        ) {
-          bynPerUsd = usd.Cur_OfficialRate / usd.Cur_Scale;
-        }
-      }
-    } catch {
-      // The app uses the same fallback when NBRB is temporarily unavailable.
-    }
-    const toUsd = (amountInByn) => (amountInByn / bynPerUsd).toFixed(2);
+    const toBase = amountInByn => amountInByn.toFixed(8);
 
     const categoryDefinitions = [
       { key: "groceries", name: "Продукты", type: "expense", color: "#22c55e", icon: "shopping-basket", aliases: ["продукты", "groceries", "food"] },
@@ -176,7 +153,7 @@ try {
                type = excluded.type,
                date = excluded.date
          returning id`,
-        [target.id, categoryIds.get(categoryKey), description, toUsd(amount), type, date, `demo-reference-v1-${sampleKey}`],
+        [target.id, categoryIds.get(categoryKey), description, toBase(amount), type, date, `demo-reference-v1-${sampleKey}`],
       );
       syncedTransactions += inserted.rowCount ?? 0;
     }
@@ -198,14 +175,14 @@ try {
            select 1 from quick_transaction_presets
            where user_id = $1 and lower(name) = lower($3::text)
          ) returning id`,
-        [target.id, categoryIds.get(categoryKey), name, toUsd(amount), icon, sortOrder],
+        [target.id, categoryIds.get(categoryKey), name, toBase(amount), icon, sortOrder],
       );
       insertedPresets += inserted.rowCount ?? 0;
       await client.query(
         `update quick_transaction_presets
          set amount = $1, category_id = $2, icon = $3, sort_order = $4, updated_at = now()
          where user_id = $5 and lower(name) = lower($6::text)`,
-        [toUsd(amount), categoryIds.get(categoryKey), icon, sortOrder, target.id, name],
+        [toBase(amount), categoryIds.get(categoryKey), icon, sortOrder, target.id, name],
       );
     }
 
@@ -223,7 +200,7 @@ try {
          on conflict (user_id, category_id, month_year) do update
            set monthly_limit = excluded.monthly_limit
          returning id`,
-        [target.id, categoryIds.get(categoryKey), toUsd(limit), monthYear],
+        [target.id, categoryIds.get(categoryKey), toBase(limit), monthYear],
       );
       syncedBudgets += inserted.rowCount ?? 0;
     }
@@ -235,7 +212,7 @@ try {
       syncedTransactions,
       insertedPresets,
       syncedBudgets,
-      bynPerUsd,
+      baseCurrency: "BYN",
     }));
   }
 } catch (error) {

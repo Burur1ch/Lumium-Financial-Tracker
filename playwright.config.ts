@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { createECDH } from "node:crypto";
+const pushKey = createECDH("prime256v1");
+pushKey.generateKeys();
 
 const databaseUrl =
   process.env.E2E_DATABASE_URL ??
@@ -28,6 +31,9 @@ export default defineConfig({
       BETTER_AUTH_SECRET: "lumium-local-e2e-secret-at-least-32-characters",
       BETTER_AUTH_URL: "http://127.0.0.1:3100",
       NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100",
+      CRON_SECRET: "lumium-local-scheduler-secret-at-least-32-characters",
+      VAPID_PUBLIC_KEY: pushKey.getPublicKey().toString("base64url"),
+      VAPID_PRIVATE_KEY: pushKey.getPrivateKey().toString("base64url"),
     },
   },
 });

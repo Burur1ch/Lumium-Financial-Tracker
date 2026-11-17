@@ -71,7 +71,7 @@ export default function BudgetContent({
   const b = budgets as BudgetItem[];
   const drafts = b.map((budget) => ({
     categoryId: budget.category_id,
-    limitAmountUsd: budget.base_limit ?? budget.monthly_limit,
+    limitAmountBase: budget.base_limit ?? budget.monthly_limit,
     rolloverEnabled: Boolean(budget.rollover_enabled),
     alertThreshold: budget.alert_threshold ?? 75,
   }));
@@ -381,7 +381,7 @@ export default function BudgetContent({
           currentBudgetCount={b.length}
           initialBudget={{
             categoryId: editingBudget.category_id,
-            limitAmountUsd: Number(
+            limitAmountBase: Number(
               editingBudget.base_limit ?? editingBudget.monthly_limit,
             ),
             rolloverEnabled: Boolean(editingBudget.rollover_enabled),

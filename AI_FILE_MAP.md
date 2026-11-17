@@ -1,6 +1,13 @@
 # Lumium File Map For AI Agents
 
 ## Root
+- utils/currency.ts and utils/currency-server.ts: BYN base currency, display conversions and NBRB snapshots.
+- scripts/migrate.mjs and db/migrations/0006_byn_and_push.sql: transactional USD-to-BYN migration with a verified rate and split balancing. Run migrations through npm run db:migrate.
+- scripts/start.mjs and app/api/internal/jobs/route.ts: production background scheduler and protected job endpoint.
+- utils/recurring.ts and utils/reminders.ts: shared recurring materialization, calendar advancement and local push slots.
+- utils/push.ts, public/sw.js and components/dashboard/push-settings.tsx: persistent opt-in Web Push, leases, retries, device settings and notification clicks.
+- components/dashboard/account-export.tsx and exportAccountData in actions.ts: full free JSON export, without authentication or push secrets.
+- utils/features.ts: explicit server and UI guards for temporarily unavailable billing/email features.
 - .env.example: documented local environment variables with safe placeholder values.
 - docker-compose.yml: local PostgreSQL 17 service used by the default `DATABASE_URL`.
 - proxy.ts: optimistic auth-page/dashboard redirects using Better Auth session cookie.

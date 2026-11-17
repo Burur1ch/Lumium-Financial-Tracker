@@ -1,10 +1,6 @@
 import "server-only";
 
-import {
-  CURRENCIES,
-  type Currency,
-  RATES,
-} from "@/utils/currency";
+import { CURRENCIES, type Currency, RATES } from "@/utils/currency";
 
 const NBRB_RATES_URL = "https://api.nbrb.by/exrates/rates?periodicity=0";
 
@@ -16,7 +12,7 @@ interface NbrbRate {
 }
 
 export interface ExchangeRateSnapshot {
-  base: "USD";
+  base: "BYN";
   rates: Record<Currency, number>;
   source: "nbrb" | "fallback";
   rateDate: string | null;
@@ -24,7 +20,7 @@ export interface ExchangeRateSnapshot {
 
 function fallbackSnapshot(): ExchangeRateSnapshot {
   return {
-    base: "USD",
+    base: "BYN",
     rates: { ...RATES },
     source: "fallback",
     rateDate: null,
@@ -35,6 +31,7 @@ export async function getExchangeRateSnapshot(): Promise<ExchangeRateSnapshot> {
   try {
     const response = await fetch(NBRB_RATES_URL, {
       headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
       next: { revalidate: 21600 },
     });
 
@@ -64,25 +61,23 @@ export async function getExchangeRateSnapshot(): Promise<ExchangeRateSnapshot> {
       rateDate ??= typeof item.Date === "string" ? item.Date : null;
     }
 
-    const bynPerUsd = bynPerUnit.get("USD");
-    if (!bynPerUsd) return fallbackSnapshot();
+    if (!bynPerUnit.has("USD") || !bynPerUnit.has("EUR"))
+      return fallbackSnapshot();
 
     const rates = { ...RATES };
     for (const currency of CURRENCIES) {
-      if (currency === "USD") {
-        rates.USD = 1;
-      } else if (currency === "BYN") {
-        rates.BYN = bynPerUsd;
+      if (currency === "BYN") {
+        rates.BYN = 1;
       } else {
         const targetBynPerUnit = bynPerUnit.get(currency);
         if (targetBynPerUnit) {
-          rates[currency] = bynPerUsd / targetBynPerUnit;
+          rates[currency] = 1 / targetBynPerUnit;
         }
       }
     }
 
     return {
-      base: "USD",
+      base: "BYN",
       rates,
       source: "nbrb",
       rateDate,
@@ -93,6 +88,7 @@ export async function getExchangeRateSnapshot(): Promise<ExchangeRateSnapshot> {
 }
 
 export async function getCurrencyRate(currency: Currency): Promise<number> {
+  if (currency === "BYN") return 1;
   const snapshot = await getExchangeRateSnapshot();
   return snapshot.rates[currency];
 }

@@ -27,6 +27,7 @@ import {
   getBudgetsWithProgress,
 } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
+import { stopDeviceReminders } from "@/utils/push-client";
 import { PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import {
   useProfileStore,
@@ -484,6 +485,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {/* Sign out */}
           <button
             onClick={async () => {
+              await stopDeviceReminders();
               await signOut();
               window.location.href = "/login";
             }}

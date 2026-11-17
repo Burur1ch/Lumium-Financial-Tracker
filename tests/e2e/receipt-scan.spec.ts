@@ -8,7 +8,7 @@ const databaseUrl =
   "postgres://lumium:lumium@127.0.0.1:55432/lumium";
 const email = `receipt-e2e-${Date.now()}@example.test`;
 
-async function createReceiptPng(currency = "USD") {
+async function createReceiptPng(currency = "BYN") {
   const lines = [
     "TEST MARKET",
     "01.11.2026",

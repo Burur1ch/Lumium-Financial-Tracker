@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
-import { sendSupportEmail } from "./actions";
+import React, { useState } from "react";
 import {
   HelpCircle,
   BookOpen,
@@ -11,7 +10,6 @@ import {
   ChevronUp,
   Search,
   Send,
-  CheckCircle2,
   ArrowUpRight,
   Zap,
   Shield,
@@ -40,7 +38,7 @@ const FAQ_EN = [
   },
   {
     q: "How does currency conversion work?",
-    a: "Lumium stores all amounts in USD internally. When you change your display currency in Settings → Preferences, amounts are converted using official National Bank of the Republic of Belarus rates. If the rate service is unavailable, Lumium uses a fallback rate so money entry remains available. No actual conversion of your stored data occurs.",
+    a: "Lumium stores all amounts in BYN internally. When you change your display currency in Settings → Preferences, amounts are converted using official National Bank of the Republic of Belarus rates. If the rate service is unavailable, Lumium uses a fallback rate so money entry remains available. No actual conversion of your stored data occurs.",
   },
   {
     q: "How do I change the language?",
@@ -75,7 +73,7 @@ const FAQ_RU = [
   },
   {
     q: "Как работает конвертация валюты?",
-    a: "Lumium хранит все суммы в USD. При изменении валюты в Настройках → Предпочтения суммы конвертируются по фиксированному курсу только для отображения. Данные не изменяются.",
+    a: "Основная валюта Lumium — BYN. При выборе USD или EUR в настройках суммы пересчитываются для отображения по курсам НБРБ. Сохранённые суммы в белорусских рублях не меняются.",
   },
   {
     q: "Как изменить язык?",
@@ -110,7 +108,7 @@ const FAQ_DE = [
   },
   {
     q: "Wie funktioniert die Währungsumrechnung?",
-    a: "Lumium speichert alle Beträge in USD. Wenn Sie die Anzeigewährung in Einstellungen → Präferenzen ändern, werden Beträge nur zur Anzeige umgerechnet.",
+    a: "Lumium speichert Beträge in BYN. USD und EUR werden zur Anzeige anhand der NBRB-Kurse umgerechnet. Gespeicherte BYN-Beträge bleiben unverändert.",
   },
   {
     q: "Wie ändere ich die Sprache?",
@@ -145,7 +143,7 @@ const FAQ_FR = [
   },
   {
     q: "Comment fonctionne la conversion de devise ?",
-    a: "Lumium stocke tous les montants en USD. Lorsque vous changez la devise dans Paramètres → Préférences, les montants sont convertis à des taux fixes uniquement pour l'affichage.",
+    a: "Lumium stocke tous les montants en BYN. Lorsque vous changez la devise dans Paramètres → Préférences, les montants sont convertis à des taux fixes uniquement pour l'affichage.",
   },
   {
     q: "Comment changer la langue ?",
@@ -247,16 +245,6 @@ export default function HelpPage() {
   const { t, language } = useI18n();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"faq" | "contact" | "docs">("faq");
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
-  const [sent, setSent] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
   const faqs = FAQ_MAP[language] ?? FAQ_EN;
   const filtered = search.trim()
     ? faqs.filter(
@@ -265,20 +253,6 @@ export default function HelpPage() {
           f.a.toLowerCase().includes(search.toLowerCase()),
       )
     : faqs;
-
-  const handleSend = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSendError(null);
-    startTransition(async () => {
-      const result = await sendSupportEmail(form);
-      if (result.success) {
-        setSent(true);
-        setForm({ name: "", email: "", subject: "", message: "" });
-      } else {
-        setSendError(result.error ?? t("genericError"));
-      }
-    });
-  };
 
   const tabs = [
     { key: "faq" as const, label: t("faq"), icon: HelpCircle },
@@ -289,9 +263,7 @@ export default function HelpPage() {
     },
     { key: "docs" as const, label: t("documentation"), icon: FileText },
   ];
-
-  const inputCls =
-    "w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-800 dark:text-slate-200 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-slate-400";
+  const inputCls = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-red-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200";
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 p-4 md:space-y-6 md:p-8">
@@ -392,115 +364,8 @@ export default function HelpPage() {
           )}
 
           {/* ── Contact ── */}
-          {activeTab === "contact" && (
-            <div className="max-w-lg">
-              {sent ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
-                  <div className="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                    <CheckCircle2 className="w-7 h-7 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-slate-800 dark:text-slate-100">
-                      {t("messageSent")}
-                    </p>
-                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
-                      {t("messageSentDesc")}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSent(false)}
-                    className="mt-2 text-xs font-semibold text-red-500 hover:text-red-600 transition-colors"
-                  >
-                    {t("sendMessage")} →
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSend} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        {t("yourName")}
-                      </label>
-                      <input
-                        required
-                        className={inputCls}
-                        placeholder="Alex Morgan"
-                        value={form.name}
-                        onChange={(e) =>
-                          setForm({ ...form, name: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        {t("yourEmail")}
-                      </label>
-                      <input
-                        required
-                        type="email"
-                        className={inputCls}
-                        placeholder="alex@company.by"
-                        value={form.email}
-                        onChange={(e) =>
-                          setForm({ ...form, email: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {t("subject")}
-                    </label>
-                    <input
-                      required
-                      className={inputCls}
-                      placeholder={t("subject")}
-                      value={form.subject}
-                      onChange={(e) =>
-                        setForm({ ...form, subject: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {t("message")}
-                    </label>
-                    <textarea
-                      required
-                      rows={5}
-                      className={inputCls + " resize-none"}
-                      placeholder={t("message") + "..."}
-                      value={form.message}
-                      onChange={(e) =>
-                        setForm({ ...form, message: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    {sendError && (
-                      <p className="flex-1 text-xs font-semibold text-red-500 self-center">
-                        {sendError}
-                      </p>
-                    )}
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white text-sm font-bold transition-colors"
-                    >
-                      {isPending ? (
-                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Send className="w-3.5 h-3.5" />
-                      )}
-                      {t("send")}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          )}
+          {activeTab === "contact" && (<section className="max-w-lg rounded-2xl border border-dashed border-slate-300 p-8 dark:border-slate-700"><p className="text-xs font-semibold text-slate-500">{t("comingSoon")}</p><h2 className="mt-3 text-lg font-bold">{t("emailComingSoonTitle")}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t("emailComingSoonDesc")}</p></section>)}
 
-          {/* ── Docs ── */}
           {activeTab === "docs" && (
             <div className="space-y-3">
               {[

@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { BILLING_ENABLED } from "@/utils/features";
 import type { BillingInterval, PlanKey } from "@/utils/monetization/plans";
 
 interface StripePlanConfig {
@@ -31,6 +32,7 @@ const stripePlanConfigs: StripePlanConfig[] = [
 ];
 
 export function getStripeClient() {
+  if (!BILLING_ENABLED) throw new Error("BILLING_DISABLED");
   const secretKey = process.env.STRIPE_SECRET_KEY;
 
   if (!secretKey) {
