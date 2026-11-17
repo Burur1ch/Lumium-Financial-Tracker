@@ -5,44 +5,253 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { authClient } from "@/utils/auth/client";
+import type { TranslationKey } from "@/store/translations";
 
-const TOUR_STEPS = [
+interface TourStep {
+  target: string;
+  route: string;
+  title: TranslationKey;
+  description: TranslationKey;
+  panel?: "chooser" | "entry" | "budget" | "navigation";
+}
+
+const INTRO: TourStep[] = [
   {
     target: "overview",
+    route: "/dashboard",
     title: "dashboard",
     description: "tourOverviewDesc",
   },
   {
+    target: "period",
+    route: "/dashboard",
+    title: "tourPeriodTitle",
+    description: "tourPeriodDesc",
+  },
+  {
     target: "add-transaction",
+    route: "/dashboard",
     title: "addTransaction",
     description: "tourAddTransactionDesc",
   },
+];
+const DETAILS: TourStep[] = [
+  {
+    target: "transaction-category",
+    route: "/dashboard",
+    title: "newTransaction",
+    description: "tourEntryDesc",
+    panel: "entry",
+  },
   {
     target: "quick-actions",
+    route: "/dashboard",
     title: "quickActions",
     description: "tourQuickActionsDesc",
   },
   {
     target: "activity",
+    route: "/dashboard",
     title: "recentTransactions",
     description: "tourActivityDesc",
   },
   {
+    target: "budget-overview",
+    route: "/dashboard/budget",
+    title: "budgetsLimits",
+    description: "tourBudgetDesc",
+  },
+  {
+    target: "budget-limit-fields",
+    route: "/dashboard/budget",
+    title: "budgetLimitTitle",
+    description: "tourBudgetLimitDesc",
+    panel: "budget",
+  },
+  {
+    target: "category-management",
+    route: "/dashboard/categories",
+    title: "categories",
+    description: "tourCategoriesDesc",
+  },
+  {
     target: "main-navigation",
+    route: "/dashboard/categories",
     title: "tourNavigationTitle",
     description: "tourNavigationDesc",
+    panel: "navigation",
   },
-] as const;
+];
+const DESKTOP_STEPS = [...INTRO, ...DETAILS];
+const MOBILE_STEPS: TourStep[] = [
+  ...INTRO,
+  {
+    target: "entry-methods",
+    route: "/dashboard",
+    title: "addOperation",
+    description: "tourMethodsDesc",
+    panel: "chooser",
+  },
+  ...DETAILS,
+];
 
-interface TargetRect {
+interface Rect {
   top: number;
   left: number;
   width: number;
   height: number;
 }
+interface Geometry {
+  stepTarget: string;
+  target: Rect | null;
+  viewport: Rect;
+  dialogHeight: number;
+}
+const initialGeometry: Geometry = {
+  stepTarget: "",
+  target: null,
+  viewport: { top: 0, left: 0, width: 1024, height: 768 },
+  dialogHeight: 240,
+};
 
-function getStorageKey(userId: string) {
-  return `lumium_dashboard_tour:${userId}`;
+function visibleTarget(target: string) {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`),
+  ).find((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      style.visibility !== "hidden" &&
+      style.display !== "none"
+    );
+  });
+}
+
+function targetBounds(
+  element: HTMLElement,
+  viewport: Rect,
+  dialogHeight: number,
+): Rect | null {
+  const focused = [
+    ...element.querySelectorAll<HTMLElement>("[data-tour-focus]"),
+  ];
+  const compact =
+    element.getBoundingClientRect().height + dialogHeight + 120 >
+      viewport.height && focused.length > 0;
+  const rects = [
+    ...(compact
+      ? focused
+      : [
+          element,
+          ...element.querySelectorAll<HTMLElement>("[data-tour-bounds]"),
+        ]),
+  ]
+    .map((item) => item.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  let left = Math.max(
+    viewport.left,
+    Math.min(...rects.map((rect) => rect.left)) - 8,
+  );
+  let top = Math.max(
+    viewport.top,
+    Math.min(...rects.map((rect) => rect.top)) - 8,
+  );
+  let right = Math.min(
+    viewport.left + viewport.width,
+    Math.max(...rects.map((rect) => rect.right)) + 8,
+  );
+  let bottom = Math.min(
+    viewport.top + viewport.height,
+    Math.max(...rects.map((rect) => rect.bottom)) + 8,
+  );
+  for (
+    let parent = element.parentElement;
+    parent;
+    parent = parent.parentElement
+  ) {
+    const style = getComputedStyle(parent);
+    const rect = parent.getBoundingClientRect();
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
+      left = Math.max(left, rect.left);
+      right = Math.min(right, rect.right);
+    }
+    if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
+      top = Math.max(top, rect.top);
+      bottom = Math.min(bottom, rect.bottom);
+    }
+  }
+  return right > left && bottom > top
+    ? { top, left, width: right - left, height: bottom - top }
+    : null;
+}
+
+function dialogPosition({ target, viewport, dialogHeight }: Geometry) {
+  const width = Math.min(352, viewport.width - 24);
+  const height = Math.min(dialogHeight, viewport.height - 24);
+  const clampX = (left: number) =>
+    Math.max(
+      viewport.left + 12,
+      Math.min(left, viewport.left + viewport.width - width - 12),
+    );
+  const clampY = (top: number) =>
+    Math.max(
+      viewport.top + 12,
+      Math.min(top, viewport.top + viewport.height - height - 12),
+    );
+  if (!target)
+    return {
+      left: clampX(viewport.left + (viewport.width - width) / 2),
+      top: clampY(viewport.top + (viewport.height - height) / 2),
+      width,
+      maxHeight: viewport.height - 24,
+    };
+  const centered = clampX(target.left + (target.width - width) / 2);
+  const candidates = [
+    { left: centered, top: target.top + target.height + 12 },
+    { left: centered, top: target.top - height - 12 },
+    { left: target.left + target.width + 12, top: clampY(target.top) },
+    { left: target.left - width - 12, top: clampY(target.top) },
+  ];
+  const fitting = candidates.find(
+    (position) =>
+      position.left >= viewport.left + 12 &&
+      position.top >= viewport.top + 12 &&
+      position.left + width <= viewport.left + viewport.width - 12 &&
+      position.top + height <= viewport.top + viewport.height - 12,
+  );
+  const fallback =
+    target.top - viewport.top >
+    viewport.top + viewport.height - target.top - target.height
+      ? candidates[1]
+      : candidates[0];
+  return {
+    left: clampX((fitting ?? fallback).left),
+    top: clampY((fitting ?? fallback).top),
+    width,
+    maxHeight: viewport.height - 24,
+  };
+}
+
+function geometryMatches(left: Geometry, right: Geometry) {
+  const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  const sameRect = (a: Rect | null, b: Rect | null) =>
+    a === b ||
+    Boolean(
+      a &&
+        b &&
+        close(a.top, b.top) &&
+        close(a.left, b.left) &&
+        close(a.width, b.width) &&
+        close(a.height, b.height),
+    );
+  return (
+    left.stepTarget === right.stepTarget &&
+    sameRect(left.target, right.target) &&
+    sameRect(left.viewport, right.viewport) &&
+    close(left.dialogHeight, right.dialogHeight)
+  );
 }
 
 export function FirstRunTour() {
@@ -51,217 +260,227 @@ export function FirstRunTour() {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [manualStart, setManualStart] = useState(false);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [geometry, setGeometry] = useState(initialGeometry);
+  const dialog = useRef<HTMLDivElement>(null);
+  const previousFocus = useRef<Element | null>(null);
   const userId = session?.user.id;
-  const step = TOUR_STEPS[stepIndex];
+  const steps = mobile ? MOBILE_STEPS : DESKTOP_STEPS;
+  const step = steps[Math.min(stepIndex, steps.length - 1)];
 
-  const savePreference = useCallback(
-    (value: "completed" | "skipped") => {
-      if (!userId) return;
-      try {
-        window.localStorage.setItem(getStorageKey(userId), value);
-      } catch (error) {
-        console.error("Could not save dashboard tour preference.", error);
+  const closeTour = useCallback(
+    (preference: "completed" | "skipped") => {
+      if (userId) {
+        try {
+          localStorage.setItem(`lumium_dashboard_tour:${userId}`, preference);
+        } catch {}
       }
+      window.dispatchEvent(new Event("lumium:close-entry-panels"));
+      setIsOpen(false);
+      if (
+        previousFocus.current instanceof HTMLElement &&
+        previousFocus.current.isConnected
+      )
+        previousFocus.current.focus({ preventScroll: true });
     },
     [userId],
   );
 
-  const closeTour = useCallback(
-    (value: "completed" | "skipped") => {
-      savePreference(value);
-      setIsOpen(false);
-      setTargetRect(null);
-    },
-    [savePreference],
-  );
-
-  const skipTour = useCallback(() => closeTour("skipped"), [closeTour]);
-
   useEffect(() => {
-    if (pathname !== "/dashboard" || sessionPending || !userId) return;
-
-    let frame = 0;
-    try {
-      if (window.localStorage.getItem(getStorageKey(userId)) === null) {
-        frame = window.requestAnimationFrame(() => setIsOpen(true));
-      }
-    } catch (error) {
-      console.error("Could not read dashboard tour preference.", error);
-    }
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [pathname, sessionPending, userId]);
-
-  useEffect(() => {
-    const handleStart = () => {
-      setStepIndex(0);
-      if (pathname === "/dashboard") {
-        setIsOpen(true);
-      } else {
-        setManualStart(true);
-        router.push("/dashboard");
-      }
+    const media = window.matchMedia("(max-width: 1023px)");
+    const update = () => setMobile(media.matches);
+    const frame = requestAnimationFrame(update);
+    media.addEventListener("change", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      media.removeEventListener("change", update);
     };
+  }, []);
 
-    window.addEventListener("lumium:start-tour", handleStart);
-    return () => window.removeEventListener("lumium:start-tour", handleStart);
+  useEffect(() => {
+    if (isOpen || pathname !== "/dashboard" || sessionPending || !userId)
+      return;
+    let wanted = manualStart;
+    try {
+      wanted ||=
+        localStorage.getItem(`lumium_dashboard_tour:${userId}`) === null;
+    } catch {}
+    if (!wanted) return;
+    let frame = 0;
+    const start = () => {
+      if (document.querySelector("[data-dashboard-loading]")) {
+        frame = requestAnimationFrame(start);
+        return;
+      }
+      previousFocus.current = document.activeElement;
+      setStepIndex(0);
+      setIsOpen(true);
+      setManualStart(false);
+    };
+    frame = requestAnimationFrame(start);
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, manualStart, pathname, sessionPending, userId]);
+
+  useEffect(() => {
+    const start = () => {
+      setManualStart(true);
+      if (pathname !== "/dashboard") router.push("/dashboard");
+    };
+    window.addEventListener("lumium:start-tour", start);
+    return () => window.removeEventListener("lumium:start-tour", start);
   }, [pathname, router]);
 
   useEffect(() => {
-    if (!manualStart || pathname !== "/dashboard") return;
-    const frame = window.requestAnimationFrame(() => {
-      setManualStart(false);
-      setStepIndex(0);
-      setIsOpen(true);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [manualStart, pathname]);
-
-  useEffect(() => {
-    if (!isOpen || !step) return;
-
-    let frame = 0;
-    let timeout = 0;
-    const updateTarget = () => {
-      const candidates = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          `[data-tour="${step.target}"]`,
-        ),
-      );
-      const target = candidates.find((candidate) => {
-        const style = window.getComputedStyle(candidate);
-        const rect = candidate.getBoundingClientRect();
-        return (
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0
-        );
-      });
-
-      if (!target) {
-        setTargetRect(null);
-        return;
-      }
-
-      const rect = target.getBoundingClientRect();
-      setTargetRect({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      });
-    };
-
-    const target = Array.from(
-      document.querySelectorAll<HTMLElement>(`[data-tour="${step.target}"]`),
-    ).find((candidate) => {
-      const style = window.getComputedStyle(candidate);
-      return style.display !== "none" && style.visibility !== "hidden";
-    });
-
-    target?.scrollIntoView({
-      block: "center",
-      inline: "nearest",
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-    });
-
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(updateTarget);
-    };
-
-    scheduleUpdate();
-    timeout = window.setTimeout(updateTarget, 350);
-    window.addEventListener("resize", scheduleUpdate);
-    document.addEventListener("scroll", scheduleUpdate, true);
-
+    if (!isOpen) return;
+    document.documentElement.dataset.tourActive = "true";
     return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timeout);
-      window.removeEventListener("resize", scheduleUpdate);
-      document.removeEventListener("scroll", scheduleUpdate, true);
+      delete document.documentElement.dataset.tourActive;
     };
-  }, [isOpen, step]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
-    dialogRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
+    window.dispatchEvent(new Event("lumium:close-entry-panels"));
+    if (pathname !== step.route) {
+      router.push(step.route);
+      return;
+    }
+    let frame = 0;
+    let prepared = false;
+    let scrolled = false;
+    const update = () => {
+      if (!prepared) {
+        const anchor =
+          step.panel === "budget"
+            ? visibleTarget("set-budget-limit")
+            : step.panel === "navigation" && mobile
+              ? visibleTarget("navigation-trigger")
+              : step.panel === "chooser"
+                ? visibleTarget("add-transaction")
+                : document.body;
+        if (anchor) {
+          if (step.panel === "budget")
+            window.dispatchEvent(new Event("lumium:open-budget-limit"));
+          if (step.panel === "chooser")
+            window.dispatchEvent(new Event("lumium:open-mobile-add"));
+          if (step.panel === "entry")
+            window.dispatchEvent(new Event("lumium:open-add-transaction"));
+          if (step.panel === "navigation" && mobile)
+            window.dispatchEvent(new Event("lumium:open-navigation"));
+          prepared = true;
+        }
+      }
+      const target = prepared ? visibleTarget(step.target) : undefined;
+      if (target && !scrolled) {
+        if (!target.closest(".mobile-bottom-nav, .mobile-topbar"))
+          target.scrollIntoView({
+            block: "start",
+            inline: "nearest",
+            behavior: "instant",
+          });
+        scrolled = true;
+      }
+      const visual = window.visualViewport;
+      const viewport = {
+        left: visual?.offsetLeft ?? 0,
+        top: visual?.offsetTop ?? 0,
+        width: visual?.width ?? document.documentElement.clientWidth,
+        height: visual?.height ?? window.innerHeight,
+      };
+      const next = {
+        stepTarget: step.target,
+        viewport,
+        target: target
+          ? targetBounds(
+              target,
+              viewport,
+              dialog.current?.getBoundingClientRect().height ?? 240,
+            )
+          : null,
+        dialogHeight: dialog.current?.getBoundingClientRect().height ?? 240,
+      };
+      setGeometry((current) =>
+        geometryMatches(current, next) ? current : next,
+      );
+      frame = requestAnimationFrame(update);
+    };
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, step, pathname, router, mobile]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dialog.current?.focus({ preventScroll: true });
+    const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        skipTour();
-      } else if (event.key === "ArrowRight" && stepIndex < TOUR_STEPS.length - 1) {
-        setStepIndex((current) => current + 1);
-      } else if (event.key === "ArrowLeft" && stepIndex > 0) {
-        setStepIndex((current) => current - 1);
+        event.stopImmediatePropagation();
+        closeTour("skipped");
+        return;
+      }
+      if (event.key === "ArrowRight" && stepIndex < steps.length - 1)
+        setStepIndex((index) => index + 1);
+      if (event.key === "ArrowLeft" && stepIndex > 0)
+        setStepIndex((index) => index - 1);
+      if (event.key !== "Tab") return;
+      const controls = dialog.current?.querySelectorAll<HTMLButtonElement>(
+        "button:not(:disabled)",
+      );
+      if (!controls?.length) return;
+      const first = controls[0],
+        last = controls[controls.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          document.activeElement === dialog.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, skipTour, stepIndex]);
+    document.addEventListener("keydown", keydown, true);
+    return () => document.removeEventListener("keydown", keydown, true);
+  }, [isOpen, stepIndex, steps.length, closeTour]);
 
-  if (!isOpen || !step) return null;
-
-  const dialogWidth = Math.min(352, window.innerWidth - 32);
-  const dialogHeight = 240;
-  const dialogPosition = targetRect
-    ? {
-        left: Math.max(
-          16,
-          Math.min(
-            targetRect.left + targetRect.width / 2 - dialogWidth / 2,
-            window.innerWidth - dialogWidth - 16,
-          ),
-        ),
-        top:
-          targetRect.top + targetRect.height + dialogHeight + 24 <
-          window.innerHeight
-            ? targetRect.top + targetRect.height + 16
-            : Math.max(16, targetRect.top - dialogHeight - 16),
-      }
-    : null;
-
-  const padding = 8;
-  const top = targetRect ? Math.max(0, targetRect.top - padding) : 0;
-  const left = targetRect ? Math.max(0, targetRect.left - padding) : 0;
-  const right = targetRect
-    ? Math.min(window.innerWidth, targetRect.left + targetRect.width + padding)
-    : 0;
-  const bottom = targetRect
-    ? Math.min(window.innerHeight, targetRect.top + targetRect.height + padding)
-    : 0;
-  const pieces = targetRect
+  if (!isOpen) return null;
+  const { viewport } = geometry;
+  const target = geometry.stepTarget === step.target ? geometry.target : null;
+  const right = target ? target.left + target.width : viewport.left;
+  const bottom = target ? target.top + target.height : viewport.top;
+  const pieces = target
     ? [
-        { top: 0, left: 0, width: "100vw", height: `${top}px` },
         {
-          top: `${bottom}px`,
-          left: 0,
-          width: "100vw",
-          height: `${Math.max(0, window.innerHeight - bottom)}px`,
+          left: viewport.left,
+          top: viewport.top,
+          width: viewport.width,
+          height: target.top - viewport.top,
         },
         {
-          top: `${top}px`,
-          left: 0,
-          width: `${left}px`,
-          height: `${Math.max(0, bottom - top)}px`,
+          left: viewport.left,
+          top: bottom,
+          width: viewport.width,
+          height: viewport.top + viewport.height - bottom,
         },
         {
-          top: `${top}px`,
-          left: `${right}px`,
-          width: `${Math.max(0, window.innerWidth - right)}px`,
-          height: `${Math.max(0, bottom - top)}px`,
+          left: viewport.left,
+          top: target.top,
+          width: target.left - viewport.left,
+          height: target.height,
+        },
+        {
+          left: right,
+          top: target.top,
+          width: viewport.left + viewport.width - right,
+          height: target.height,
         },
       ]
-    : [{ top: 0, left: 0, width: "100vw", height: "100vh" }];
-  const isLastStep = stepIndex === TOUR_STEPS.length - 1;
-
+    : [viewport];
+  const last = stepIndex === steps.length - 1;
   return (
     <>
       {pieces.map((piece, index) => (
@@ -272,41 +491,34 @@ export function FirstRunTour() {
           style={piece}
         />
       ))}
-      {targetRect && (
+      {target && (
         <div
           aria-hidden="true"
           className="tour-highlight"
-          style={{
-            top,
-            left,
-            width: Math.max(0, right - left),
-            height: Math.max(0, bottom - top),
-          }}
+          data-tour-highlight={step.target}
+          style={target}
         />
       )}
       <div
-        ref={dialogRef}
-        className="tour-dialog"
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tour-dialog-title"
         aria-describedby="tour-dialog-description"
         tabIndex={-1}
-        style={dialogPosition ?? {
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        }}
+        className="tour-dialog"
+        data-tour-step={step.target}
+        style={dialogPosition({ ...geometry, target })}
       >
         <div className="flex items-start justify-between gap-4">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            {t("tourStep")} {stepIndex + 1} {t("of")} {TOUR_STEPS.length}
+            {t("tourStep")} {stepIndex + 1} {t("of")} {steps.length}
           </p>
           <button
             type="button"
-            className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            onClick={skipTour}
+            onClick={() => closeTour("skipped")}
             aria-label={t("close")}
+            className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
@@ -326,17 +538,17 @@ export function FirstRunTour() {
         <div className="tour-dialog__actions">
           <button
             type="button"
-            onClick={skipTour}
-            className="min-h-11 px-2 text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+            onClick={() => closeTour("skipped")}
+            className="min-h-11 px-2 text-sm font-semibold text-slate-500"
           >
             {t("tourSkip")}
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {stepIndex > 0 && (
               <button
                 type="button"
-                onClick={() => setStepIndex((current) => current - 1)}
-                className="flex min-h-11 items-center gap-1 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                onClick={() => setStepIndex((index) => index - 1)}
+                className="flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-slate-600 dark:text-slate-300"
               >
                 <ChevronLeft className="h-4 w-4" />
                 {t("tourBack")}
@@ -344,17 +556,15 @@ export function FirstRunTour() {
             )}
             <button
               type="button"
-              onClick={() => {
-                if (isLastStep) {
-                  closeTour("completed");
-                } else {
-                  setStepIndex((current) => current + 1);
-                }
-              }}
-              className="flex min-h-11 items-center gap-1 rounded-xl bg-[var(--app-accent)] px-4 text-sm font-bold text-white hover:bg-[var(--app-accent-strong)]"
+              onClick={() =>
+                last
+                  ? closeTour("completed")
+                  : setStepIndex((index) => index + 1)
+              }
+              className="flex min-h-11 items-center gap-1 rounded-xl bg-[var(--app-accent)] px-3 text-sm font-bold text-white hover:bg-[var(--app-accent-strong)]"
             >
-              {isLastStep ? t("tourFinish") : t("tourNext")}
-              {!isLastStep && <ChevronRight className="h-4 w-4" />}
+              {t(last ? "tourFinish" : "tourNext")}
+              {!last && <ChevronRight className="h-4 w-4" />}
             </button>
           </div>
         </div>

@@ -18,6 +18,7 @@ import {
 } from "@/utils/monetization/limits";
 
 interface CategorySummary {
+  system_key?: string | null;
   name: string;
   color: string;
   icon?: string | null;
@@ -175,6 +176,7 @@ export default function TransactionsTable({
             <CategoryArtwork
               icon={cat?.icon}
               name={cat?.name}
+              systemKey={cat?.system_key}
               className="h-10 w-10 rounded-xl"
               fallback={
                 <span
@@ -336,9 +338,10 @@ export default function TransactionsTable({
                           <CategoryArtwork
                             icon={cat.icon}
                             name={categoryName(cat)}
+                            systemKey={cat.system_key}
                             className="h-5 w-5 rounded-md"
                           />
-                          {cat.name}
+                          {categoryName(cat)}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">

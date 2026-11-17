@@ -31,6 +31,7 @@ import * as XLSX from "xlsx";
 import {
   canAccessAdvancedReports,
   canAccessCsvExport,
+  getAccessiblePeriods,
   getPlanBudgetLimit,
   getPlanHistoryDays,
   isLimitReached,
@@ -406,34 +407,25 @@ async function parseQuickPresetForm(formData: FormData) {
   };
 }
 
-function getPeriodStartDate(period: string): Date | null {
-  const now = new Date();
-
-  switch (period) {
-    case "7d": {
-      const date = new Date(now);
-      date.setDate(now.getDate() - 7);
-      return date;
-    }
-    case "30d": {
-      const date = new Date(now);
-      date.setDate(now.getDate() - 30);
-      return date;
-    }
-    case "3m": {
-      const date = new Date(now);
-      date.setMonth(now.getMonth() - 3);
-      return date;
-    }
-    case "1y": {
-      const date = new Date(now);
-      date.setFullYear(now.getFullYear() - 1);
-      return date;
-    }
-    case "all":
-    default:
-      return null;
+function getPeriodStartDate(period: string, now = new Date()): Date | null {
+  if (period === "all") return null;
+  const date = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  if (period === "3m" || period === "1y") {
+    const month = date.getUTCMonth() - (period === "3m" ? 3 : 12);
+    const lastDay = new Date(
+      Date.UTC(date.getUTCFullYear(), month + 1, 0),
+    ).getUTCDate();
+    date.setUTCFullYear(
+      date.getUTCFullYear(),
+      month,
+      Math.min(date.getUTCDate(), lastDay),
+    );
+  } else {
+    date.setUTCDate(date.getUTCDate() - (period === "7d" ? 6 : 29));
   }
+  return date;
 }
 
 function buildWorkbookBase64(sheets: Array<{ name: string; rows: unknown[] }>) {
@@ -2320,14 +2312,14 @@ export async function exportReportWorkbook(
   const { user, plan, profileName } = await getExportUserContext();
   if (!user || !canAccessAdvancedReports(plan))
     return { success: false, error: "Plan upgrade required" };
-  const start = getPeriodStartDate(period);
+  const report = await getReportData(period);
+  if (!report) return { success: false, error: "Unauthorized" };
   const all = await userCategoryRows(user.id);
   const allocations = await financialAllocations(user.id, [
     eq(transactions.status, "completed"),
-    ...(start ? [gte(transactions.date, start)] : []),
+    gte(transactions.date, new Date(report.rangeStart)),
+    lt(transactions.date, new Date(report.rangeEnd)),
   ]);
-  const rows = allocations.map((tx) => exportAllocation(tx, all, language));
-  const report = await getReportData(period);
   const locale =
     language === "ru" || language === "de" || language === "fr"
       ? language
@@ -2335,6 +2327,10 @@ export async function exportReportWorkbook(
   const t = (key: keyof typeof translations.en): string =>
     (translations[locale] as Record<string, string>)[key] ??
     translations.en[key];
+  const rows = allocations.map((tx) => ({
+    ...exportAllocation(tx, all, language),
+    [t("currency")]: "USD",
+  }));
   const label = (category: CategoryLike) =>
     category.system_key &&
     category.name ===
@@ -2344,24 +2340,32 @@ export async function exportReportWorkbook(
   const summary = [
     {
       [t("reports")]: t("totalIncome"),
-      [t("amount")]: report?.totalIncome ?? 0,
+      [t("amount")]: report.totalIncome,
+      [t("currency")]: "USD",
     },
     {
       [t("reports")]: t("totalExpenses"),
-      [t("amount")]: report?.totalExpense ?? 0,
+      [t("amount")]: report.totalExpense,
+      [t("currency")]: "USD",
     },
-    { [t("reports")]: t("netBalance"), [t("amount")]: report?.net ?? 0 },
+    {
+      [t("reports")]: t("netBalance"),
+      [t("amount")]: report.net,
+      [t("currency")]: "USD",
+    },
     {
       [t("reports")]: t("savingsRate"),
-      [t("amount")]: report?.savingsRate ?? 0,
+      [t("amount")]: report.savingsRate,
+      [t("currency")]: "%",
     },
   ];
-  const categoryRows = (report?.categoryBreakdown ?? []).flatMap((root) =>
+  const categoryRows = report.categoryBreakdown.flatMap((root) =>
     root.children.map((child) => ({
       [t("category")]: label(root),
       [t("subcategory")]: child.isDirect ? t("noSubcategory") : label(child),
       [t("income")]: child.income,
       [t("expenses")]: child.expense,
+      [t("currency")]: "USD",
     })),
   );
   const workbook = buildWorkbookBase64([
@@ -2372,7 +2376,7 @@ export async function exportReportWorkbook(
   return {
     success: true,
     workbook,
-    filename: `${slugifyFilePart(profileName)}-${period}-report.xlsx`,
+    filename: `${slugifyFilePart(profileName)}-${report.period}-usd-report.xlsx`,
   };
 }
 
@@ -2449,18 +2453,21 @@ export async function getBudgetsWithProgress(month?: string) {
     const previousLimit = Number(
       previous.find((p) => p.category_id === b.category_id)?.monthly_limit ?? 0,
     );
-    const rollover = b.rollover_enabled
-      ? Math.max(previousLimit - (prior.get(b.category_id) ?? 0), 0)
-      : 0;
+    const rollover = Number(
+      (b.rollover_enabled
+        ? Math.max(previousLimit - (prior.get(b.category_id) ?? 0), 0)
+        : 0
+      ).toFixed(8),
+    );
     return {
       ...b,
       categories: category ? displayCategory(category, all) : null,
       parent_id: category?.parent_id ?? null,
-      current_spent: spent.get(b.category_id) ?? 0,
+      current_spent: Number((spent.get(b.category_id) ?? 0).toFixed(8)),
       base_limit: base,
       rollover_amount: rollover,
       average_monthly_spent: (historical.get(b.category_id) ?? 0) / 3,
-      monthly_limit: base + rollover,
+      monthly_limit: Number((base + rollover).toFixed(8)),
     };
   });
 }
@@ -2470,95 +2477,82 @@ export async function upsertBudget(formData: {
   categoryId: string;
   limitAmount: number;
   currency: string;
+  month?: string;
   rolloverEnabled?: boolean;
   alertThreshold?: number;
 }) {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) return { success: false as const, error: "UNAUTHORIZED" };
+  const month = formData.month ?? new Date().toISOString().slice(0, 7);
+  const alertThreshold = formData.alertThreshold ?? 75;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month.startsWith("0000"))
+    return { success: false as const, error: "INVALID_MONTH" };
   if (
+    !UUID_PATTERN.test(formData.categoryId) ||
     !Number.isFinite(formData.limitAmount) ||
     formData.limitAmount <= 0 ||
-    !isCurrency(formData.currency)
-  ) {
-    throw new Error("Invalid budget amount");
-  }
+    !isCurrency(formData.currency) ||
+    !Number.isInteger(alertThreshold) ||
+    alertThreshold < 50 ||
+    alertThreshold > 100
+  )
+    return { success: false as const, error: "INVALID_BUDGET" };
   const limitInUsd =
     formData.limitAmount / (await getCurrencyRate(formData.currency));
-  const alertThreshold = Math.min(
-    100,
-    Math.max(50, Math.round(formData.alertThreshold ?? 75)),
-  );
-  const plan = await getCurrentPlanForUser(user);
-  const [ownedCategory] = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(
-      and(
-        eq(categories.id, formData.categoryId),
-        eq(categories.user_id, user.id),
-      ),
-    )
-    .limit(1);
   if (
-    !ownedCategory ||
-    !(await categoryBelongsToUser(user.id, formData.categoryId, "expense"))
+    !Number.isFinite(limitInUsd) ||
+    limitInUsd < 0.00000001 ||
+    limitInUsd >= 1e12
   )
-    throw new Error("Invalid category");
-
-  // month_year хранит первый день текущего месяца
-  const now = new Date();
-  const monthYear = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  )
-    .toISOString()
-    .slice(0, 10);
-
-  const budgetLimit = getPlanBudgetLimit(plan);
-  if (budgetLimit !== null) {
-    const [existingBudget] = await db
-      .select({ id: budgets.id })
+    return { success: false as const, error: "INVALID_BUDGET" };
+  const plan = await getCurrentPlanForUser(user);
+  const monthYear = month + "-01";
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${user.id}, 1))`,
+    );
+    const all = await tx
+      .select()
+      .from(categories)
+      .where(eq(categories.user_id, user.id));
+    const category = all.find(
+      (item) => item.id === formData.categoryId && item.type === "expense",
+    );
+    const current = await tx
+      .select({ id: budgets.id, categoryId: budgets.category_id })
       .from(budgets)
       .where(
-        and(
-          eq(budgets.user_id, user.id),
-          eq(budgets.category_id, formData.categoryId),
-          eq(budgets.month_year, monthYear),
-        ),
-      )
-      .limit(1);
-
-    if (!existingBudget) {
-      const [result] = await db
-        .select({ count: count() })
-        .from(budgets)
-        .where(
-          and(eq(budgets.user_id, user.id), eq(budgets.month_year, monthYear)),
-        );
-      if (isLimitReached(budgetLimit, result.count)) {
-        throw new Error("Plan limit reached for budgets");
-      }
-    }
-  }
-
-  await db
-    .insert(budgets)
-    .values({
-      user_id: user.id,
-      category_id: formData.categoryId,
-      monthly_limit: formatUsdStorageAmount(limitInUsd),
-      rollover_enabled: Boolean(formData.rolloverEnabled),
-      alert_threshold: alertThreshold,
-      month_year: monthYear,
-    })
-    .onConflictDoUpdate({
-      target: [budgets.user_id, budgets.category_id, budgets.month_year],
-      set: {
+        and(eq(budgets.user_id, user.id), eq(budgets.month_year, monthYear)),
+      );
+    const existing = current.some(
+      (item) => item.categoryId === formData.categoryId,
+    );
+    if (!category || (!existing && isCategoryArchived(category, all)))
+      return { success: false as const, error: "INVALID_CATEGORY" };
+    if (!existing && isLimitReached(getPlanBudgetLimit(plan), current.length))
+      return { success: false as const, error: "PLAN_LIMIT" };
+    await tx
+      .insert(budgets)
+      .values({
+        user_id: user.id,
+        category_id: category.id,
         monthly_limit: formatUsdStorageAmount(limitInUsd),
         rollover_enabled: Boolean(formData.rolloverEnabled),
         alert_threshold: alertThreshold,
-      },
-    });
-  revalidateFinancialViews();
+        month_year: monthYear,
+      })
+      .onConflictDoUpdate({
+        target: [budgets.user_id, budgets.category_id, budgets.month_year],
+        set: {
+          monthly_limit: formatUsdStorageAmount(limitInUsd),
+          rollover_enabled: Boolean(formData.rolloverEnabled),
+          alert_threshold: alertThreshold,
+        },
+      });
+    return { success: true as const };
+  });
+  if (result.success) revalidateFinancialViews();
+  return result;
 }
 
 // Получить профиль текущего пользователя
@@ -2615,52 +2609,35 @@ export async function deleteAccount() {
   revalidatePath("/", "layout");
   return { success: true };
 }
-export async function getReportData(period: string = "30d") {
+export async function getReportData(requestedPeriod: string = "30d") {
   const user = await getCurrentUser();
   if (!user) return null;
   const plan = await getCurrentPlanForUser(user);
-  if (!canAccessAdvancedReports(plan)) return null;
-
+  const period =
+    getAccessiblePeriods(plan).find((value) => value === requestedPeriod) ??
+    "30d";
   const now = new Date();
-  let periodStart: Date | null = null;
-  switch (period) {
-    case "7d":
-      periodStart = new Date(now);
-      periodStart.setDate(now.getDate() - 7);
-      break;
-    case "30d":
-      periodStart = new Date(now);
-      periodStart.setDate(now.getDate() - 30);
-      break;
-    case "3m":
-      periodStart = new Date(now);
-      periodStart.setMonth(now.getMonth() - 3);
-      break;
-    case "1y":
-      periodStart = new Date(now);
-      periodStart.setFullYear(now.getFullYear() - 1);
-      break;
-    case "all":
-      periodStart = null;
-      break;
-  }
+  const periodStart = getPeriodStartDate(period, now);
+  const periodEnd = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+  );
 
   const conditions = [
     eq(transactions.user_id, user.id),
     eq(transactions.status, "completed"),
+    lt(transactions.date, periodEnd),
   ];
   if (periodStart) conditions.push(gte(transactions.date, periodStart));
   const reportTransactions = await db
     .select({
       id: transactions.id,
+      description: transactions.description,
       amount: transactions.amount,
       type: transactions.type,
       date: transactions.date,
       category_id: transactions.category_id,
-      categories: { name: categories.name, color: categories.color },
     })
     .from(transactions)
-    .leftJoin(categories, eq(transactions.category_id, categories.id))
     .where(and(...conditions))
     .orderBy(transactions.date);
 
@@ -2672,6 +2649,7 @@ export async function getReportData(period: string = "30d") {
     name: string;
     system_key: string | null;
     color: string;
+    icon: string | null;
     income: number;
     expense: number;
     isDirect?: boolean;
@@ -2691,6 +2669,7 @@ export async function getReportData(period: string = "30d") {
       name: root?.name ?? "",
       system_key: root?.system_key ?? null,
       color: root?.color ?? "#94a3b8",
+      icon: root?.icon ?? null,
       income: 0,
       expense: 0,
       children: [],
@@ -2706,6 +2685,7 @@ export async function getReportData(period: string = "30d") {
         name: category?.name ?? "",
         system_key: category?.system_key ?? null,
         color: category?.color ?? "#94a3b8",
+        icon: category?.icon ?? null,
         income: 0,
         expense: 0,
         isDirect: !parent,
@@ -2739,6 +2719,39 @@ export async function getReportData(period: string = "30d") {
     }
   });
 
+  const roundAmount = (value: number) => Number(formatUsdStorageAmount(value));
+  for (const group of breakdown.values()) {
+    group.income = roundAmount(group.income);
+    group.expense = roundAmount(group.expense);
+    for (const child of group.children) {
+      child.income = roundAmount(child.income);
+      child.expense = roundAmount(child.expense);
+    }
+  }
+  totalIncome = roundAmount(totalIncome);
+  totalExpense = roundAmount(totalExpense);
+  const firstDay = new Date(periodStart ?? reportTransactions[0]?.date ?? now);
+  firstDay.setUTCHours(0, 0, 0, 0);
+  if (period === "7d" || period === "30d") {
+    for (
+      const date = new Date(firstDay);
+      date < periodEnd;
+      date.setUTCDate(date.getUTCDate() + 1)
+    ) {
+      byDay[date.toISOString().slice(0, 10)] ??= { income: 0, expense: 0 };
+    }
+  }
+  const firstMonth = new Date(
+    Date.UTC(firstDay.getUTCFullYear(), firstDay.getUTCMonth(), 1),
+  );
+  for (
+    const date = firstMonth;
+    date < periodEnd;
+    date.setUTCMonth(date.getUTCMonth() + 1)
+  ) {
+    byMonth[date.toISOString().slice(0, 7)] ??= { income: 0, expense: 0 };
+  }
+
   // Top spending categories
   const topExpenseCategories = [...breakdown.values()]
     .filter((c) => c.expense > 0)
@@ -2750,57 +2763,59 @@ export async function getReportData(period: string = "30d") {
     .sort((a, b) => b.income - a.income);
 
   // Monthly trend (sorted)
-  const monthlyTrend = Object.entries(byMonth).map(([label, v]) => ({
-    label,
-    ...v,
-  }));
+  const monthlyTrend = Object.entries(byMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, v]) => ({
+      label,
+      income: roundAmount(v.income),
+      expense: roundAmount(v.expense),
+    }));
 
   // Daily trend is only useful for short periods.
-  const dailyTrend = Object.entries(byDay).map(([label, v]) => ({
-    label,
-    ...v,
-  }));
+  const dailyTrend = Object.entries(byDay)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, v]) => ({
+      label,
+      income: roundAmount(v.income),
+      expense: roundAmount(v.expense),
+    }));
 
   // Largest transactions
   const largest = [...reportTransactions]
     .sort((a, b) => Number(b.amount) - Number(a.amount))
     .slice(0, 5)
-    .map((tx) => ({
-      id: tx.id,
-      description: "Transaction",
-      amount: Number(tx.amount),
-      type: tx.type as "income" | "expense",
-      date: tx.date.toISOString(),
-      category: tx.categories?.name || "Uncategorized",
-      color: tx.categories?.color || "#94a3b8",
-    }));
+    .map((tx) => {
+      const category = allCategories.find((item) => item.id === tx.category_id);
+      return {
+        id: tx.id,
+        description: tx.description,
+        amount: Number(tx.amount),
+        type: tx.type as "income" | "expense",
+        date: tx.date.toISOString(),
+        categories: category ? displayCategory(category, allCategories) : null,
+        isSplit: allocations.filter((item) => item.id === tx.id).length > 1,
+      };
+    });
 
   const savingsRate =
     totalIncome > 0
       ? Math.round(((totalIncome - totalExpense) / totalIncome) * 100)
       : 0;
   const dayInMilliseconds = 24 * 60 * 60 * 1000;
-  const periodDays = periodStart
-    ? Math.max(
-        1,
-        Math.ceil((now.getTime() - periodStart.getTime()) / dayInMilliseconds),
-      )
-    : reportTransactions.length > 0
-      ? Math.max(
-          1,
-          Math.floor(
-            (new Date(now.toDateString()).getTime() -
-              new Date(reportTransactions[0].date.toDateString()).getTime()) /
-              dayInMilliseconds,
-          ) + 1,
-        )
-      : 1;
+  const periodDays = Math.max(
+    1,
+    Math.round((periodEnd.getTime() - firstDay.getTime()) / dayInMilliseconds),
+  );
   const avgDailyExpense = totalExpense / periodDays;
 
   return {
+    plan,
+    period,
+    rangeStart: firstDay.toISOString(),
+    rangeEnd: periodEnd.toISOString(),
     totalIncome,
     totalExpense,
-    net: totalIncome - totalExpense,
+    net: roundAmount(totalIncome - totalExpense),
     savingsRate,
     avgDailyExpense,
     monthlyTrend,

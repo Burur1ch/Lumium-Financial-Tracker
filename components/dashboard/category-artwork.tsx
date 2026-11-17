@@ -2,95 +2,172 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
+import {
+  Apple,
+  Armchair,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Baby,
+  Banknote,
+  BookOpen,
+  Briefcase,
+  BusFront,
+  Car,
+  Coffee,
+  CreditCard,
+  Croissant,
+  CupSoda,
+  Dumbbell,
+  FilePenLine,
+  Fish,
+  Footprints,
+  Fuel,
+  Gamepad2,
+  Gift,
+  GraduationCap,
+  HandCoins,
+  Headphones,
+  Heart,
+  Home,
+  Landmark,
+  Milk,
+  Music,
+  PawPrint,
+  Phone,
+  PiggyBank,
+  Pizza,
+  Plane,
+  QrCode,
+  ReceiptText,
+  ShieldCheck,
+  Shirt,
+  ShoppingBag,
+  ShoppingCart,
+  Sparkles,
+  SprayCan,
+  Stethoscope,
+  Tag,
+  TrainFront,
+  Tv,
+  Utensils,
+  Wallet,
+  Wifi,
+  Wine,
+  Wrench,
+  Zap,
+  Pill,
+  type LucideIcon,
+} from "lucide-react";
+import { resolveCategoryIcon } from "@/utils/category-icons";
 
-const ICON_ASSETS: Record<string, string> = {
-  shoppingCart: "groceries",
-  "shopping-cart": "groceries",
-  "shopping-basket": "groceries",
-  shoppingBag: "shopping",
-  utensils: "dining",
-  pizza: "dining",
-  wine: "dining",
-  car: "transport",
-  bus: "transport",
-  fuel: "transport",
-  home: "housing",
-  house: "housing",
-  heart: "health",
-  stethoscope: "health",
-  gamepad: "entertainment",
-  music: "entertainment",
-  tv: "entertainment",
-  plane: "travel",
-  graduationCap: "education",
-  "graduation-cap": "education",
-  book: "education",
-  briefcase: "salary",
-  banknote: "salary",
-  wallet: "savings",
-  gift: "gifts",
-  coffee: "coffee",
-  creditCard: "subscriptions",
-  phone: "subscriptions",
-  zap: "utilities",
-  wifi: "utilities",
-  wrench: "utilities",
+const SYMBOLS: Record<string, LucideIcon> = {
+  shoppingCart: ShoppingCart,
+  shoppingBag: ShoppingBag,
+  bus: BusFront,
+  home: Home,
+  zap: Zap,
+  stethoscope: Stethoscope,
+  gamepad: Gamepad2,
+  book: BookOpen,
+  graduationCap: GraduationCap,
+  creditCard: CreditCard,
+  plane: Plane,
+  gift: Gift,
+  banknote: Banknote,
+  briefcase: Briefcase,
+  dumbbell: Dumbbell,
+  shield: ShieldCheck,
+  baby: Baby,
+  pawPrint: PawPrint,
+  sparkles: Sparkles,
+  coffee: Coffee,
+  pill: Pill,
+  wallet: Wallet,
+  piggyBank: PiggyBank,
+  handCoins: HandCoins,
+  landmark: Landmark,
+  train: TrainFront,
+  car: Car,
+  fuel: Fuel,
+  heart: Heart,
+  tag: Tag,
+  utensils: Utensils,
+  pizza: Pizza,
+  wine: Wine,
+  wifi: Wifi,
+  phone: Phone,
+  wrench: Wrench,
+  music: Music,
+  tv: Tv,
+  milk: Milk,
+  fish: Fish,
+  apple: Apple,
+  bread: Croissant,
+  cup: CupSoda,
+  spray: SprayCan,
+  armchair: Armchair,
+  shirt: Shirt,
+  shoe: Footprints,
+  headphones: Headphones,
+  receipt: ReceiptText,
+  qrCode: QrCode,
+  manual: FilePenLine,
+  expense: ArrowUpRight,
+  income: ArrowDownLeft,
 };
 
-const NAME_ASSETS: Array<[RegExp, string]> = [
-  [/продукт|grocer|food|lebensmittel|courses|shopping cart/i, "groceries"],
-  [/транспорт|метро|автобус|такси|transport|metro|bus|taxi|verkehr/i, "transport"],
-  [/кофе|coffee|café|kaffee/i, "coffee"],
-  [/кафе|ресторан|еда|обед|dining|restaurant|lunch|essen|repas/i, "dining"],
-  [/жиль|аренд|дом|housing|rent|home|miete|logement/i, "housing"],
-  [/жкх|коммун|utilities|electric|internet|utility|nebenkosten/i, "utilities"],
-  [/здоров|врач|health|doctor|gesund|santé/i, "health"],
-  [/аптек|лекар|pharmacy|medicine|apotheke|pharmacie/i, "pharmacy"],
-  [/покуп|одеж|shopping|clothes|einkauf|achats/i, "shopping"],
-  [/развлеч|кино|игр|entertainment|cinema|game|unterhaltung|loisir/i, "entertainment"],
-  [/подпис|subscription|abo|abonnement/i, "subscriptions"],
-  [/образован|учеб|education|school|bildung|éducation/i, "education"],
-  [/путеше|отпуск|travel|trip|reise|voyage/i, "travel"],
-  [/зарплат|доход|salary|income|gehalt|salaire/i, "salary"],
-  [/подар|gift|geschenk|cadeau/i, "gifts"],
-  [/накоп|сбереж|savings|saving|erspar|épargne/i, "savings"],
-];
-
-export function getCategoryAsset(icon?: string | null, name?: string | null) {
-  const normalizedName = name?.trim() ?? "";
-  const namedAsset = NAME_ASSETS.find(([pattern]) => pattern.test(normalizedName));
-  if (namedAsset) return `/category-icons/${namedAsset[1]}.png`;
-  const asset = icon ? ICON_ASSETS[icon] : undefined;
-  return asset ? `/category-icons/${asset}.png` : null;
+export function getCategoryAsset(
+  icon?: string | null,
+  name?: string | null,
+  systemKey?: string | null,
+) {
+  const definition = resolveCategoryIcon(icon, name, systemKey);
+  return definition?.asset ? `/category-icons/${definition.asset}.png` : null;
 }
 
 export function CategoryArtwork({
   icon,
   name,
+  systemKey,
+  color,
   className = "h-10 w-10",
   imageClassName = "h-full w-full object-contain",
   fallback,
 }: {
   icon?: string | null;
   name?: string | null;
+  systemKey?: string | null;
+  color?: string;
   className?: string;
   imageClassName?: string;
   fallback?: ReactNode;
 }) {
-  const src = getCategoryAsset(icon, name);
-
-  if (!src) return <>{fallback}</>;
+  const definition = resolveCategoryIcon(icon, name, systemKey);
+  if (!definition) return <>{fallback}</>;
+  const src = definition.asset
+    ? `/category-icons/${definition.asset}.png`
+    : null;
+  const Symbol = SYMBOLS[definition.key] ?? Tag;
 
   return (
-    <span className={`relative block shrink-0 overflow-hidden ${className}`}>
-      <Image
-        src={src}
-        alt=""
-        fill
-        sizes="64px"
-        className={imageClassName}
-        aria-hidden="true"
-      />
+    <span
+      aria-hidden="true"
+      data-category-icon={definition.key}
+      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden ${src ? "" : "bg-slate-100 dark:bg-slate-800"} ${className}`}
+      style={{ color: color ?? definition.color }}
+    >
+      {src ? (
+        <Image
+          src={src}
+          alt=""
+          fill
+          sizes="64px"
+          className={imageClassName}
+          aria-hidden="true"
+        />
+      ) : (
+        <Symbol className="h-[58%] w-[58%]" strokeWidth={1.8} />
+      )}
     </span>
   );
 }

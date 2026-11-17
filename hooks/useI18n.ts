@@ -1,15 +1,14 @@
-import { usePrefs } from "@/store/prefs";
+import { usePrefs, type Currency } from "@/store/prefs";
 import { translations, TranslationKey } from "@/store/translations";
-import { categoryDisplayLabel, type CategoryLike } from "@/utils/category-catalog";
+import {
+  categoryDisplayLabel,
+  type CategoryLike,
+} from "@/utils/category-catalog";
 import { useCallback } from "react";
 
-const CURRENCY_LOCALES: Record<string, string> = {
+const CURRENCY_LOCALES: Record<Currency, string> = {
   USD: "en-US",
   EUR: "de-DE",
-  RUB: "ru-RU",
-  GBP: "en-GB",
-  JPY: "ja-JP",
-  CNY: "zh-CN",
   // Keep the ISO-code presentation used by the product design. Some browser
   // ICU builds render be-BY as `BYN 0.00`, while Node renders `0,00 Br`, which
   // makes otherwise identical SSR and client renders fail hydration.
@@ -26,14 +25,20 @@ const LANGUAGE_LOCALES: Record<string, string> = {
 export function useI18n() {
   const { currency, language, dateFormat, exchangeRates } = usePrefs();
 
-  const t = useCallback((key: TranslationKey): string => {
-    return (
-      (translations[language] as Record<TranslationKey, string>)[key] ??
-      translations.en[key] ??
-      key
-    );
-  }, [language]);
-  const categoryName = useCallback((category: Omit<CategoryLike, "id">) => categoryDisplayLabel(category, t), [t]);
+  const t = useCallback(
+    (key: TranslationKey): string => {
+      return (
+        (translations[language] as Record<TranslationKey, string>)[key] ??
+        translations.en[key] ??
+        key
+      );
+    },
+    [language],
+  );
+  const categoryName = useCallback(
+    (category: Omit<CategoryLike, "id">) => categoryDisplayLabel(category, t),
+    [t],
+  );
 
   const fmt = (
     amount: number,
@@ -51,9 +56,10 @@ export function useI18n() {
     }).format(converted);
   };
 
-  const fmtDate = (dateStr: string): string => {
+  const fmtDate = (dateStr: string, options?: Intl.DateTimeFormatOptions): string => {
     const date = new Date(dateStr);
     const locale = LANGUAGE_LOCALES[language] ?? "en-US";
+    if (options) return date.toLocaleDateString(locale, options);
     switch (dateFormat) {
       case "DD.MM.YYYY":
         return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
@@ -76,6 +82,11 @@ export function useI18n() {
     categoryName,
     fmt,
     fmtDate,
+    fmtMonth: (month: string) =>
+      new Intl.DateTimeFormat(LANGUAGE_LOCALES[language] ?? "en-US", {
+        month: "long",
+        year: "numeric",
+      }).format(new Date(`${month}-01T12:00:00`)),
     currency,
     currencyRate: exchangeRates[currency] ?? 1,
     language,

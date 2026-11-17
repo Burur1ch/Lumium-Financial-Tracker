@@ -14,6 +14,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { getPlanBudgetLimit } from "@/utils/monetization/limits";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
+import { MonthSelector } from "./month-selector";
 
 export interface BudgetCategory {
   id: string;
@@ -35,8 +36,18 @@ export interface BudgetItem {
   current_spent: number;
   category_id: string;
   categories?:
-    | { name: string; color: string; icon?: string | null }
-    | { name: string; color: string; icon?: string | null }[]
+    | {
+        name: string;
+        color: string;
+        icon?: string | null;
+        system_key?: string | null;
+      }
+    | {
+        name: string;
+        color: string;
+        icon?: string | null;
+        system_key?: string | null;
+      }[]
     | null;
 }
 
@@ -47,25 +58,39 @@ function getCat(b: BudgetItem) {
 export default function BudgetContent({
   categories,
   budgets,
+  month,
 }: {
   categories: BudgetCategory[];
   budgets: BudgetItem[];
+  month: string;
 }) {
   const { t, categoryName } = useI18n();
   const { plan } = usePrefs();
   const [editingBudget, setEditingBudget] = useState<BudgetItem | null>(null);
 
   const b = budgets as BudgetItem[];
+  const drafts = b.map((budget) => ({
+    categoryId: budget.category_id,
+    limitAmountUsd: budget.base_limit ?? budget.monthly_limit,
+    rolloverEnabled: Boolean(budget.rollover_enabled),
+    alertThreshold: budget.alert_threshold ?? 75,
+  }));
   const budgetLimit = getPlanBudgetLimit(plan);
-  const totalLimit = independentBudgets(b).reduce((s, i) => s + Number(i.monthly_limit ?? 0), 0);
-  const totalSpent = independentBudgets(b).reduce((s, i) => s + Number(i.current_spent ?? 0), 0);
+  const totalLimit = independentBudgets(b).reduce(
+    (s, i) => s + Number(i.monthly_limit ?? 0),
+    0,
+  );
+  const totalSpent = independentBudgets(b).reduce(
+    (s, i) => s + Number(i.current_spent ?? 0),
+    0,
+  );
   const overBudgetCount = b.filter(
-    (i) => i.current_spent >= i.monthly_limit,
+    (i) => i.current_spent > i.monthly_limit,
   ).length;
   const safeBudgetCount = b.filter(
     (i) =>
       i.current_spent <
-      i.monthly_limit * ((i.alert_threshold ?? 75) / 100),
+      Number((i.monthly_limit * ((i.alert_threshold ?? 75) / 100)).toFixed(8)),
   ).length;
 
   return (
@@ -85,10 +110,14 @@ export default function BudgetContent({
             </p>
           )}
         </div>
+        <div className="hidden lg:block">
+          <MonthSelector variant="stepper" />
+        </div>
         <SetBudgetModal
           categories={categories}
+          month={month}
+          existingBudgets={drafts}
           currentBudgetCount={b.length}
-          budgetedCategoryIds={b.map((budget) => budget.category_id)}
         />
       </div>
 
@@ -98,7 +127,10 @@ export default function BudgetContent({
 
       {/* Summary row */}
       {b.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+        <div
+          data-tour="budget-overview"
+          className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4"
+        >
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:gap-3 sm:p-4">
             <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
               <Wallet className="w-4 h-4 text-slate-400" />
@@ -162,11 +194,14 @@ export default function BudgetContent({
 
       {/* Budget cards */}
       {b.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900 sm:p-16">
+        <div
+          data-tour="budget-overview"
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center dark:border-slate-800 dark:bg-slate-900 sm:p-16"
+        >
           <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
             <Wallet className="w-6 h-6 text-slate-400" />
           </div>
-          <div>
+          <div data-tour-focus>
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
               {t("noBudgetSet")}
             </p>
@@ -182,9 +217,10 @@ export default function BudgetContent({
             const limit = Number(budget.monthly_limit ?? 0);
             const spent = Number(budget.current_spent ?? 0);
             const percentage =
-              limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+              limit > 0 ? Number(((spent / limit) * 100).toFixed(8)) : 0;
             const remaining = Math.max(limit - spent, 0);
-            const isOver = spent >= limit;
+            const isOver = spent > limit;
+            const isAtLimit = spent === limit;
             const isWarning =
               percentage >= (budget.alert_threshold ?? 75) && !isOver;
             const catColor = cat?.color || "#D92D3A";
@@ -195,7 +231,7 @@ export default function BudgetContent({
               0,
             ).getDate();
             const projected =
-              today.getDate() > 0
+              month === today.toISOString().slice(0, 7) && today.getDate() > 0
                 ? (spent / today.getDate()) * daysInMonth
                 : spent;
 
@@ -213,11 +249,15 @@ export default function BudgetContent({
                     <CategoryArtwork
                       icon={cat?.icon}
                       name={cat?.name}
+                      systemKey={cat?.system_key}
                       className="h-9 w-9 rounded-xl"
                       fallback={
                         <div
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                          style={{ backgroundColor: `${catColor}20`, color: catColor }}
+                          style={{
+                            backgroundColor: `${catColor}20`,
+                            color: catColor,
+                          }}
                         >
                           <Wallet className="h-4 w-4" />
                         </div>
@@ -246,9 +286,11 @@ export default function BudgetContent({
                     >
                       {isOver
                         ? t("overLimit")
-                        : isWarning
-                          ? t("warning")
-                          : t("onTrack")}
+                        : isAtLimit
+                          ? t("budgetLimitReached")
+                          : isWarning
+                            ? t("warning")
+                            : t("onTrack")}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       {t("editLimit")}
@@ -268,14 +310,15 @@ export default function BudgetContent({
                   </div>
                   {budget.rollover_amount && budget.rollover_amount > 0 ? (
                     <p className="mb-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      +<Money amount={budget.rollover_amount} /> {t("fromPreviousMonth")}
+                      +<Money amount={budget.rollover_amount} />{" "}
+                      {t("fromPreviousMonth")}
                     </p>
                   ) : null}
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
                       style={{
-                        transform: `scaleX(${percentage / 100})`,
+                        transform: `scaleX(${Math.min(percentage, 100) / 100})`,
                         backgroundColor: isOver
                           ? "#D92D3A"
                           : isWarning
@@ -310,8 +353,14 @@ export default function BudgetContent({
                       </strong>
                     </span>
                     <span className="text-right text-slate-400 dark:text-slate-500">
-                      {t("monthEndForecast")}
-                      <strong className={`mt-0.5 block text-xs ${projected > limit ? "text-red-500" : "text-slate-700 dark:text-slate-300"}`}>
+                      {t(
+                        month < new Date().toISOString().slice(0, 7)
+                          ? "totalSpent"
+                          : "monthEndForecast",
+                      )}
+                      <strong
+                        className={`mt-0.5 block text-xs ${projected > limit ? "text-red-500" : "text-slate-700 dark:text-slate-300"}`}
+                      >
                         <Money amount={projected} />
                       </strong>
                     </span>
@@ -326,9 +375,10 @@ export default function BudgetContent({
       {editingBudget ? (
         <SetBudgetModal
           key={editingBudget.id}
+          month={month}
+          existingBudgets={drafts}
           categories={categories}
           currentBudgetCount={b.length}
-          budgetedCategoryIds={b.map((budget) => budget.category_id)}
           initialBudget={{
             categoryId: editingBudget.category_id,
             limitAmountUsd: Number(

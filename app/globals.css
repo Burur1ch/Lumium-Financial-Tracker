@@ -1093,18 +1093,29 @@ html.dark textarea {
   background: rgb(7 14 19 / 68%);
 }
 
+html[data-tour-active] .dashboard-main {
+  scroll-padding-top: 1.5rem;
+}
+
+html[data-tour-active] .dashboard-main::after {
+  content: "";
+  display: block;
+  height: 50vh;
+}
+
+@media (max-width: 1023px) {
+  html[data-tour-active] .dashboard-main {
+    scroll-padding-top: calc(4.75rem + env(safe-area-inset-top));
+  }
+}
+
 .tour-highlight {
   position: fixed;
   z-index: 81;
   border: 2px solid var(--app-accent);
   border-radius: 1rem;
   box-shadow: 0 0 0 4px rgb(217 45 58 / 20%);
-  pointer-events: none;
-  transition:
-    top 180ms ease,
-    left 180ms ease,
-    width 180ms ease,
-    height 180ms ease;
+  pointer-events: auto;
 }
 
 .tour-dialog {
@@ -1117,6 +1128,9 @@ html.dark textarea {
   padding: 1.25rem;
   color: var(--app-text);
   box-shadow: 0 18px 48px rgb(0 0 0 / 24%);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
 }
 
 .tour-dialog__actions {

@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { PaywallModal } from "@/components/dashboard/paywall-modal";
+import type { PlanKey } from "@/utils/monetization/plans";
 import {
   canAccessPeriod,
   getAccessiblePeriods,
@@ -20,13 +21,16 @@ function isValidPeriod(v: string | null): v is Period {
 
 export default function PeriodSelector({
   onSelect,
+  plan: serverPlan,
 }: {
   onSelect?: () => void;
+  plan?: PlanKey;
 } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { plan } = usePrefs();
+  const storedPlan = usePrefs((state) => state.plan);
+  const plan = serverPlan ?? storedPlan;
   const rawPeriod = searchParams.get("period");
   const current: Period = isValidPeriod(rawPeriod) ? rawPeriod : "30d";
   const [isPending, startTransition] = useTransition();
@@ -94,6 +98,8 @@ export default function PeriodSelector({
         return (
           <button
             key={p.value}
+            type="button"
+            aria-pressed={current === p.value}
             onClick={() => select(p.value)}
             disabled={isPending}
             className={`relative min-h-10 min-w-11 rounded-lg px-3 py-2 text-xs font-bold transition-[color,background-color,transform] duration-150 disabled:cursor-wait ${

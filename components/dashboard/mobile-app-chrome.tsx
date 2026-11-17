@@ -55,7 +55,7 @@ export function MobileAppChrome() {
   const unreadCount = notifications.filter((item) => item.unread).length;
   const isHome = pathname === "/dashboard";
   const isTransactions = pathname.startsWith("/dashboard/transactions");
-  const showMonthControl = isHome || isTransactions;
+  const showMonthControl = isHome || isTransactions || pathname.startsWith("/dashboard/budget");
   const pageTitle = isTransactions
     ? t("transactions")
     : pathname.startsWith("/dashboard/reports")
@@ -114,6 +114,25 @@ export function MobileAppChrome() {
     window.dispatchEvent(new Event("lumium:open-mobile-add"));
   };
 
+  useEffect(() => {
+    const openNavigation = () => {
+      setMoreOpen(true);
+      setMonthOpen(false);
+      setNotificationsOpen(false);
+    };
+    const closePanels = () => {
+      setMoreOpen(false);
+      setMonthOpen(false);
+      setNotificationsOpen(false);
+    };
+    window.addEventListener("lumium:open-navigation", openNavigation);
+    window.addEventListener("lumium:close-entry-panels", closePanels);
+    return () => {
+      window.removeEventListener("lumium:open-navigation", openNavigation);
+      window.removeEventListener("lumium:close-entry-panels", closePanels);
+    };
+  }, []);
+
   const primaryItems = [
     {
       label: t("home"),
@@ -165,6 +184,7 @@ export function MobileAppChrome() {
               setMoreOpen(false);
             }}
             className="mobile-topbar-period"
+            data-tour="period"
             aria-haspopup="dialog"
             aria-expanded={monthOpen}
             aria-controls="month-sheet"
@@ -246,7 +266,7 @@ export function MobileAppChrome() {
           className="mobile-add-button"
           aria-label={t("addTransaction")}
         >
-          <span className="mobile-add-button-circle">
+          <span className="mobile-add-button-circle" data-tour-bounds>
             <Plus className="h-6 w-6" strokeWidth={2.15} />
           </span>
           <span>{t("addNew")}</span>
@@ -257,7 +277,7 @@ export function MobileAppChrome() {
         </Link>
         <button
           type="button"
-          data-tour="main-navigation"
+          data-tour="navigation-trigger"
           onClick={() => {
             setMoreOpen(true);
             setMonthOpen(false);
@@ -293,7 +313,7 @@ export function MobileAppChrome() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 px-4 pb-5">
+            <div data-tour="main-navigation" className="grid grid-cols-2 gap-2 px-4 pb-5">
               {moreItems.map((item) => {
                 const Icon = item.icon;
                 return (

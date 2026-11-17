@@ -35,7 +35,7 @@ const RESPONSE_SCHEMA = {
     currency: {
       type: "STRING",
       nullable: true,
-      description: "ISO 4217 currency code such as BYN, RUB, USD, or EUR.",
+      description: "ISO 4217 currency code printed on the receipt.",
     },
     date: {
       type: "STRING",

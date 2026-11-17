@@ -33,6 +33,7 @@ export function DashboardLaunchLoader() {
 
   return (
     <div
+      data-dashboard-loading
       className={`dashboard-launch-screen${exiting ? " is-exiting" : ""}`}
       role="status"
       aria-label={t("loadingDashboard")}

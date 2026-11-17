@@ -1,246 +1,351 @@
 "use client";
-import { CategoryPicker } from "@/components/dashboard/category-picker";
 
-import React, { useState, useTransition } from "react";
-import Link from "next/link";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, X } from "lucide-react";
 import { upsertBudget } from "@/app/dashboard/actions";
-import { PaywallModal } from "@/components/dashboard/paywall-modal";
+import { CategoryPicker } from "./category-picker";
+import { PaywallModal } from "./paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
-import {
-  getPlanBudgetLimit,
-  isLimitReached,
-} from "@/utils/monetization/limits";
-import { Plus, X } from "lucide-react";
+import { getPlanBudgetLimit } from "@/utils/monetization/limits";
+import type { CategoryLike } from "@/utils/category-catalog";
 
-interface Category {
-  id: string;
-  name: string;
-  type?: string;
-}
-
-interface InitialBudget {
+export interface BudgetDraft {
   categoryId: string;
   limitAmountUsd: number;
   rolloverEnabled: boolean;
   alertThreshold: number;
 }
 
-export default function SetBudgetModal({
-  categories,
-  currentBudgetCount,
-  budgetedCategoryIds = [],
-  initialBudget,
-  open,
-  onOpenChange,
-  hideTrigger = false,
-}: {
-  categories: Category[];
+interface Props {
+  categories: CategoryLike[];
   currentBudgetCount: number;
-  budgetedCategoryIds?: string[];
-  initialBudget?: InitialBudget | null;
+  existingBudgets?: BudgetDraft[];
+  month: string;
+  initialBudget?: BudgetDraft | null;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
-}) {
-  const router = useRouter();
-  const { t, currencyRate } = useI18n();
+}
+
+export default function SetBudgetModal({
+  hideTrigger = false,
+  open,
+  onOpenChange,
+  ...props
+}: Props) {
+  const { t } = useI18n();
   const { plan, currency } = usePrefs();
-  const initialLimitAmount = initialBudget
-    ? String(Number((initialBudget.limitAmountUsd * currencyRate).toFixed(2)))
-    : "";
   const [internalOpen, setInternalOpen] = useState(false);
-  const [categoryId, setCategoryId] = useState(
-    initialBudget?.categoryId ?? "",
+  const isOpen = open ?? internalOpen;
+  const setOpen = (value: boolean) => {
+    setInternalOpen(value);
+    onOpenChange?.(value);
+  };
+  useEffect(() => {
+    const close = () => {
+      setInternalOpen(false);
+      onOpenChange?.(false);
+    };
+    const show = () => setInternalOpen(true);
+    if (!hideTrigger) window.addEventListener("lumium:open-budget-limit", show);
+    window.addEventListener("lumium:close-entry-panels", close);
+    return () => {
+      window.removeEventListener("lumium:open-budget-limit", show);
+      window.removeEventListener("lumium:close-entry-panels", close);
+    };
+  }, [hideTrigger, onOpenChange]);
+  const budgetLimit = getPlanBudgetLimit(plan);
+  return (
+    <>
+      {!hideTrigger && (
+        <button
+          type="button"
+          data-tour="set-budget-limit"
+          onClick={() => setOpen(true)}
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 sm:w-auto"
+        >
+          <Plus className="h-4 w-4" />
+          {t("setCategoryLimit")}
+        </button>
+      )}
+      {!hideTrigger && budgetLimit !== null && (
+        <p className="text-xs text-slate-500">
+          {t("budgetPlanLimitHint")} {props.currentBudgetCount}/{budgetLimit}
+        </p>
+      )}
+      {isOpen && (
+        <BudgetLimitForm
+          key={`${props.initialBudget?.categoryId ?? "new"}:${props.month}:${currency}`}
+          {...props}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   );
-  const [limitAmount, setLimitAmount] = useState(initialLimitAmount);
+}
+
+function BudgetLimitForm({
+  categories,
+  initialBudget,
+  existingBudgets = [],
+  month,
+  onClose,
+}: Props & { onClose: () => void }) {
+  const router = useRouter();
+  const { t, currencyRate, fmtMonth } = useI18n();
+  const { currency } = usePrefs();
+  const id = useId();
+  const dialog = useRef<HTMLDivElement>(null);
+  const [categoryId, setCategoryId] = useState(initialBudget?.categoryId ?? "");
+  const [limitAmount, setLimitAmount] = useState(
+    initialBudget
+      ? String(Number((initialBudget.limitAmountUsd * currencyRate).toFixed(2)))
+      : "",
+  );
   const [rolloverEnabled, setRolloverEnabled] = useState(
     initialBudget?.rolloverEnabled ?? false,
   );
   const [alertThreshold, setAlertThreshold] = useState(
     String(initialBudget?.alertThreshold ?? 75),
   );
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [showPaywall, setShowPaywall] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const budgetLimit = getPlanBudgetLimit(plan);
-  const hasReachedLimit = isLimitReached(budgetLimit, currentBudgetCount);
-  const isOpen = open ?? internalOpen;
-  const isEditing = Boolean(initialBudget);
-  const categoryAlreadyBudgeted = budgetedCategoryIds.includes(categoryId);
+  const [pending, startTransition] = useTransition();
+  const existing =
+    initialBudget ??
+    existingBudgets.find((budget) => budget.categoryId === categoryId);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    if (!document.documentElement.dataset.tourActive)
+      dialog.current?.focus({ preventScroll: true });
+    const keydown = (event: KeyboardEvent) => {
+      if (document.documentElement.dataset.tourActive) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+      }
+      if (event.key !== "Tab") return;
+      const controls = dialog.current?.querySelectorAll<HTMLElement>(
+        "button:not(:disabled),input:not(:disabled),select:not(:disabled),a[href]",
+      );
+      if (!controls?.length) return;
+      const first = controls[0],
+        last = controls[controls.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          document.activeElement === dialog.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", keydown);
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus({ preventScroll: true });
+    };
+  }, []);
 
-  const setIsOpen = (nextOpen: boolean) => {
-    if (open === undefined) setInternalOpen(nextOpen);
-    onOpenChange?.(nextOpen);
+  const chooseCategory = (value: string) => {
+    setCategoryId(value);
+    const saved = existingBudgets.find((budget) => budget.categoryId === value);
+    setLimitAmount(
+      saved
+        ? String(Number((saved.limitAmountUsd * currencyRate).toFixed(2)))
+        : "",
+    );
+    setAlertThreshold(String(saved?.alertThreshold ?? 75));
+    setRolloverEnabled(saved?.rolloverEnabled ?? false);
+    setError("");
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (hasReachedLimit && !isEditing && !categoryAlreadyBudgeted) {
-      setShowPaywall(true);
-      return;
-    }
-    if (!categoryId || !limitAmount) return;
-
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
     startTransition(async () => {
       try {
-        await upsertBudget({
+        const result = await upsertBudget({
           categoryId,
-          limitAmount: parseFloat(limitAmount),
+          limitAmount: Number(limitAmount),
           currency,
+          month,
           rolloverEnabled,
           alertThreshold: Number(alertThreshold),
         });
-        setIsOpen(false);
+        if (!result.success) {
+          if (result.error === "PLAN_LIMIT") setShowPaywall(true);
+          else
+            setError(
+              t(
+                result.error === "INVALID_CATEGORY"
+                  ? "budgetCategoryUnavailable"
+                  : "budgetSaveFailed",
+              ),
+            );
+          return;
+        }
+        onClose();
         router.refresh();
       } catch {
         setError(t("budgetSaveFailed"));
       }
     });
   };
-
+  const field =
+    "min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
   return (
-    <>
-      {!hideTrigger ? (
-        <button
-          onClick={() => {
-            setCategoryId("");
-            setLimitAmount("");
-            setRolloverEnabled(false);
-            setAlertThreshold("75");
-            setError(null);
-            setIsOpen(true);
-          }}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white transition-[background-color,transform] duration-150 hover:bg-red-600 active:scale-98 sm:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          {t("setCategoryLimit")}
-        </button>
-      ) : null}
-
-      {!hideTrigger && hasReachedLimit && budgetLimit !== null && (
-        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          {t("budgetPlanLimitHint")} {budgetLimit}.{" "}
-          <Link
-            href="/dashboard/pricing"
-            className="font-bold text-red-500 hover:text-red-600"
+    <div
+      className="ui-modal-overlay fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/60 p-3 sm:items-center"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialog}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-period`}
+        data-tour="budget-limit"
+        className="ui-modal-panel max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-5 shadow-xl outline-none dark:border-slate-800 dark:bg-slate-900"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2
+              id={`${id}-title`}
+              className="text-lg font-bold text-slate-900 dark:text-slate-100"
+            >
+              {existing ? t("editLimit") : t("budgetLimitTitle")}
+            </h2>
+            <p
+              id={`${id}-period`}
+              className="mt-1 text-sm capitalize text-slate-500"
+            >
+              {fmtMonth(month)}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label={t("close")}
+            onClick={onClose}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            {t("upgradeToPro")}
-          </Link>
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      )}
-
+        <form onSubmit={submit} className="space-y-4">
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30"
+            >
+              {error}
+            </p>
+          )}
+          <div>
+            <label
+              htmlFor={`${id}-category`}
+              className="mb-1.5 block text-xs font-semibold text-slate-500"
+            >
+              {t("category")}
+            </label>
+            <CategoryPicker
+              id={`${id}-category`}
+              aria-label={t("category")}
+              value={categoryId}
+              onChange={(event) => chooseCategory(event.target.value)}
+              disabled={Boolean(initialBudget)}
+              required
+              categories={categories.filter(
+                (category) => category.type === "expense",
+              )}
+            />
+          </div>
+          <div data-tour="budget-limit-fields">
+            <label
+              htmlFor={`${id}-amount`}
+              className="mb-1.5 block text-xs font-semibold text-slate-500"
+            >
+              {t("monthlyLimitLabel")} ({currency})
+            </label>
+            <input
+              id={`${id}-amount`}
+              name="amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={limitAmount}
+              onChange={(event) => setLimitAmount(event.target.value)}
+              className={field}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor={`${id}-threshold`}
+              className="mb-1.5 block text-xs font-semibold text-slate-500"
+            >
+              {t("budgetAlertThreshold")} (%)
+            </label>
+            <input
+              id={`${id}-threshold`}
+              name="threshold"
+              type="number"
+              min={50}
+              max={100}
+              step={1}
+              required
+              value={alertThreshold}
+              onChange={(event) => setAlertThreshold(event.target.value)}
+              className={field}
+            />
+          </div>
+          <label className="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={rolloverEnabled}
+              onChange={(event) => setRolloverEnabled(event.target.checked)}
+              className="h-4 w-4 shrink-0 accent-red-500"
+            />
+            <span className="font-semibold">
+              {t("rolloverBudget")}
+              <small className="mt-1 block font-normal text-slate-500">
+                {t("rolloverBudgetHint")}
+              </small>
+            </span>
+          </label>
+          <button
+            type="submit"
+            disabled={pending}
+            className="min-h-11 w-full rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+          >
+            {t(pending ? "savingEllipsis" : "saveLimit")}
+          </button>
+        </form>
+      </div>
       {showPaywall && (
         <PaywallModal
-          isOpen={showPaywall}
+          isOpen
           onClose={() => setShowPaywall(false)}
           title={t("budgetLockedTitle")}
           description={t("budgetLockedDesc")}
           featureLabel={t("budgetsLimits")}
         />
       )}
-
-      {isOpen && (
-        <div className="ui-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-slate-950/65"
-            onClick={() => setIsOpen(false)}
-          />
-
-          <div className="ui-modal-panel relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xl">
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-              aria-label={t("close")}
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-1">
-              {isEditing ? t("editLimit") : t("budgetLimitTitle")}
-            </h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
-              {t("budgetLimitDesc")}
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error ? (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-400">
-                  {error}
-                </p>
-              ) : null}
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {t("category")}
-                </label>
-                <CategoryPicker
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  disabled={isEditing}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-red-500 focus:outline-none text-sm text-slate-800 dark:text-slate-200"
-                  required
-                 categories={categories.filter(category => category.type === "expense")} />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {t("budgetAlertThreshold")}
-                </label>
-                <select
-                  value={alertThreshold}
-                  onChange={(event) => setAlertThreshold(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-800 outline-none focus:border-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-                >
-                  <option value="75">75%</option>
-                  <option value="80">80%</option>
-                  <option value="90">90%</option>
-                </select>
-              </div>
-
-              <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={rolloverEnabled}
-                  onChange={(event) => setRolloverEnabled(event.target.checked)}
-                  className="h-4 w-4 accent-red-500"
-                />
-                <span>
-                  {t("rolloverBudget")}
-                  <small className="mt-0.5 block font-normal text-slate-400">
-                    {t("rolloverBudgetHint")}
-                  </small>
-                </span>
-              </label>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {t("monthlyLimitLabel")} ({currency})
-                </label>
-                <input
-                  type="number"
-                  placeholder="500"
-                  value={limitAmount}
-                  onChange={(e) => setLimitAmount(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:border-red-500 focus:outline-none text-sm text-slate-800 dark:text-slate-200"
-                  required
-                  min="0.01"
-                  step="0.01"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isPending}
-                className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white font-medium text-sm rounded-xl transition-[background-color,transform] duration-150 active:scale-[0.98]"
-              >
-                {isPending ? t("savingEllipsis") : t("saveLimit")}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

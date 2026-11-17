@@ -399,13 +399,15 @@ export default async function DashboardPage({
           <DashboardHeader />
           <div className="flex items-center gap-3">
             <Suspense>
-              <MonthSelector variant="stepper" />
+              <div data-tour="period">
+                <MonthSelector variant="stepper" />
+              </div>
             </Suspense>
             <AddTransactionButton />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+        <div data-tour="overview" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
           <MetricCard
             amount={totalIncome - totalExpenses}
             change={calcChange(

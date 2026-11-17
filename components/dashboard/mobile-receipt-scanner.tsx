@@ -1,6 +1,7 @@
 "use client";
 import { CategoryPicker } from "@/components/dashboard/category-picker";
 import { isCategoryArchived } from "@/utils/category-catalog";
+import { CategoryArtwork } from "./category-artwork";
 
 import {
   ArrowLeft,
@@ -8,7 +9,6 @@ import {
   Check,
   CircleHelp,
   Clock3,
-  FilePenLine,
   Flashlight,
   Image as ImageIcon,
   Loader2,
@@ -31,6 +31,7 @@ import {
 } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { isCurrency } from "@/utils/currency";
 import {
   allocateReceiptCategorySplits,
   chooseBestReceiptResult,
@@ -191,8 +192,12 @@ export function MobileReceiptScanner() {
   useEffect(() => {
     const open = () => setScreen("chooser");
     window.addEventListener("lumium:open-mobile-add", open);
-    return () => window.removeEventListener("lumium:open-mobile-add", open);
-  }, []);
+    window.addEventListener("lumium:close-entry-panels", closeFlow);
+    return () => {
+      window.removeEventListener("lumium:open-mobile-add", open);
+      window.removeEventListener("lumium:close-entry-panels", closeFlow);
+    };
+  }, [closeFlow]);
 
   useEffect(() => {
     if (screen === "closed") return;
@@ -520,6 +525,10 @@ export function MobileReceiptScanner() {
   };
 
   const saveScannedReceipt = async () => {
+    if (result?.currency && !isCurrency(result.currency)) {
+      setScanError(t("receiptUnsupportedCurrency"));
+      return;
+    }
     if (!result?.amount) {
       setScanError(t("receiptAmountMissing"));
       return;
@@ -592,10 +601,10 @@ export function MobileReceiptScanner() {
             <h2 id="mobile-add-title" className="text-[1.65rem] font-extrabold tracking-[-0.025em] text-[var(--app-text)]">{t("addOperation")}</h2>
             <button type="button" className="icon-button" onClick={closeFlow} aria-label={t("close")}><X className="h-5 w-5" /></button>
           </div>
-          <div className="space-y-2.5 px-4 pb-4">
-            <AddChoice testId="receipt-photo-choice" icon={Camera} title={t("photographReceipt")} description={t("photographReceiptHint")} onClick={() => startScanner("photo")} />
-            <AddChoice icon={QrCode} title={t("scanQr")} description={t("scanQrHint")} onClick={() => startScanner("qr")} />
-            <AddChoice icon={FilePenLine} title={t("enterManually")} description={t("manualEntryHint")} onClick={() => {
+          <div data-tour="entry-methods" className="space-y-2.5 px-4 pb-4">
+            <AddChoice testId="receipt-photo-choice" icon="receipt" title={t("photographReceipt")} description={t("photographReceiptHint")} onClick={() => startScanner("photo")} />
+            <AddChoice icon="qrCode" title={t("scanQr")} description={t("scanQrHint")} onClick={() => startScanner("qr")} />
+            <AddChoice icon="manual" title={t("enterManually")} description={t("manualEntryHint")} onClick={() => {
               closeFlow();
               window.setTimeout(() => window.dispatchEvent(new Event("lumium:open-add-transaction")), 240);
             }} />
@@ -686,6 +695,7 @@ export function MobileReceiptScanner() {
 
   if (!result) return null;
   const reviewCurrency = result.currency || currency;
+  const unsupportedCurrency = !isCurrency(reviewCurrency);
   const hasLowConfidence = result.source === "receipt" && (result.confidence < 0.55 || result.amount === null);
   const hasInvalidReceiptItems = result.items.some((item) =>
     !item.name.trim() || !Number.isFinite(item.price) || item.price <= 0);
@@ -708,6 +718,24 @@ export function MobileReceiptScanner() {
           <span>{Math.round(result.confidence * 100)}%</span>
         </div>
         <p className="mobile-prototype-note">{t("receiptPrototypeNotice")}</p>
+        {unsupportedCurrency && (
+          <div role="alert" className="mobile-confidence-warning">
+            <span>!</span>
+            <div>
+              <p>{t("receiptUnsupportedCurrency")}</p>
+              <button
+                type="button"
+                className="mt-2 min-h-11 font-bold underline underline-offset-4"
+                onClick={() => {
+                  closeFlow();
+                  window.setTimeout(() => window.dispatchEvent(new Event("lumium:open-add-transaction")), 240);
+                }}
+              >
+                {t("enterManually")}
+              </button>
+            </div>
+          </div>
+        )}
 
         <section className="mx-auto mt-3 w-full max-w-xl space-y-3 rounded-2xl border border-[#2a2a2a] bg-[#181818] p-4">
           <label className="block text-xs font-bold text-[#aeb9c3]">{t("description")}
@@ -801,7 +829,7 @@ export function MobileReceiptScanner() {
         {hasLowConfidence && <div className="mobile-confidence-warning"><span>!</span>{t("lowConfidenceHint")}</div>}
       </div>
       <footer className="mobile-review-footer">
-        <button data-testid="save-scanned-receipt" type="button" onClick={() => void saveScannedReceipt()} disabled={!result.amount || saving || hasInvalidReceiptItems || expenseCategories.length === 0}>
+        <button data-testid="save-scanned-receipt" type="button" onClick={() => void saveScannedReceipt()} disabled={unsupportedCurrency || !result.amount || saving || hasInvalidReceiptItems || expenseCategories.length === 0}>
           {saving ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : <>{t("save")} · {formatAmount(result.amount, reviewCurrency)}</>}
         </button>
         <p>{t("receiptDeletedAfterSave")}</p>
@@ -810,10 +838,10 @@ export function MobileReceiptScanner() {
   );
 }
 
-function AddChoice({ icon: Icon, title, description, onClick, testId }: { icon: ElementType; title: string; description: string; onClick: () => void; testId?: string }) {
+function AddChoice({ icon, title, description, onClick, testId }: { icon: string; title: string; description: string; onClick: () => void; testId?: string }) {
   return (
     <button data-testid={testId} type="button" onClick={onClick} className="mobile-add-choice">
-      <span><Icon className="h-6 w-6" /></span>
+      <CategoryArtwork icon={icon} className="h-11 w-11 rounded-xl" />
       <span className="min-w-0 flex-1 text-left"><strong>{title}</strong><small>{description}</small></span>
       <ArrowLeft className="h-5 w-5 rotate-180 text-[var(--app-muted)]" />
     </button>

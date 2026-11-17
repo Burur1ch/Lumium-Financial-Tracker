@@ -46,6 +46,7 @@ import {
   isAutoThemeEnabled,
 } from "@/components/scheduled-theme";
 import { getPlan, PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
+import { CURRENCIES, CURRENCY_SYMBOLS } from "@/utils/currency";
 
 interface Profile {
   id: string;
@@ -54,16 +55,6 @@ interface Profile {
   avatar_url: string | null;
   plan: "free" | "pro" | "family";
 }
-
-const CURRENCIES: { value: Currency; label: string }[] = [
-  { value: "USD", label: "$ USD · US Dollar" },
-  { value: "EUR", label: "€ EUR · Euro" },
-  { value: "BYN", label: "Br BYN · Белорусский рубль" },
-  { value: "RUB", label: "₽ RUB · Russian Ruble" },
-  { value: "GBP", label: "£ GBP · British Pound" },
-  { value: "JPY", label: "¥ JPY · Japanese Yen" },
-  { value: "CNY", label: "¥ CNY · Chinese Yuan" },
-];
 
 const LANGUAGES: { value: Language; label: string }[] = [
   { value: "en", label: "🇺🇸 English" },
@@ -478,13 +469,14 @@ export default function SettingsPage() {
           <Field label={t("currency")}>
             <div>
               <select
+                aria-label={t("currency")}
                 className={selectCls}
                 value={pendingCurrency}
                 onChange={(e) => setPendingCurrency(e.target.value as Currency)}
               >
-                {CURRENCIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency} · {CURRENCY_SYMBOLS[currency]}
                   </option>
                 ))}
               </select>

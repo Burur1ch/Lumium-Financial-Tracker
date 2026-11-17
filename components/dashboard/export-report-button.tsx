@@ -7,11 +7,20 @@ import { PaywallModal } from "@/components/dashboard/paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { canAccessAdvancedReports } from "@/utils/monetization/limits";
+import type { PlanKey } from "@/utils/monetization/plans";
 
-export function ExportReportButton({ period }: { period: string }) {
+export function ExportReportButton({
+  period,
+  plan: serverPlan,
+}: {
+  period: string;
+  plan?: PlanKey;
+}) {
   const { t, language } = useI18n();
-  const { plan } = usePrefs();
+  const storedPlan = usePrefs((state) => state.plan);
+  const plan = serverPlan ?? storedPlan;
   const [showPaywall, setShowPaywall] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleExport = () => {
@@ -20,25 +29,30 @@ export function ExportReportButton({ period }: { period: string }) {
       return;
     }
 
+    setHasError(false);
     startTransition(async () => {
-      const result = await exportReportWorkbook(period, language);
-      if (!result.success || !result.workbook || !result.filename) {
-        window.alert(result.error ?? "Export failed");
-        return;
-      }
+      try {
+        const result = await exportReportWorkbook(period, language);
+        if (!result.success || !result.workbook || !result.filename) {
+          setHasError(true);
+          return;
+        }
 
-      const binary = Uint8Array.from(atob(result.workbook), (char) =>
-        char.charCodeAt(0),
-      );
-      const blob = new Blob([binary], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = result.filename;
-      link.click();
-      URL.revokeObjectURL(url);
+        const binary = Uint8Array.from(atob(result.workbook), (char) =>
+          char.charCodeAt(0),
+        );
+        const blob = new Blob([binary], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = result.filename;
+        link.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        setHasError(true);
+      }
     });
   };
 
@@ -57,6 +71,11 @@ export function ExportReportButton({ period }: { period: string }) {
         )}
         {isPending ? t("exportingEllipsis") : t("exportExcel")}
       </button>
+      {hasError && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {t("genericError")}
+        </p>
+      )}
 
       {showPaywall && (
         <PaywallModal

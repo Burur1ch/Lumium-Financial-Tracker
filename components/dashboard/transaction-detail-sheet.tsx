@@ -246,6 +246,7 @@ export function TransactionDetailSheet({
                   <CategoryArtwork
                     icon={transactionCategory?.icon}
                     name={transactionCategory?.name}
+                    systemKey={transactionCategory?.system_key}
                     className="h-12 w-12 rounded-2xl"
                     fallback={
                       <span

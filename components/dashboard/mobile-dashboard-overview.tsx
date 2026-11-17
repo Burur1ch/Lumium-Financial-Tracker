@@ -7,6 +7,7 @@ import { usePrefs } from "@/store/prefs";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
 interface BudgetCategory {
+  system_key?: string | null;
   name: string;
   color: string;
   icon?: string | null;
@@ -113,9 +114,9 @@ export function MobileDashboardOverview({
     month: "long",
     year: monthYear === new Date().getFullYear() ? undefined : "numeric",
   }).format(new Date(monthYear, monthNumber - 1, 1, 12));
-  const budgetPercent = budget.limit > 0 ? Math.min((budget.spent / budget.limit) * 100, 100) : 0;
+  const budgetPercent = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
   const greenWidth = Math.min(budgetPercent, 55);
-  const amberWidth = Math.max(budgetPercent - greenWidth, 0);
+  const amberWidth = Math.min(Math.max(budgetPercent - greenWidth, 0), 45);
   const convertedTrend = (trend.length > 1 ? trend : [0, balance]).map((value) => value * currencyRate);
   const compactFormatter = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 });
   const compactMax = compactFormatter.format(Math.max(...convertedTrend, 0));
@@ -181,7 +182,7 @@ export function MobileDashboardOverview({
       </div>
 
       <Link
-        href="/dashboard/budget"
+        href={`/dashboard/budget?month=${month}`}
         className="finance-panel block px-4 py-3 transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:hover:border-neutral-700"
         aria-label={t("budgetsLimits")}
       >
@@ -220,6 +221,7 @@ export function MobileDashboardOverview({
                   <CategoryArtwork
                     icon={category.icon}
                     name={category.name}
+                    systemKey={category.system_key}
                     className="h-7 w-7 rounded-lg bg-slate-100 p-0.5 dark:bg-neutral-800"
                     fallback={
                       <span

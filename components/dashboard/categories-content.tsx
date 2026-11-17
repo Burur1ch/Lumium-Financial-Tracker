@@ -15,10 +15,22 @@ import {
   categoryTranslationKey,
 } from "@/utils/category-catalog";
 import { CategoryArtwork } from "./category-artwork";
+import { resolveCategoryIcon } from "@/utils/category-icons";
 
 type Category = Awaited<ReturnType<typeof getCategories>>[number];
 const field =
   "min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none focus:border-red-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100";
+
+const allIconChoices = CATEGORY_CATALOG.flatMap(([key, icon, , , children]) =>
+  [key, ...children.map((child) => `${key}/${child}`)].map((systemKey) => {
+    const resolved = resolveCategoryIcon(icon, null, systemKey)!;
+    return { icon: resolved.key, systemKey };
+  }),
+);
+const iconChoices = allIconChoices.filter(
+  (choice, index) =>
+    allIconChoices.findIndex((item) => item.icon === choice.icon) === index,
+);
 
 export function CategoriesContent({
   initialCategories,
@@ -123,6 +135,7 @@ export function CategoriesContent({
           <CategoryArtwork
             icon={root.icon}
             name={root.name}
+            systemKey={root.system_key}
             className="h-10 w-10 shrink-0 rounded-xl"
             fallback={
               <span
@@ -184,9 +197,11 @@ export function CategoriesContent({
                 key={child.id}
                 className={`flex min-h-12 items-center gap-2 border-t border-slate-100 pl-3 dark:border-slate-800 ${child.is_archived ? "opacity-60" : ""}`}
               >
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: child.color }}
+                <CategoryArtwork
+                  icon={child.icon}
+                  name={child.name}
+                  systemKey={child.system_key}
+                  className="h-7 w-7 rounded-lg"
                 />
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">
                   {label(child)}
@@ -220,7 +235,10 @@ export function CategoriesContent({
   const editorType = editor?.category?.type ?? editor?.parent?.type ?? type;
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div
+        data-tour="category-management"
+        className="flex flex-wrap items-start justify-between gap-4"
+      >
         <div>
           <h1 className="hidden text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50 lg:block">
             {t("categories")}
@@ -382,26 +400,7 @@ export function CategoriesContent({
                   className="h-10 w-16 rounded-lg border-0"
                 />
               </label>
-              <label className="block space-y-1.5 text-xs font-semibold text-slate-500">
-                <span>{t("selectIcon")}</span>
-                <select
-                  name="icon"
-                  defaultValue={
-                    editor.category?.icon ?? editor.parent?.icon ?? "tag"
-                  }
-                  className={field}
-                >
-                  {[
-                    ...new Map(
-                      CATEGORY_CATALOG.map((row) => [row[1], row]),
-                    ).values(),
-                  ].map((row) => (
-                    <option key={row[1]} value={row[1]}>
-                      {t(categoryTranslationKey(row[0]))}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <CategoryIconPicker category={editor.category ?? editor.parent} />
               {error && (
                 <p role="alert" className="text-sm text-red-500">
                   {error}
@@ -419,5 +418,40 @@ export function CategoriesContent({
         </div>
       )}
     </div>
+  );
+}
+
+function CategoryIconPicker({ category }: { category?: Category }) {
+  const { t } = useI18n();
+  const [icon, setIcon] = useState(
+    () =>
+      resolveCategoryIcon(
+        category?.icon ?? "tag",
+        category?.name,
+        category?.system_key,
+      )?.key ?? "tag",
+  );
+  return (
+    <label className="block space-y-1.5 text-xs font-semibold text-slate-500">
+      <span>{t("selectIcon")}</span>
+      <div className="flex items-center gap-3">
+        <CategoryArtwork icon={icon} className="h-10 w-10 rounded-xl" />
+        <select
+          name="icon"
+          value={icon}
+          onChange={(event) => setIcon(event.target.value)}
+          className={field}
+        >
+          {!iconChoices.some((choice) => choice.icon === icon) && (
+            <option value={icon}>{category?.name ?? t("selectIcon")}</option>
+          )}
+          {iconChoices.map((choice) => (
+            <option key={choice.icon} value={choice.icon}>
+              {t(categoryTranslationKey(choice.systemKey))}
+            </option>
+          ))}
+        </select>
+      </div>
+    </label>
   );
 }

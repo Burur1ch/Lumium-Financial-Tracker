@@ -1,21 +1,24 @@
 "use client";
 import { CategoryPicker } from "@/components/dashboard/category-picker";
+import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   X,
   Plus,
   Check,
-  TrendingDown,
-  TrendingUp,
+  ArrowUpRight,
+  ArrowDownLeft,
   Tag,
-  FileText,
-  DollarSign,
-  Calendar,
+  AlignLeft,
+  StickyNote,
+  Banknote,
+  CalendarDays,
 } from "lucide-react";
 import { createTransaction, createCategory } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { CURRENCY_SYMBOLS, isCurrency } from "@/utils/currency";
 
 interface Category {
   id: string;
@@ -56,14 +59,19 @@ function FieldLabel({
   icon: Icon,
   label,
   action,
+  htmlFor,
 }: {
   icon: React.ElementType;
   label: string;
   action?: React.ReactNode;
+  htmlFor?: string;
 }) {
   return (
     <div className="flex items-center justify-between mb-2">
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <label
+        htmlFor={htmlFor}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400"
+      >
         <Icon className="w-3.5 h-3.5" />
         {label}
       </label>
@@ -88,19 +96,14 @@ export default function AddExpenseModal({
   const [draft, setDraft] = useState<TransactionDraft>({});
   const { t } = useI18n();
   const { currency } = usePrefs();
-  const CURRENCY_SYMBOLS: Record<string, string> = {
-    USD: "$",
-    EUR: "€",
-    BYN: "Br",
-    RUB: "₽",
-    GBP: "£",
-    JPY: "¥",
-    CNY: "¥",
-  };
   const draftCurrency = draft.currency ?? currency;
-  const currencySymbol = CURRENCY_SYMBOLS[draftCurrency] ?? draftCurrency;
+  const currencySymbol = isCurrency(draftCurrency)
+    ? CURRENCY_SYMBOLS[draftCurrency]
+    : draftCurrency;
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const amountRef = useRef<HTMLInputElement>(null);
+  const categoryRequest = useRef(0);
+  const fieldId = useId();
 
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -114,24 +117,29 @@ export default function AddExpenseModal({
 
   const filteredCategories = categories.filter((c) => c.type === selectedType);
 
-  const openModal = useCallback((nextDraft: TransactionDraft = {}) => {
-    setDraft(nextDraft);
-    setDate(nextDraft.date ?? today);
-    setIsOpen(true);
-    setSuccess(false);
-    setError(null);
-    if (categories.length === 0) {
+  const openModal = useCallback(
+    (nextDraft: TransactionDraft = {}) => {
+      setDraft(nextDraft);
+      setDate(nextDraft.date ?? today);
+      setIsOpen(true);
+      setSuccess(false);
+      setError(null);
+      const request = ++categoryRequest.current;
       void import("@/app/dashboard/actions").then(async ({ getCategories }) => {
         try {
           const fresh = await getCategories();
-          setCategories(fresh as Category[]);
+          if (request === categoryRequest.current)
+            setCategories(fresh as Category[]);
         } catch {
-          setError(t("genericError"));
+          if (request === categoryRequest.current) setError(t("genericError"));
         }
       });
-    }
-    requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
-  }, [categories.length, t, today]);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setVisible(true)),
+      );
+    },
+    [t, today],
+  );
 
   const closeModal = () => {
     setVisible(false);
@@ -142,7 +150,6 @@ export default function AddExpenseModal({
       setSelectedCategoryId("");
     }, 220);
   };
-
 
   useEffect(() => {
     if (!isOpen) return;
@@ -158,16 +165,28 @@ export default function AddExpenseModal({
       const nextDraft = (event as CustomEvent<TransactionDraft>).detail;
       openModal(nextDraft ?? {});
     };
+    const close = () => {
+      setVisible(false);
+      setIsOpen(false);
+      setShowNewCat(false);
+      setSelectedCategoryId("");
+    };
     window.addEventListener("lumium:open-add-transaction", handler);
-    return () =>
+    window.addEventListener("lumium:close-entry-panels", close);
+    return () => {
       window.removeEventListener("lumium:open-add-transaction", handler);
+      window.removeEventListener("lumium:close-entry-panels", close);
+    };
   }, [openModal]);
 
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusTimer = window.setTimeout(() => amountRef.current?.focus(), 240);
+    const focusTimer = window.setTimeout(() => {
+      if (!document.documentElement.dataset.tourActive)
+        amountRef.current?.focus();
+    }, 240);
     return () => {
       window.clearTimeout(focusTimer);
       document.body.style.overflow = previousOverflow;
@@ -258,16 +277,14 @@ export default function AddExpenseModal({
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${selectedType === "expense" ? "bg-red-100 dark:bg-red-950/50" : "bg-emerald-100 dark:bg-emerald-950/50"}`}
+                <CategoryArtwork
+                  icon={selectedType}
+                  className="h-9 w-9 rounded-xl"
+                />
+                <h3
+                  id="new-transaction-title"
+                  className="text-base font-bold text-slate-900 dark:text-slate-100"
                 >
-                  {selectedType === "expense" ? (
-                    <TrendingDown className="w-4 h-4 text-red-500" />
-                  ) : (
-                    <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  )}
-                </div>
-                <h3 id="new-transaction-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
                   {t("newTransaction")}
                 </h3>
               </div>
@@ -311,6 +328,7 @@ export default function AddExpenseModal({
                       <button
                         key={txType}
                         type="button"
+                        aria-pressed={selectedType === txType}
                         onClick={() => {
                           setSelectedType(txType);
                           setSelectedCategoryId("");
@@ -325,9 +343,9 @@ export default function AddExpenseModal({
                         }`}
                       >
                         {txType === "expense" ? (
-                          <TrendingDown className="w-3.5 h-3.5" />
+                          <ArrowUpRight className="w-3.5 h-3.5" />
                         ) : (
-                          <TrendingUp className="w-3.5 h-3.5" />
+                          <ArrowDownLeft className="w-3.5 h-3.5" />
                         )}
                         {txType === "expense" ? t("expense") : t("income")}
                       </button>
@@ -337,13 +355,18 @@ export default function AddExpenseModal({
 
                   {/* Amount */}
                   <div>
-                    <FieldLabel icon={DollarSign} label={t("amount")} />
+                    <FieldLabel
+                      icon={Banknote}
+                      label={t("amount")}
+                      htmlFor={`${fieldId}-amount`}
+                    />
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-bold pointer-events-none">
                         {currencySymbol}
                       </span>
                       <input
                         ref={amountRef}
+                        id={`${fieldId}-amount`}
                         key={`amount-${draft.amount ?? "empty"}`}
                         type="number"
                         name="amount"
@@ -361,11 +384,16 @@ export default function AddExpenseModal({
 
                   {/* Description */}
                   <div>
-                    <FieldLabel icon={FileText} label={t("description")} />
+                    <FieldLabel
+                      icon={AlignLeft}
+                      label={t("description")}
+                      htmlFor={`${fieldId}-description`}
+                    />
                     <input
                       key={`description-${draft.description ?? "empty"}`}
                       type="text"
                       name="description"
+                      id={`${fieldId}-description`}
                       required
                       placeholder={t("transactionDescriptionPlaceholder")}
                       defaultValue={draft.description}
@@ -374,10 +402,15 @@ export default function AddExpenseModal({
                   </div>
 
                   <div>
-                    <FieldLabel icon={FileText} label={t("transactionNote")} />
+                    <FieldLabel
+                      icon={StickyNote}
+                      label={t("transactionNote")}
+                      htmlFor={`${fieldId}-note`}
+                    />
                     <textarea
                       key={`note-${draft.note ?? "empty"}`}
                       name="note"
+                      id={`${fieldId}-note`}
                       placeholder={t("transactionNotePlaceholder")}
                       defaultValue={draft.note}
                       className={inputCls + " min-h-20 py-3"}
@@ -385,10 +418,11 @@ export default function AddExpenseModal({
                   </div>
 
                   {/* Category */}
-                  <div>
+                  <div data-tour="transaction-category">
                     <FieldLabel
                       icon={Tag}
                       label={t("category")}
+                      htmlFor={`${fieldId}-category`}
                       action={
                         <button
                           type="button"
@@ -405,76 +439,98 @@ export default function AddExpenseModal({
                     />
 
                     {showNewCat && (
-                    <div className="mobile-inline-reveal">
-                      <div className="mb-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2">
-                        {catError && (
-                          <p className="text-xs text-red-500 font-semibold">
-                            {catError}
-                          </p>
-                        )}
-                        <input
-                          type="text"
-                          placeholder={t("categoryNamePlaceholder")}
-                          value={newCatName}
-                          onChange={(e) => setNewCatName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleCreateCategory();
-                            }
-                          }}
-                          className={inputCls}
-                        />
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {PRESET_COLORS.map((color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              onClick={() => setNewCatColor(color)}
-                              className="flex h-11 w-11 items-center justify-center rounded-full"
-                              aria-label={color}
-                            >
-                              <span
-                                className="flex h-6 w-6 items-center justify-center rounded-full"
-                                style={{
-                                  backgroundColor: color,
-                                  outline: newCatColor === color ? `2px solid ${color}` : "none",
-                                  outlineOffset: "2px",
-                                }}
-                              >
-                                {newCatColor === color && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleCreateCategory}
-                          disabled={catLoading || !newCatName.trim()}
-                          className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-red-500 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50"
-                        >
-                          {catLoading ? (
-                            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Plus className="w-3 h-3" />
+                      <div className="mobile-inline-reveal">
+                        <div className="mb-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2">
+                          {catError && (
+                            <p className="text-xs text-red-500 font-semibold">
+                              {catError}
+                            </p>
                           )}
-                          {catLoading
-                            ? t("creatingEllipsis")
-                            : t("createAndSelect")}
-                        </button>
+                          <input
+                            type="text"
+                            placeholder={t("categoryNamePlaceholder")}
+                            value={newCatName}
+                            onChange={(e) => setNewCatName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleCreateCategory();
+                              }
+                            }}
+                            className={inputCls}
+                          />
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {PRESET_COLORS.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                onClick={() => setNewCatColor(color)}
+                                className="flex h-11 w-11 items-center justify-center rounded-full"
+                                aria-label={color}
+                              >
+                                <span
+                                  className="flex h-6 w-6 items-center justify-center rounded-full"
+                                  style={{
+                                    backgroundColor: color,
+                                    outline:
+                                      newCatColor === color
+                                        ? `2px solid ${color}`
+                                        : "none",
+                                    outlineOffset: "2px",
+                                  }}
+                                >
+                                  {newCatColor === color && (
+                                    <Check
+                                      className="h-3 w-3 text-white"
+                                      strokeWidth={3}
+                                    />
+                                  )}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCreateCategory}
+                            disabled={catLoading || !newCatName.trim()}
+                            className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-red-500 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                          >
+                            {catLoading ? (
+                              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Plus className="w-3 h-3" />
+                            )}
+                            {catLoading
+                              ? t("creatingEllipsis")
+                              : t("createAndSelect")}
+                          </button>
+                        </div>
                       </div>
-                    </div>
                     )}
 
-                    <CategoryPicker categories={filteredCategories} value={selectedCategoryId} onChange={event => setSelectedCategoryId(event.target.value)} name="category_id" aria-label={t("category")} />
+                    <CategoryPicker
+                      categories={filteredCategories}
+                      value={selectedCategoryId}
+                      onChange={(event) =>
+                        setSelectedCategoryId(event.target.value)
+                      }
+                      name="category_id"
+                      id={`${fieldId}-category`}
+                      aria-label={t("category")}
+                    />
                   </div>
 
                   {/* Date */}
                   <div>
-                    <FieldLabel icon={Calendar} label={t("date")} />
+                    <FieldLabel
+                      icon={CalendarDays}
+                      label={t("date")}
+                      htmlFor={`${fieldId}-date`}
+                    />
                     <input
                       type="date"
                       name="date"
+                      id={`${fieldId}-date`}
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                       className={inputCls}

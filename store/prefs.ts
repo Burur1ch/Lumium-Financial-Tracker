@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PlanKey } from "@/utils/monetization/plans";
-import { RATES, type Currency } from "@/utils/currency";
+import {
+  isCurrency,
+  normalizeExchangeRates,
+  RATES,
+  type Currency,
+} from "@/utils/currency";
 
 export { RATES } from "@/utils/currency";
 export type { Currency } from "@/utils/currency";
@@ -127,7 +132,8 @@ export const usePrefs = create<PrefsState>()(
       exchangeRateSource: "fallback",
       exchangeRateDate: null,
       setPlan: (plan) => set({ plan }),
-      setCurrency: (currency) => set({ currency }),
+      setCurrency: (currency) =>
+        set({ currency: isCurrency(currency) ? currency : "BYN" }),
       setLanguage: (language) => set({ language }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setAvatarColor: (avatarColor) => set({ avatarColor }),
@@ -137,13 +143,24 @@ export const usePrefs = create<PrefsState>()(
         set((state) => ({ balanceHidden: !state.balanceHidden })),
       setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>
         set({
-          exchangeRates: { ...RATES, ...rates },
+          exchangeRates: normalizeExchangeRates(rates),
           exchangeRateSource,
           exchangeRateDate,
         }),
     }),
     {
       name: "lumium_prefs",
+      merge: (persistedState, currentState) => {
+        const stored = persistedState as Partial<PrefsState> | undefined;
+        return {
+          ...currentState,
+          ...stored,
+          currency: isCurrency(stored?.currency)
+            ? stored.currency
+            : currentState.currency,
+          exchangeRates: normalizeExchangeRates(stored?.exchangeRates),
+        };
+      },
       // Reading localStorage while the client store is being created makes its
       // first render differ from SSR. Rehydrate explicitly after mount instead.
       skipHydration: true,

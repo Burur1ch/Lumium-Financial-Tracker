@@ -5,7 +5,6 @@ import { useTheme } from "next-themes";
 import {
   ComposedChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,6 +15,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  type TooltipContentProps,
 } from "recharts";
 import { useI18n } from "@/hooks/useI18n";
 
@@ -30,6 +30,7 @@ interface CategoryStat {
   color: string;
   income: number;
   expense: number;
+  system_key?: string | null;
 }
 
 interface ReportChartsProps {
@@ -41,22 +42,20 @@ interface ReportChartsProps {
   period: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CustomTooltip = ({ active, payload, label, isDark, fmt, t }: any) => {
+function ChartTooltip({
+  active,
+  payload,
+  label,
+}: Partial<TooltipContentProps<number, string>>) {
+  const { fmt, t } = useI18n();
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="rounded-xl border px-4 py-3 shadow-lg text-xs space-y-1.5"
-      style={{
-        backgroundColor: isDark ? "#0f172a" : "#fff",
-        borderColor: isDark ? "#1e293b" : "#e2e8f0",
-      }}
-    >
+    <div className="space-y-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-900">
       <p className="font-bold text-slate-500 dark:text-slate-400 mb-1">
         {label}
       </p>
-      {payload.map((e: { name: string; value: number; color: string }) => (
-        <div key={e.name} className="flex items-center justify-between gap-5">
+      {payload.map((e, index) => (
+        <div key={index} className="flex items-center justify-between gap-5">
           <span
             className="flex items-center gap-1.5"
             style={{ color: e.color }}
@@ -69,7 +68,9 @@ const CustomTooltip = ({ active, payload, label, isDark, fmt, t }: any) => {
               ? t("income")
               : e.name === "expense"
                 ? t("expense")
-                : e.name}
+                : e.name === "net"
+                  ? t("netBalance")
+                  : e.name}
           </span>
           <span className="font-bold text-slate-700 dark:text-slate-200">
             {fmt(Number(e.value))}
@@ -78,7 +79,7 @@ const CustomTooltip = ({ active, payload, label, isDark, fmt, t }: any) => {
       ))}
     </div>
   );
-};
+}
 
 export default function ReportCharts({
   monthlyTrend,
@@ -88,31 +89,28 @@ export default function ReportCharts({
   periodLabel,
   period,
 }: ReportChartsProps) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const { fmt, t, language, categoryName } = useI18n();
-  const gridColor = isDark ? "#1e293b" : "#f1f5f9";
-  const tickColor = isDark ? "#475569" : "#94a3b8";
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const { fmt, fmtDate, t, categoryName } = useI18n();
+  const gridColor = isDark ? "#2a2a2a" : "#edf1f4";
+  const tickColor = isDark ? "#aeb9c3" : "#667788";
 
   // Use daily for short periods, monthly otherwise
   const trendData =
     period === "7d" || period === "30d" ? dailyTrend : monthlyTrend;
-  const locale =
-    { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language] ?? "en-US";
   const formatTrendLabel = (label: string) =>
     label.length === 7
-      ? new Date(`${label}-01T12:00:00`).toLocaleDateString(locale, {
+      ? fmtDate(`${label}-01T12:00:00`, {
           month: "short",
           year: "2-digit",
         })
-      : new Date(`${label}T12:00:00`).toLocaleDateString(locale, {
+      : fmtDate(`${label}T12:00:00`, {
           day: "numeric",
           month: "short",
         });
   const trendWithAlias = trendData.map((d) => ({
     ...d,
     label: formatTrendLabel(d.label),
-    expenseTrend: d.expense,
   }));
 
   const pieExpenseData = topExpenseCategories.map((c) => ({
@@ -126,16 +124,18 @@ export default function ReportCharts({
     color: c.color,
   }));
 
-  const netData = trendData.map((d) => ({
-    label: formatTrendLabel(d.label),
-    net: d.income - d.expense,
-  }));
+  let cumulativeNet = 0;
+  const netData: { label: string; net: number }[] = [];
+  for (const d of trendData) {
+    cumulativeNet += d.income - d.expense;
+    netData.push({ label: formatTrendLabel(d.label), net: cumulativeNet });
+  }
 
   return (
     <div className="space-y-6">
       {/* Main trend chart */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               {t("cashFlow")}
@@ -163,6 +163,8 @@ export default function ReportCharts({
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
+                accessibilityLayer
+                aria-label={t("cashFlow")}
                 data={trendWithAlias}
                 margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
               >
@@ -178,13 +180,15 @@ export default function ReportCharts({
                   tick={{ fill: tickColor, fontSize: 11 }}
                 />
                 <YAxis
+                  width={74}
+                  tickFormatter={(value) =>
+                    fmt(Number(value), { decimals: false })
+                  }
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: tickColor, fontSize: 11 }}
                 />
-                <Tooltip
-                  content={<CustomTooltip isDark={isDark} fmt={fmt} t={t} />}
-                />
+                <Tooltip content={<ChartTooltip />} />
                 <Bar
                   dataKey="income"
                   name="income"
@@ -201,16 +205,6 @@ export default function ReportCharts({
                   maxBarSize={24}
                   opacity={0.85}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="expenseTrend"
-                  stroke="#D92D3A"
-                  strokeWidth={2}
-                  dot={false}
-                  strokeDasharray="4 3"
-                  opacity={0.4}
-                  legendType="none"
-                />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -225,7 +219,7 @@ export default function ReportCharts({
             {t("netBalance")}
           </h3>
           <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
-            {periodLabel}
+            {t("reportsNetHint")}
           </p>
           <div className="h-44">
             {netData.length === 0 ? (
@@ -235,6 +229,8 @@ export default function ReportCharts({
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
+                  accessibilityLayer
+                  aria-label={t("netBalance")}
                   data={netData}
                   margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
                 >
@@ -266,13 +262,15 @@ export default function ReportCharts({
                     tick={{ fill: tickColor, fontSize: 10 }}
                   />
                   <YAxis
+                    width={74}
+                    tickFormatter={(value) =>
+                      fmt(Number(value), { decimals: false })
+                    }
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: tickColor, fontSize: 10 }}
                   />
-                  <Tooltip
-                    content={<CustomTooltip isDark={isDark} fmt={fmt} t={t} />}
-                  />
+                  <Tooltip content={<ChartTooltip />} />
                   <Area
                     type="monotone"
                     dataKey="net"
@@ -322,11 +320,12 @@ function PieDonut({
   isDark: boolean;
   fmt: (n: number) => string;
 }) {
+  const { t } = useI18n();
   const total = data.reduce((s, d) => s + d.value, 0);
   if (data.length === 0) {
     return (
       <div className="h-36 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">
-        No data
+        {t("noDataPeriod")}
       </div>
     );
   }
@@ -366,8 +365,8 @@ function PieDonut({
           </span>
         </div>
       </div>
-      <div className="space-y-1.5">
-        {data.slice(0, 4).map((item) => (
+      <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+        {data.map((item) => (
           <div
             key={item.name}
             className="flex items-center justify-between gap-2"

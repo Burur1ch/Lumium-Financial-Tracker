@@ -2,6 +2,7 @@
 
 import { useState, type SelectHTMLAttributes } from "react";
 import { useI18n } from "@/hooks/useI18n";
+import { CategoryArtwork } from "./category-artwork";
 import {
   categoryPath,
   isCategoryArchived,
@@ -30,6 +31,9 @@ export function CategoryPicker({
   const [query, setQuery] = useState("");
   const [localValue, setLocalValue] = useState(defaultValue ?? emptyValue);
   const selected = value ?? localValue;
+  const selectedCategory = categories.find(
+    (category) => category.id === selected,
+  );
   const available = categories.filter(
     (c) =>
       includeArchived ||
@@ -55,38 +59,57 @@ export function CategoryPicker({
           className="min-h-10 w-full rounded-xl border border-slate-200 bg-transparent px-3 text-sm text-slate-800 outline-none focus:border-red-500 dark:border-slate-700 dark:text-slate-100"
         />
       )}
-      <select
-        {...props}
-        className={
-          className ??
-          "min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 focus:border-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-        }
-        value={selected}
-        onChange={(event) => {
-          setLocalValue(event.target.value);
-          onChange?.(event);
-        }}
-      >
-        <option value={emptyValue}>
-          {emptyLabel ?? t("uncategorizedOption")}
-        </option>
-        {categories
-          .filter((c) => !c.parent_id)
-          .map((root) => {
-            const group = options.filter(
-              (c) => c.id === root.id || c.parent_id === root.id,
-            );
-            return group.length ? (
-              <optgroup key={root.id} label={categoryPath(root, categories, t)}>
-                {group.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {categoryPath(c, categories, t)}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null;
-          })}
-      </select>
+      <div className="relative">
+        {selectedCategory && (
+          <span className="pointer-events-none absolute left-2 top-1/2 z-10 -translate-y-1/2">
+            <CategoryArtwork
+              icon={selectedCategory.icon}
+              name={selectedCategory.name}
+              systemKey={selectedCategory.system_key}
+              className="h-7 w-7 rounded-lg"
+            />
+          </span>
+        )}
+        <select
+          {...props}
+          style={{
+            ...props.style,
+            ...(selectedCategory ? { paddingLeft: "2.75rem" } : {}),
+          }}
+          className={
+            className ??
+            "min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 focus:border-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+          }
+          value={selected}
+          onChange={(event) => {
+            setLocalValue(event.target.value);
+            onChange?.(event);
+          }}
+        >
+          <option value={emptyValue}>
+            {emptyLabel ?? t("uncategorizedOption")}
+          </option>
+          {categories
+            .filter((c) => !c.parent_id)
+            .map((root) => {
+              const group = options.filter(
+                (c) => c.id === root.id || c.parent_id === root.id,
+              );
+              return group.length ? (
+                <optgroup
+                  key={root.id}
+                  label={categoryPath(root, categories, t)}
+                >
+                  {group.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {categoryPath(c, categories, t)}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null;
+            })}
+        </select>
+      </div>
     </div>
   );
 }

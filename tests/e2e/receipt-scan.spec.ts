@@ -1,20 +1,21 @@
 import { expect, test } from "@playwright/test";
 import { Client } from "pg";
 import sharp from "sharp";
+import { translations } from "@/store/translations";
 
 const databaseUrl =
   process.env.E2E_DATABASE_URL ??
   "postgres://lumium:lumium@127.0.0.1:55432/lumium";
 const email = `receipt-e2e-${Date.now()}@example.test`;
 
-async function createReceiptPng() {
+async function createReceiptPng(currency = "USD") {
   const lines = [
     "TEST MARKET",
     "01.11.2026",
     "MILK 2.5%",
-    "1 x 3.80 3.80 USD",
-    "USB CABLE 19.90 USD",
-    "TOTAL 23.70 USD",
+    `1 x 3.80 3.80 ${currency}`,
+    `USB CABLE 19.90 ${currency}`,
+    `TOTAL 23.70 ${currency}`,
   ];
   const text = lines
     .map(
@@ -117,6 +118,89 @@ test("receipt OCR creates categorized transaction splits", async ({ page }) => {
       ]);
   } finally {
     await client.query('delete from "user" where email = $1', [email]);
+    await client.end();
+  }
+});
+
+test("receipt in an unsupported currency requires manual entry without relabeling its amount", async ({
+  page,
+}) => {
+  const client = new Client({ connectionString: databaseUrl });
+  await client.connect();
+  const receiptEmail = `receipt-currency-${Date.now()}@example.test`;
+  try {
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "lumium_prefs",
+        JSON.stringify({
+          state: { currency: "BYN", language: "en" },
+          version: 0,
+        }),
+      ),
+    );
+    const response = await page.request.post("/api/auth/sign-up/email", {
+      headers: { "x-real-ip": "192.0.2.10" },
+      data: {
+        name: "Receipt currency check",
+        email: receiptEmail,
+        password: "ReceiptTest123!",
+      },
+    });
+    expect(response.ok()).toBe(true);
+    await page.goto("/dashboard");
+    await page
+      .getByRole("button", { name: translations.en.tourSkip, exact: true })
+      .click();
+    await page
+      .getByRole("navigation", { name: translations.en.mobileNavigation })
+      .getByRole("button", {
+        name: translations.en.addTransaction,
+        exact: true,
+      })
+      .click();
+    await page.getByTestId("receipt-photo-choice").click();
+    await page.getByTestId("receipt-gallery-input").setInputFiles({
+      name: "unsupported-currency.png",
+      mimeType: "image/png",
+      buffer: await createReceiptPng("RUB"),
+    });
+    await expect(page.getByTestId("save-scanned-receipt")).toBeVisible({
+      timeout: 120_000,
+    });
+    await expect(
+      page
+        .getByRole("dialog", {
+          name: translations.en.checkPurchase,
+          exact: true,
+        })
+        .getByRole("alert"),
+    ).toContainText(translations.en.receiptUnsupportedCurrency);
+    await expect(page.getByTestId("save-scanned-receipt")).toBeDisabled();
+    await page
+      .getByRole("button", { name: translations.en.enterManually, exact: true })
+      .click();
+    const manual = page.getByRole("dialog", {
+      name: translations.en.newTransaction,
+      exact: true,
+    });
+    await expect(
+      manual.getByRole("spinbutton", {
+        name: translations.en.amount,
+        exact: true,
+      }),
+    ).toBeEmpty();
+    await expect(manual.locator('input[name="currency"]')).toHaveValue("BYN");
+    expect(
+      (
+        await client.query(
+          'select count(*)::int as count from transactions where user_id=(select id from "user" where email=$1)',
+          [receiptEmail],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+  } finally {
+    await page.goto("about:blank");
+    await client.query('delete from "user" where email=$1', [receiptEmail]);
     await client.end();
   }
 });

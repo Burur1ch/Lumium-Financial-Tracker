@@ -3,23 +3,14 @@ import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
-  BusFront,
   Check,
-  Coffee,
-  Fuel,
-  Home,
   Loader2,
-  MoreHorizontal,
   Pencil,
   Plus,
   Settings2,
-  ShoppingBasket,
-  Train,
   Trash2,
-  Utensils,
   X,
 } from "lucide-react";
 import {
@@ -32,6 +23,7 @@ import {
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
+import { CURRENCY_SYMBOLS } from "@/utils/currency";
 import type { TranslationKey } from "@/store/translations";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
@@ -62,15 +54,15 @@ interface QuickActionsProps {
   categories: QuickCategory[];
 }
 
-const ICONS: Array<{ key: string; icon: LucideIcon }> = [
-  { key: "train", icon: Train },
-  { key: "coffee", icon: Coffee },
-  { key: "utensils", icon: Utensils },
-  { key: "shopping", icon: ShoppingBasket },
-  { key: "bus", icon: BusFront },
-  { key: "fuel", icon: Fuel },
-  { key: "home", icon: Home },
-  { key: "other", icon: MoreHorizontal },
+const ICONS = [
+  "train",
+  "coffee",
+  "utensils",
+  "shopping",
+  "bus",
+  "fuel",
+  "home",
+  "other",
 ];
 
 const STARTER_EXPENSES: Array<{
@@ -86,19 +78,6 @@ const STARTER_EXPENSES: Array<{
   { nameKey: "expenseHome", icon: "home", color: "#287D91" },
 ];
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: "$",
-  EUR: "€",
-  BYN: "Br",
-  RUB: "₽",
-  GBP: "£",
-  JPY: "¥",
-  CNY: "¥",
-};
-
-function getIcon(iconKey: string) {
-  return ICONS.find((item) => item.key === iconKey)?.icon ?? MoreHorizontal;
-}
 
 export function QuickActions({ presets, categories }: QuickActionsProps) {
   const router = useRouter();
@@ -344,9 +323,8 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   const visiblePresets = presets
     .filter((preset) => !deletedPresetIds.has(preset.id))
     .map((preset) => presetOverrides[preset.id] ?? preset);
-  const currencySymbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  const currencySymbol = CURRENCY_SYMBOLS[currency];
   const renderPreset = (preset: QuickPreset, mobile = false) => {
-    const Icon = getIcon(preset.icon);
     const pending = pendingPresetId === preset.id;
     return (
       <button
@@ -365,17 +343,9 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
           </span>
         ) : (
           <CategoryArtwork
-            icon={preset.category?.icon}
-            name={preset.category?.name}
+            icon={preset.icon}
+            name={preset.name}
             className={`${mobile ? "h-9 w-9" : "h-10 w-10"} rounded-xl bg-slate-100 p-0.5 dark:bg-neutral-700`}
-            fallback={
-              <span
-                className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700 ${mobile ? "h-9 w-9" : "h-10 w-10"}`}
-                style={{ color: preset.category?.color || "var(--app-accent)" }}
-              >
-                <Icon className="h-5 w-5" strokeWidth={2} />
-              </span>
-            }
           />
         )}
         <span className="min-w-0">
@@ -401,7 +371,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
         data-tour="quick-actions"
         className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900"
       >
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div
+          data-tour-focus
+          className="mb-3 flex items-start justify-between gap-3"
+        >
           <div>
             <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">
               <span className="sm:hidden">{t("quick")}</span>
@@ -435,11 +408,11 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
               {t("starterExpensesHint")}
             </p>
             <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-3 sm:grid-cols-6">
-              {STARTER_EXPENSES.map((starter) => {
-                const Icon = getIcon(starter.icon);
+              {STARTER_EXPENSES.map((starter, index) => {
                 return (
                   <button
                     key={starter.nameKey}
+                    data-tour-focus={index < 2 ? "" : undefined}
                     type="button"
                     onClick={() => openStarterExpense(starter)}
                     className="flex min-h-[4.6rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-center text-[11px] font-semibold leading-tight text-slate-700 hover:bg-slate-50 active:scale-[0.98] dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
@@ -448,7 +421,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                       className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-neutral-700"
                       style={{ color: starter.color }}
                     >
-                      <Icon className="h-5 w-5" strokeWidth={1.9} />
+                      <CategoryArtwork
+                        icon={starter.icon}
+                        className="h-9 w-9 rounded-xl"
+                      />
                     </span>
                     <span className="max-w-full truncate">
                       {t(starter.nameKey)}
@@ -562,27 +538,15 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                   </p>
                 )}
                 {visiblePresets.map((preset) => {
-                  const Icon = getIcon(preset.icon);
                   return (
                     <div
                       key={preset.id}
                       className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 px-3 dark:border-slate-800"
                     >
                       <CategoryArtwork
-                        icon={preset.category?.icon}
-                        name={preset.category?.name}
+                        icon={preset.icon}
+                        name={preset.name}
                         className="h-10 w-10 rounded-xl"
-                        fallback={
-                          <span
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                            style={{
-                              backgroundColor:
-                                preset.category?.color || "#D92D3A",
-                            }}
-                          >
-                            <Icon className="h-5 w-5" />
-                          </span>
-                        }
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -658,7 +622,6 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     </legend>
                     <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
                       {STARTER_EXPENSES.map((starter) => {
-                        const Icon = getIcon(starter.icon);
                         const localizedName = t(starter.nameKey);
                         const selected =
                           selectedIcon === starter.icon &&
@@ -683,7 +646,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                             }}
                             className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold active:scale-[0.98] ${selected ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400" : "border-slate-200 text-slate-600 hover:border-red-300 dark:border-slate-800 dark:text-slate-300"}`}
                           >
-                            <Icon className="h-4 w-4" strokeWidth={1.9} />
+                            <CategoryArtwork
+                              icon={starter.icon}
+                              className="h-7 w-7 rounded-lg"
+                            />
                             {localizedName}
                           </button>
                         );
@@ -748,7 +714,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     {t("selectIcon")}
                   </legend>
                   <div className="flex flex-wrap gap-1">
-                    {ICONS.map(({ key, icon: Icon }, index) => (
+                    {ICONS.map((key, index) => (
                       <button
                         key={key}
                         type="button"
@@ -756,7 +722,10 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                         className={`flex h-11 w-11 items-center justify-center rounded-xl border ${selectedIcon === key ? "border-red-500 bg-red-50 text-red-500 dark:bg-red-950/30" : "border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400"}`}
                         aria-label={`${t("selectIcon")} ${index + 1}`}
                       >
-                        <Icon className="h-5 w-5" />
+                        <CategoryArtwork
+                          icon={key}
+                          className="h-8 w-8 rounded-lg"
+                        />
                       </button>
                     ))}
                   </div>

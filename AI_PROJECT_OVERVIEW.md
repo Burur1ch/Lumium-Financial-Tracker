@@ -71,9 +71,10 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 6. Reports
 
-- Aggregate totals, net balance, savings rate, trends, and top categories.
-- Period filters: 7d, 30d, 3m, 1y, all.
-- Category breakdowns expand into subcategories and direct main-category spending. XLSX exports contain separate main/subcategory columns and allocation amounts, avoiding duplicate transaction totals.
+- Basic reports are available on Free for 7d and 30d. Pro/Family also allow 3m, 1y, all and XLSX export. The server resolves allowed periods and passes the authoritative plan to report controls.
+- Aggregate completed transactions through the current UTC calendar day; exclude future and pending entries. Short periods contain 7/30 full calendar days, including days without transactions. Net balance charts accumulate income minus expenses within the selected period.
+- Category breakdowns expand into subcategories and direct main-category spending, including archived categories with history. Largest transactions show actual descriptions and localized category paths.
+- XLSX exports share report date boundaries and contain separate main/subcategory columns, allocation amounts and explicit USD currency columns, avoiding duplicate transaction totals. On-screen values use the selected display currency.
 
 7. Settings and profile
 

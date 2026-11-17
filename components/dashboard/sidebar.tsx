@@ -26,7 +26,6 @@ import {
   getProfile,
   getBudgetsWithProgress,
 } from "@/app/dashboard/actions";
-import { PaywallModal } from "@/components/dashboard/paywall-modal";
 import { useI18n } from "@/hooks/useI18n";
 import { PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import {
@@ -36,7 +35,6 @@ import {
   usePrefs,
   Notification,
 } from "@/store/prefs";
-import { canAccessAdvancedReports } from "@/utils/monetization/limits";
 import { UserAvatar } from "@/components/user-avatar";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -158,7 +156,7 @@ function buildDynamicNotifications(
     if (limit <= 0) continue;
 
     const categoryName = getCategoryName(b, label);
-    const usagePct = (spent / limit) * 100;
+    const usagePct = Number(((spent / limit) * 100).toFixed(8));
     const remaining = limit - spent;
 
     if (remaining < 0) {
@@ -234,7 +232,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   } | null>(null);
   const setStoreAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [showReportsPaywall, setShowReportsPaywall] = useState(false);
   const { notifications, setNotifications, markRead, markAllRead, dismiss } =
     useNotifStore();
   const notifRef = useRef<HTMLDivElement>(null);
@@ -296,24 +293,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           {menuItemDefs.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
-            const isLocked =
-              item.key === "reports" && !canAccessAdvancedReports(plan);
-
-            if (isLocked) {
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setShowReportsPaywall(true)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 hover:text-red-500 transition-colors"
-                >
-                  <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                  {t(item.key)}
-                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />
-                </button>
-              );
-            }
-
             return (
               <Link
                 key={item.key}
@@ -335,15 +314,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           })}
         </nav>
 
-        {showReportsPaywall && (
-          <PaywallModal
-            isOpen={showReportsPaywall}
-            onClose={() => setShowReportsPaywall(false)}
-            title={t("reportsProOnly")}
-            description={t("reportsProOnlyDesc")}
-            featureLabel={t("unlockAdvancedReports")}
-          />
-        )}
       </div>
 
       {/* Bottom */}
