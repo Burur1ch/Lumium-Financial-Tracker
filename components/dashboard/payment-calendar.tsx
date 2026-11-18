@@ -19,6 +19,7 @@ export function PaymentCalendar({ cashflow, recurring, onEdit, onAdd }: {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [manage, setManage] = useState(false);
   const { month, today, events, forecast } = cashflow;
+  const result = cashflow.projectedNet ?? cashflow.actualNet;
   const first = new Date(`${month}-01T12:00:00Z`);
   const offset = (first.getUTCDay() + 6) % 7;
   const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
@@ -31,12 +32,12 @@ export function PaymentCalendar({ cashflow, recurring, onEdit, onAdd }: {
   const maxMonth = `${Number(today.slice(0, 4)) + 2}-12`;
   return <section className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-3">
-      <div className="finance-panel p-4"><p className="text-xs leading-5 text-slate-500">{t("forecastEndBalance")}</p><p data-testid="forecast-end-balance" className={`mt-2 text-xl font-extrabold tabular-nums ${cashflow.projectedBalance !== null && cashflow.projectedBalance < 0 ? "text-red-600" : "text-slate-950 dark:text-white"}`}>{cashflow.projectedBalance === null ? "—" : fmt(cashflow.projectedBalance)}</p></div>
+      <div className="finance-panel p-4"><p className="text-xs leading-5 text-slate-500">{t(cashflow.projectedNet === null ? "netBalance" : "forecastEndNet")}</p><p data-testid="forecast-end-net" className={`mt-2 text-xl font-extrabold tabular-nums ${result < 0 ? "text-red-600 dark:text-red-400" : result > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-950 dark:text-white"}`}>{result > 0 ? "+" : ""}{fmt(result)}</p>{cashflow.projectedNet !== null && <p className="mt-1 text-xs text-slate-500">{t("actualPeriodResult")}: <Money amount={cashflow.actualNet} /></p>}</div>
       <div className="finance-panel p-4"><p className="text-xs leading-5 text-slate-500">{t("plannedExpenses")}</p><p className="mt-2 text-xl font-extrabold tabular-nums text-slate-950 dark:text-white"><Money amount={cashflow.plannedExpense} /></p></div>
       <div className="finance-panel p-4"><p className="text-xs leading-5 text-slate-500">{t("plannedIncome")}</p><p className="mt-2 text-xl font-extrabold tabular-nums text-emerald-600"><Money amount={cashflow.plannedIncome} /></p></div>
     </div>
-    {cashflow.lowestBalance !== null && cashflow.lowestBalance < 0 && <p role="status" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"><AlertTriangle className="mt-1 h-4 w-4 shrink-0" /><span>{t("balanceShortfall")} {cashflow.lowestDate && fmtDate(`${cashflow.lowestDate}T12:00:00Z`, { day: "numeric", month: "long", timeZone: "UTC" })}: <strong><Money amount={cashflow.lowestBalance} /></strong></span></p>}
-    {forecast.length > 0 ? <div className="finance-panel p-4 md:p-5"><h2 className="font-bold text-slate-950 dark:text-white">{t("balanceForecast")}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{t("forecastHint")}</p><ForecastChart points={forecast} /></div> : <div className="finance-panel p-4 text-sm leading-6 text-slate-500">{month < today.slice(0, 7) ? t("historicalCalendarHint") : <>{t("forecastNeedsBalance")} <Link href="/dashboard/card" className="font-semibold text-red-600">{t("enterBalance")}</Link></>}</div>}
+    {cashflow.projectedNet !== null && cashflow.projectedNet < 0 && <p role="status" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"><AlertTriangle className="mt-1 h-4 w-4 shrink-0" /><span>{t("periodDeficit")}: <strong><Money amount={cashflow.projectedNet} /></strong></span></p>}
+    <div className="finance-panel p-4 md:p-5"><h2 className="font-bold text-slate-950 dark:text-white">{t("periodNetDynamics")}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{t(cashflow.projectedNet === null ? "incomeMinusExpenses" : "forecastHint")}</p><ForecastChart points={forecast} /></div>
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
       <div className="finance-panel p-3 md:p-5">
         <div className="mb-3 flex items-center justify-between"><Link href={`?month=${shiftPlanningMonth(month, -1)}`} scroll={false} aria-label={t("previousMonth")} className={navClass}><ChevronLeft className="h-5 w-5" /></Link><h2 className="text-center text-sm font-bold capitalize text-slate-950 dark:text-white">{fmtMonth(month)}</h2>{month < maxMonth ? <Link href={`?month=${shiftPlanningMonth(month, 1)}`} scroll={false} aria-label={t("nextMonth")} className={navClass}><ChevronRight className="h-5 w-5" /></Link> : <span className="h-11 w-11" />}</div>
@@ -73,15 +74,15 @@ export function PaymentCalendar({ cashflow, recurring, onEdit, onAdd }: {
 function ForecastChart({ points }: { points: CashflowPlan["forecast"] }) {
   const { t, fmt, fmtDate } = useI18n();
   const [index, setIndex] = useState<number | null>(null);
-  const min = Math.min(...points.map((p) => p.balance));
-  const max = Math.max(...points.map((p) => p.balance));
+  const min = Math.min(...points.map((p) => p.net));
+  const max = Math.max(...points.map((p) => p.net));
   const range = max - min || Math.max(Math.abs(max) * 0.1, 1);
-  const xy = (point: typeof points[number], i: number) => [12 + i / Math.max(points.length - 1, 1) * 676, max === min ? 75 : 128 - (point.balance - min) / range * 108];
+  const xy = (point: typeof points[number], i: number) => [12 + i / Math.max(points.length - 1, 1) * 676, max === min ? 75 : 128 - (point.net - min) / range * 108];
   const path = points.map((p, i) => `${i ? "L" : "M"}${xy(p, i).join(",")}`).join(" ");
   const selected = points[index ?? points.length - 1];
   return <div className="mt-3">
-    <p className="text-right text-xs text-slate-500" aria-live="polite">{fmtDate(`${selected.date}T12:00:00Z`, { day: "numeric", month: "short", timeZone: "UTC" })} · <strong className="text-slate-800 dark:text-white">{fmt(selected.balance)}</strong></p>
-    <svg viewBox="0 0 700 150" role="img" aria-label={t("balanceForecast")} className="mt-2 h-36 w-full" preserveAspectRatio="none"><path d="M12 140H688" stroke="currentColor" className="text-slate-100 dark:text-slate-800" /><path d={path} fill="none" stroke="#D92D3A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" /><circle cx={xy(selected, index ?? points.length - 1)[0]} cy={xy(selected, index ?? points.length - 1)[1]} r="4" fill="#D92D3A" /></svg>
+    <p className="text-right text-xs text-slate-500" aria-live="polite">{fmtDate(`${selected.date}T12:00:00Z`, { day: "numeric", month: "short", timeZone: "UTC" })} · <strong className="text-slate-800 dark:text-white">{fmt(selected.net)}</strong></p>
+    <svg viewBox="0 0 700 150" role="img" aria-label={t("periodNetDynamics")} className="mt-2 h-36 w-full" preserveAspectRatio="none"><path d="M12 140H688" stroke="currentColor" className="text-slate-100 dark:text-slate-800" /><path d={path} fill="none" stroke="#D92D3A" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" /><circle cx={xy(selected, index ?? points.length - 1)[0]} cy={xy(selected, index ?? points.length - 1)[1]} r="4" fill="#D92D3A" /></svg>
     <input type="range" aria-label={t("forecastDate")} min={0} max={points.length - 1} value={index ?? points.length - 1} onChange={(e) => setIndex(Number(e.target.value))} className="cashflow-slider h-6 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-red-500" />
     <div className="flex justify-between text-[11px] text-slate-400"><span>{fmtDate(`${points[0].date}T12:00:00Z`, { day: "numeric", month: "short", timeZone: "UTC" })}</span><span>{fmtDate(`${points.at(-1)!.date}T12:00:00Z`, { day: "numeric", month: "short", timeZone: "UTC" })}</span></div>
   </div>;

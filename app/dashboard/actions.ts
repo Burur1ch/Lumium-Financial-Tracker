@@ -1734,72 +1734,26 @@ export async function setScheduledPaymentActive(id: string, active: boolean) {
   return { success: Boolean(item) };
 }
 
-export async function getCardBalance() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  // A single statement gives the checkpoint and ledger the same database snapshot.
-  const result = await db.execute<{
-    current: string; confirmed_amount: string; confirmed_at: Date;
-    income_change: string; expense_change: string;
-  }>(sql`
-    select c.confirmed_amount, c.confirmed_at,
-      (c.confirmed_amount + l.income - c.ledger_income - l.expense + c.ledger_expense)::numeric(20,8) as current,
-      (l.income - c.ledger_income)::numeric(20,8) as income_change,
-      (l.expense - c.ledger_expense)::numeric(20,8) as expense_change
-    from card_balances c cross join lateral (
-      select coalesce(sum(amount) filter (where type = 'income'), 0) as income,
-             coalesce(sum(amount) filter (where type = 'expense'), 0) as expense
-      from transactions where user_id = ${user.id} and status = 'completed'
-        and date < (date_trunc('day', now() at time zone 'UTC') + interval '1 day') at time zone 'UTC'
-    ) l where c.user_id = ${user.id}
-  `);
-  const row = result.rows[0];
-  return row ? {
-    current: Number(row.current), confirmedAmount: Number(row.confirmed_amount),
-    confirmedAt: new Date(row.confirmed_at).toISOString(),
-    incomeChange: Number(row.income_change), expenseChange: Number(row.expense_change),
-  } : null;
-}
-
-export async function confirmCardBalance(formData: FormData) {
-  const user = await getCurrentUser();
-  const raw = formData.get("amount");
-  const currency = formData.get("currency");
-  if (!user || typeof raw !== "string" || !raw.trim() || !isCurrency(currency)) return { success: false };
-  const amount = Number(raw);
-  if (!Number.isFinite(amount) || Math.abs(amount) > 1e10) return { success: false };
-  const baseAmount = formatBaseStorageAmount(amount / await getCurrencyRate(currency));
-  // Record the supplied current balance and existing ledger totals atomically.
-  // Existing transactions are included in the checkpoint, never charged twice.
-  await db.execute(sql`
-    insert into card_balances (user_id, confirmed_amount, ledger_income, ledger_expense, confirmed_at)
-    select ${user.id}, ${baseAmount}::numeric,
-      coalesce(sum(amount) filter (where type = 'income'), 0),
-      coalesce(sum(amount) filter (where type = 'expense'), 0), now()
-    from transactions where user_id = ${user.id} and status = 'completed'
-      and date < (date_trunc('day', now() at time zone 'UTC') + interval '1 day') at time zone 'UTC'
-    on conflict (user_id) do update set confirmed_amount = excluded.confirmed_amount,
-      ledger_income = excluded.ledger_income, ledger_expense = excluded.ledger_expense,
-      confirmed_at = excluded.confirmed_at
-  `);
-  revalidateFinancialViews();
-  return { success: true };
-}
-
 export async function getPlanningPageData(rawMonth?: string) {
   const user = await getCurrentUser();
   if (!user) return null;
   const today = new Date().toISOString().slice(0, 10);
   const month = planningMonth(rawMonth, today);
   const end = `${shiftPlanningMonth(month, 1)}-01`;
-  const [planning, balance, rows] = await Promise.all([
-    getPlanningData(), getCardBalance(),
+  const [planning, rows, actualRows] = await Promise.all([
+    getPlanningData(),
     db.select({ id: transactions.id, name: transactions.description, amount: transactions.amount,
       type: transactions.type, date: transactions.date, status: transactions.status,
       recurringId: transactions.recurring_transaction_id })
       .from(transactions).where(and(eq(transactions.user_id, user.id),
+        gte(transactions.date, new Date(`${month}-01T00:00:00Z`)),
         lt(transactions.date, new Date(`${end}T00:00:00Z`)),
         sql`(${transactions.recurring_transaction_id} is not null or ${transactions.idempotency_key} like 'recurring-%' or ${transactions.status} = 'pending' or ${transactions.date} >= (${today}::date + interval '1 day') at time zone 'UTC')`)),
+    db.select({ date: transactions.date, amount: transactions.amount, type: transactions.type })
+      .from(transactions).where(and(eq(transactions.user_id, user.id), eq(transactions.status, "completed"),
+        gte(transactions.date, new Date(`${month}-01T00:00:00Z`)),
+        lt(transactions.date, new Date(`${end}T00:00:00Z`)),
+        sql`${transactions.date} < (${today}::date + interval '1 day') at time zone 'UTC'`)),
   ]);
   const recorded: CalendarPayment[] = rows.map((row) => {
     const date = row.date.toISOString().slice(0, 10);
@@ -1808,8 +1762,9 @@ export async function getPlanningPageData(rawMonth?: string) {
       status: row.status === "completed" && date <= today ? "paid" : date < today ? "overdue" : "planned",
       autoCreate: false };
   });
-  return { ...planning, balance, cashflow: buildCashflowPlan({ month, today,
-    balance: balance?.current ?? null, recurring: planning.recurring, recorded }) };
+  return { ...planning, cashflow: buildCashflowPlan({ month, today,
+    actual: actualRows.map((row) => ({ date: row.date.toISOString().slice(0, 10), amount: Number(row.amount), type: row.type as "income" | "expense" })),
+    recurring: planning.recurring, recorded }) };
 }
 
 export async function createTransactionRule(formData: FormData) {

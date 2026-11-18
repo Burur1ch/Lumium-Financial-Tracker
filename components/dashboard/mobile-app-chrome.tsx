@@ -8,7 +8,6 @@ import {
   Bell,
   BookOpen,
   CalendarClock,
-  CreditCard,
   Grid2X2,
   HelpCircle,
   Home,
@@ -33,7 +32,6 @@ import {
 } from "@/components/dashboard/month-selector";
 
 const moreItems = [
-  { key: "myCard" as const, href: "/dashboard/card", icon: CreditCard },
   { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
   { key: "planning" as const, href: "/dashboard/planning", icon: CalendarClock },
@@ -56,8 +54,6 @@ export function MobileAppChrome() {
   const showMonthControl = isHome || isTransactions || pathname.startsWith("/dashboard/budget");
   const pageTitle = isTransactions
     ? t("transactions")
-    : pathname.startsWith("/dashboard/card")
-      ? t("myCard")
     : pathname.startsWith("/dashboard/reports")
       ? t("reports")
       : pathname.startsWith("/dashboard/categories")

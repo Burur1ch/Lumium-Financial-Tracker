@@ -66,9 +66,9 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 5. Planning and automation
 
-- One shared card per user has a manually confirmed current balance at `/dashboard/card`. `card_balances` stores the amount and exact ledger totals at reconciliation; the current balance adds subsequent ledger changes. Existing history is not deducted twice. Pending and future calendar-day transactions do not change the current balance. Every input and display currency follows the amount (BYN, USD, EUR).
+- The dashboard shows income minus expenses for the URL-selected month, with an explicit positive/negative result and a cumulative daily trend starting from zero. Pending/future-day entries are excluded from the actual result. Reports offer other URL-driven periods. All amounts precede their currency (BYN, USD, EUR). The card/reconciliation feature has been removed; the legacy card URL redirects to the dashboard and historical checkpoints are retained only in full account exports.
 - Planning opens a URL-driven monthly payment calendar with one-time and recurring payments, editable schedules, pause/resume, manual recording, and an optional automatic recording date. One-time payments deactivate after recording, under the same row lock/idempotency protection as recurring entries.
-- Forecasts start from the current card balance, include scheduled income/expenses and known future/pending transactions, and show the minimum projected balance. Overdue outstanding items are forecast today. Actual paid items are not counted again. Spending outside the plan is explicitly excluded; reconciliation is not an income transaction.
+- Planning forecasts the selected month's net result from completed income/expenses plus outstanding scheduled and known future/pending transactions from that month. Each month starts at zero; other months do not carry into the result. Overdue items from the selected month are projected today; recorded payments are not counted twice. Past months show the actual result without forecasting.
 
 - Define weekly, monthly, or yearly recurring income/expense templates.
 - Recurring schedules preserve an anchor date through shorter months and leap years. Migration 0009 backfills anchors from available occurrence history.

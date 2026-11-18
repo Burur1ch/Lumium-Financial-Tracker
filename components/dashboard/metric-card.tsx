@@ -35,7 +35,7 @@ export default function MetricCard({
       ? t("totalExpenses")
       : type === "income"
         ? t("totalIncome")
-        : t("netBalance");
+        : t("monthlyResult");
   const Icon =
     type === "expense" ? TrendingDown : type === "income" ? TrendingUp : Wallet;
 
@@ -85,13 +85,13 @@ export default function MetricCard({
       <p
         className={`mt-2 sm:mt-3 font-bold tracking-[-0.035em] tabular-nums truncate ${featured ? "text-3xl sm:text-3xl" : "text-lg sm:text-3xl"} ${
           type === "net"
-            ? "text-slate-950 dark:text-slate-50"
+            ? amount < 0 ? "text-red-600 dark:text-red-400" : amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-950 dark:text-slate-50"
             : type === "income"
               ? "text-emerald-500"
               : "text-red-500"
         }`}
       >
-        {fmt(amount)}
+        {type === "net" && amount > 0 ? "+" : ""}{fmt(amount)}
       </p>
 
       {/* Change badge */}

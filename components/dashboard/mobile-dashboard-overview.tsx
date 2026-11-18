@@ -4,17 +4,17 @@ import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
-import { CardBalanceSummary, type CardBalanceData } from "./card-balance-summary";
+import { PeriodBalanceSummary } from "./period-balance-summary";
 
 interface BudgetCategory {
   system_key?: string | null; name: string; color: string; icon?: string | null; limit: number;
 }
 interface MobileDashboardOverviewProps {
-  month: string; balance: CardBalanceData | null; income: number; expense: number;
+  month: string; balance: number; balanceChange: number; trend: number[]; income: number; expense: number;
   incomeChange: number | null; expenseChange: number | null;
   budget: { spent: number; limit: number; categories: BudgetCategory[] };
 }
-export function MobileDashboardOverview({ month, balance, income, expense, incomeChange, expenseChange, budget }: MobileDashboardOverviewProps) {
+export function MobileDashboardOverview({ month, balance, balanceChange, trend, income, expense, incomeChange, expenseChange, budget }: MobileDashboardOverviewProps) {
   const { fmt, t, fmtMonth, categoryName } = useI18n();
   const { balanceHidden } = usePrefs();
   const [monthYear, monthNumber] = month.split("-").map(Number);
@@ -32,7 +32,7 @@ export function MobileDashboardOverview({ month, balance, income, expense, incom
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
       <div data-tour="overview">
-        <CardBalanceSummary balance={balance} />
+        <PeriodBalanceSummary net={balance} change={balanceChange} trend={trend} hasActivity={income + expense > 0} />
         <div className="summary-strip mt-3 grid grid-cols-2 overflow-hidden rounded-xl bg-slate-100 dark:bg-neutral-800">
           <SummaryTile type="income" amount={income} change={incomeChange} />
           <SummaryTile type="expense" amount={expense} change={expenseChange} />

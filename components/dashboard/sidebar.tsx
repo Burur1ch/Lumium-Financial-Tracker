@@ -9,7 +9,6 @@ import {
   Grid,
   BarChart3,
   Wallet,
-  CreditCard,
   Settings,
   HelpCircle,
   Bell,
@@ -71,7 +70,6 @@ const NOTIF_ICON_MAP: Record<
 
 const menuItemDefs = [
   { key: "dashboard" as const, href: "/dashboard", icon: LayoutDashboard },
-  { key: "myCard" as const, href: "/dashboard/card", icon: CreditCard },
   {
     key: "transactions" as const,
     href: "/dashboard/transactions",

@@ -122,7 +122,8 @@ export const userPreferences = pgTable("user_preferences", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// One shared card balance per user. Authentication provider accounts are separate.
+// Legacy checkpoints retained for historical data export only. Period totals
+// use transactions and never read these values for calculations.
 export const cardBalances = pgTable("card_balances", {
   user_id: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   confirmed_amount: numeric("confirmed_amount", { precision: 20, scale: 8 }).notNull(),

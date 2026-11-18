@@ -16,7 +16,6 @@ import {
   transactionSplits,
 } from "@/db/schema";
 import { auth } from "@/utils/auth/server";
-import { CardBalanceSummary } from "@/components/dashboard/card-balance-summary";
 import MetricCard from "@/components/dashboard/metric-card";
 import ExpenseChart from "@/components/dashboard/expense-chart";
 import CategoryChart from "@/components/dashboard/category-chart";
@@ -25,7 +24,7 @@ import { AddTransactionButton } from "@/components/dashboard/add-transaction-but
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { Suspense } from "react";
-import { getBudgetsWithProgress, getCategories, getCardBalance } from "./actions";
+import { getBudgetsWithProgress, getCategories } from "./actions";
 import { MobileDashboardOverview } from "@/components/dashboard/mobile-dashboard-overview";
 import { MonthSelector } from "@/components/dashboard/month-selector";
 import { quickLaunchAction, quickLaunchAuthUrl } from "@/utils/quick-launch";
@@ -56,7 +55,7 @@ function getMonthRange(rawMonth?: string) {
 
 function calcChange(current: number, prev: number): number | null {
   if (prev === 0) return null;
-  return Math.round(((current - prev) / prev) * 100);
+  return Math.round(((current - prev) / Math.abs(prev)) * 100);
 }
 
 export default async function DashboardPage({
@@ -75,7 +74,6 @@ export default async function DashboardPage({
   const user = session?.user;
   if (!user) redirect(quickLaunchAuthUrl("login", quickLaunchAction(launch)));
 
-  const cardBalance = await getCardBalance();
   let totalIncome = 0;
   let totalExpenses = 0;
   let prevIncome = 0;
@@ -350,6 +348,12 @@ export default async function DashboardPage({
     ([id, obj]) => ({ id, ...obj }),
   );
 
+  const monthlyTrend = [0];
+  for (let date = new Date(monthRange.start); date < monthRange.end && date < completedThrough; date.setUTCDate(date.getUTCDate() + 1)) {
+    const daily = chartDataMap[date.toISOString().slice(0, 10)];
+    monthlyTrend.push((monthlyTrend.at(-1) ?? 0) + (daily?.income ?? 0) - (daily?.expense ?? 0));
+  }
+
   const mobileBudget = {
     spent: independentBudgets(dashboardBudgets).reduce(
       (sum, budget) => sum + budget.current_spent,
@@ -376,7 +380,9 @@ export default async function DashboardPage({
       <div className="mobile-finance-page mx-auto w-full max-w-lg space-y-5 px-4 py-3 lg:hidden">
         <MobileDashboardOverview
           month={monthRange.key}
-          balance={cardBalance}
+          balance={totalIncome - totalExpenses}
+          balanceChange={totalIncome - totalExpenses - (prevIncome - prevExpenses)}
+          trend={monthlyTrend}
           income={totalIncome}
           expense={totalExpenses}
           incomeChange={calcChange(totalIncome, prevIncome)}
@@ -407,7 +413,7 @@ export default async function DashboardPage({
 
         <ReminderControls />
         <div data-tour="overview" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-          <CardBalanceSummary balance={cardBalance} />
+          <MetricCard amount={totalIncome - totalExpenses} change={calcChange(totalIncome - totalExpenses, prevIncome - prevExpenses)} type="net" changeLabelKey={changeLabelKey} featured />
           <MetricCard
             amount={totalIncome}
             change={calcChange(totalIncome, prevIncome)}

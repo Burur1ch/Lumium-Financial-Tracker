@@ -3,7 +3,7 @@
 ## Root
 - utils/quick-launch.ts, components/dashboard/quick-launch.tsx and android-shortcuts.tsx: allowlisted Android app shortcuts, single-use launch behavior, account/draft readiness and setup instructions. app/manifest.ts supplies three static public shortcuts; scripts/generate-shortcut-icons.mjs generates their PNG icons.
 - db/migrations/0010_card_balance_and_calendar.sql: one shared card checkpoint per user and one-time scheduled payments; existing financial amounts are unchanged.
-- components/dashboard/card-balance-content.tsx and card-balance-summary.tsx: current card balance, reconciliation and setup at app/dashboard/card/page.tsx; exact checkpoint reads/writes live in actions.ts.
+- components/dashboard/period-balance-summary.tsx: monthly income-minus-expenses summary, signed result, daily trend and privacy toggle. Card management/reconciliation is removed; next.config.ts redirects its old route to the dashboard. Legacy checkpoints remain exportable.
 - utils/planning.ts, components/dashboard/payment-calendar.tsx and scheduled-payment-form.tsx: projected cash flow, URL-driven calendar, one-time/repeating schedules, pause/resume and recording controls.
 - db/migrations/0009_product_usability.sql: account preferences, reminder day state, recurring date anchors and transaction creation timestamps.
 - utils/preferences.ts and components/dashboard/account-sync.tsx: validated account preferences and field-level synchronization with local pending changes.
