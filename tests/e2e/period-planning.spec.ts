@@ -67,7 +67,7 @@ test("dashboard shows the signed selected-month result and has no card managemen
     id = await signUp(page, db, "period");
     const today = new Date().toISOString().slice(0, 10); const month = today.slice(0, 7); const previous = shiftPlanningMonth(month, -1);
     const tomorrow = new Date(); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    await db.query("insert into transactions(user_id,description,amount,type,status,date) values($1,'Income',500,'income','completed',$2),($1,'Expense',200,'expense','completed',$2),($1,'Pending',999,'expense','pending',$2),($1,'Future',999,'income','completed',$3),($1,'Old income',50,'income','completed',$4),($1,'Old expense',100,'expense','completed',$4)", [id, `${today}T12:00:00Z`, tomorrow, `${previous}-01T12:00:00Z`]);
+    await db.query("insert into transactions(user_id,description,amount,type,status,date) values($1,'Income',500,'income','completed',$2),($1,'Expense',200,'expense','completed',$2),($1,'Pending',999,'expense','pending',$2),($1,'Future',999,'income','completed',$3),($1,'Old income',50,'income','completed',$4),($1,'Old expense',100,'expense','completed',$5)", [id, `${today}T12:00:00Z`, tomorrow, `${previous}-01T12:00:00Z`, `${previous}-02T12:00:00Z`]);
     // Existing checkpoint records must have no influence on the product result.
     await db.query("insert into card_balances(user_id,confirmed_amount,ledger_income,ledger_expense) values($1,1000000,0,0)", [id]);
     await page.goto(`/dashboard?month=${month}`);
@@ -78,6 +78,16 @@ test("dashboard shows the signed selected-month result and has no card managemen
     await page.getByTestId("period-summary").screenshot({ path: ".local/monthly-result-positive.png" });
     await page.goto(`/dashboard?month=${previous}`);
     await expect(page.getByTestId("period-net-value")).toHaveText("-50.00 BYN");
+    const summary = page.getByTestId("period-summary");
+    await expect(summary.getByTestId("period-chart-selection")).toContainText("-50.00 BYN");
+    const daySlider = summary.getByRole("slider", { name: "Select a day to see the result" });
+    await daySlider.fill("0");
+    await expect(summary.getByTestId("period-chart-selection")).toContainText("+50.00 BYN");
+    await summary.getByRole("button", { name: "Hide balance" }).click();
+    await expect(summary.getByTestId("period-chart-selection")).toHaveCount(0);
+    await expect(summary.getByRole("slider")).toHaveCount(0);
+    await summary.getByRole("button", { name: "Show balance" }).click();
+    await expect(summary.getByTestId("period-chart-selection")).toContainText("+50.00 BYN");
     await db.query("update transactions set amount=600 where user_id=$1 and description='Expense'", [id]);
     await page.goto(`/dashboard?month=${month}`);
     await expect(page.getByTestId("period-net-value")).toHaveText("-100.00 BYN");

@@ -10,7 +10,7 @@ interface BudgetCategory {
   system_key?: string | null; name: string; color: string; icon?: string | null; limit: number;
 }
 interface MobileDashboardOverviewProps {
-  month: string; balance: number; balanceChange: number; trend: number[]; income: number; expense: number;
+  month: string; balance: number; balanceChange: number; trend: { date: string; net: number }[]; income: number; expense: number;
   incomeChange: number | null; expenseChange: number | null;
   budget: { spent: number; limit: number; categories: BudgetCategory[] };
 }
@@ -32,7 +32,7 @@ export function MobileDashboardOverview({ month, balance, balanceChange, trend, 
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
       <div data-tour="overview">
-        <PeriodBalanceSummary net={balance} change={balanceChange} trend={trend} hasActivity={income + expense > 0} />
+        <PeriodBalanceSummary key={month} net={balance} change={balanceChange} trend={trend} hasActivity={income + expense > 0} />
         <div className="summary-strip mt-3 grid grid-cols-2 overflow-hidden rounded-xl bg-slate-100 dark:bg-neutral-800">
           <SummaryTile type="income" amount={income} change={incomeChange} />
           <SummaryTile type="expense" amount={expense} change={expenseChange} />

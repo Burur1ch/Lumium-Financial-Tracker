@@ -348,10 +348,13 @@ export default async function DashboardPage({
     ([id, obj]) => ({ id, ...obj }),
   );
 
-  const monthlyTrend = [0];
+  const monthlyTrend: { date: string; net: number }[] = [];
+  let runningNet = 0;
   for (let date = new Date(monthRange.start); date < monthRange.end && date < completedThrough; date.setUTCDate(date.getUTCDate() + 1)) {
-    const daily = chartDataMap[date.toISOString().slice(0, 10)];
-    monthlyTrend.push((monthlyTrend.at(-1) ?? 0) + (daily?.income ?? 0) - (daily?.expense ?? 0));
+    const dateKey = date.toISOString().slice(0, 10);
+    const daily = chartDataMap[dateKey];
+    runningNet += (daily?.income ?? 0) - (daily?.expense ?? 0);
+    monthlyTrend.push({ date: dateKey, net: runningNet });
   }
 
   const mobileBudget = {
