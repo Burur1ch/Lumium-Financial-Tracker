@@ -88,6 +88,7 @@ export function MobileReceiptScanner() {
   const { currency } = usePrefs();
   const router = useRouter();
   const [screen, setScreen] = useState<FlowScreen>("closed");
+  const [shortcutLaunch, setShortcutLaunch] = useState(false);
   const [scanMode, setScanMode] = useState<ScanMode>("photo");
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraUnavailable, setCameraUnavailable] = useState(false);
@@ -140,6 +141,7 @@ export function MobileReceiptScanner() {
     setExpenseCategories([]);
     setItemCategoryIds([]);
     setSaving(false);
+    setShortcutLaunch(false);
     setScreen("closed");
   }, [clearPreview, releaseCamera]);
 
@@ -288,14 +290,24 @@ export function MobileReceiptScanner() {
     };
   }, [releaseCamera]);
 
-  const startScanner = (mode: ScanMode) => {
+  const startScanner = useCallback((mode: ScanMode) => {
     setScanMode(mode);
     setCameraUnavailable(!navigator.mediaDevices?.getUserMedia);
     setCameraActive(false);
     setResult(null);
     setScanError(null);
     setScreen("scanner");
-  };
+  }, []);
+
+  useEffect(() => {
+    const open = () => {
+      closeFlow();
+      setShortcutLaunch(true);
+      startScanner("photo");
+    };
+    window.addEventListener("lumium:open-receipt-scanner", open);
+    return () => window.removeEventListener("lumium:open-receipt-scanner", open);
+  }, [closeFlow, startScanner]);
 
   const selectScanMode = (mode: ScanMode) => {
     releaseCamera();
@@ -592,7 +604,7 @@ export function MobileReceiptScanner() {
 
   if (screen === "chooser") {
     return (
-      <div className="mobile-add-layer lg:hidden" onMouseDown={closeFlow}>
+      <div data-shortcut-launch={shortcutLaunch} className={`mobile-add-layer ${shortcutLaunch ? "" : "lg:hidden"}`} onMouseDown={closeFlow}>
         <section
           role="dialog"
           aria-modal="true"
@@ -624,7 +636,7 @@ export function MobileReceiptScanner() {
 
   if (screen === "scanner") {
     return (
-      <section className="mobile-scan-screen lg:hidden" role="dialog" aria-modal="true" aria-label={t("scanReceipt")}>
+      <section data-shortcut-launch={shortcutLaunch} className={`mobile-scan-screen ${shortcutLaunch ? "" : "lg:hidden"}`} role="dialog" aria-modal="true" aria-label={t("scanReceipt")}>
         <header className="mobile-scan-header">
           <button type="button" onClick={() => setScreen("chooser")} className="mobile-scan-icon" aria-label={t("back")}><ArrowLeft className="h-6 w-6" /></button>
           <h2>{scanMode === "qr" ? t("scanQr") : t("scanReceipt")}</h2>
@@ -662,7 +674,7 @@ export function MobileReceiptScanner() {
 
   if (screen === "processing") {
     return (
-      <section className="mobile-processing-screen lg:hidden" role="dialog" aria-modal="true" aria-label={t("recognizePurchase")}>
+      <section data-shortcut-launch={shortcutLaunch} className={`mobile-processing-screen ${shortcutLaunch ? "" : "lg:hidden"}`} role="dialog" aria-modal="true" aria-label={t("recognizePurchase")}>
         <header className="mobile-scan-header">
           <button type="button" onClick={() => {
             runIdRef.current += 1;
@@ -705,7 +717,7 @@ export function MobileReceiptScanner() {
     !item.name.trim() || !Number.isFinite(item.price) || item.price <= 0);
 
   return (
-    <section className="mobile-review-screen lg:hidden" role="dialog" aria-modal="true" aria-label={t("checkPurchase")}>
+    <section data-shortcut-launch={shortcutLaunch} className={`mobile-review-screen ${shortcutLaunch ? "" : "lg:hidden"}`} role="dialog" aria-modal="true" aria-label={t("checkPurchase")}>
       <header className="mobile-review-header">
         <button type="button" onClick={() => setScreen("scanner")} className="mobile-scan-icon" aria-label={t("back")}><ArrowLeft className="h-6 w-6" /></button>
         <h2>{t("checkPurchase")}</h2>

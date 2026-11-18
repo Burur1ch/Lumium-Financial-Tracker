@@ -371,6 +371,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     <>
       <section
         data-tour="quick-actions"
+        tabIndex={-1}
         className="border-slate-200/80 bg-transparent dark:border-slate-800 sm:rounded-2xl sm:border sm:bg-white sm:p-5 sm:dark:bg-slate-900"
       >
         <div

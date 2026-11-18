@@ -85,6 +85,8 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 7. Settings and profile
 
+- The Android PWA manifest offers receipt scanning, manual entry/draft resume and saved quick actions. Allowlisted `launch` URLs wait for account/draft hydration, open the corresponding UI once and remove their launch parameter. Entry is preserved through login/registration; shortcuts never create a financial entry by opening a URL. Settings explain installation and launcher support. These are app shortcuts, not a native Android widget.
+
 - Edit profile name.
 - Theme control (light/dark/auto schedule).
 - Currency, language, date format, avatar style and light/dark/auto theme sync through authenticated account preferences. Local pending field changes persist and merge on reconnect. New defaults are BYN, Russian and DD.MM.YYYY.

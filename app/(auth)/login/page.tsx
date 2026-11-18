@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { authClient } from "@/utils/auth/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/hooks/useI18n";
+import { quickLaunchAction, quickLaunchUrl, quickLaunchAuthUrl } from "@/utils/quick-launch";
 import {
   AuthExperience,
   type AuthFocusStage,
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const launch = quickLaunchAction(useSearchParams().get("launch"));
   const { t } = useI18n();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -36,7 +38,7 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       try { localStorage.removeItem("lumium_offline_account"); } catch {}
-      router.push("/dashboard");
+      router.push(quickLaunchUrl(launch));
       router.refresh();
     }
   };
@@ -119,7 +121,7 @@ export default function LoginPage() {
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
           {t("noAccount")}{" "}
           <Link
-            href="/register"
+            href={quickLaunchAuthUrl("register", launch)}
             className="font-semibold text-[var(--app-accent-strong)] hover:underline dark:text-red-400"
           >
             {t("signUp")}

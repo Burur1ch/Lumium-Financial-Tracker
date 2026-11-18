@@ -44,6 +44,7 @@ import {
 import { CURRENCIES, CURRENCY_SYMBOLS } from "@/utils/currency";
 import { PushSettings } from "@/components/dashboard/push-settings";
 import { AccountExport } from "@/components/dashboard/account-export";
+import { AndroidShortcuts } from "@/components/dashboard/android-shortcuts";
 import { stopDeviceReminders } from "@/utils/push-client";
 import { clearOfflineAccountData } from "@/utils/offline-transactions";
 
@@ -649,6 +650,7 @@ export default function SettingsPage() {
       )}
 
       <PushSettings />
+      <AndroidShortcuts />
       <AccountExport />
       {/* ── Danger zone ── */}
       <Section

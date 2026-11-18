@@ -28,6 +28,7 @@ import { Suspense } from "react";
 import { getBudgetsWithProgress, getCategories, getCardBalance } from "./actions";
 import { MobileDashboardOverview } from "@/components/dashboard/mobile-dashboard-overview";
 import { MonthSelector } from "@/components/dashboard/month-selector";
+import { quickLaunchAction, quickLaunchAuthUrl } from "@/utils/quick-launch";
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
@@ -61,9 +62,9 @@ function calcChange(current: number, prev: number): number | null {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; launch?: string }>;
 }) {
-  const { month: rawMonth } = await searchParams;
+  const { month: rawMonth, launch } = await searchParams;
   const monthRange = getMonthRange(rawMonth);
   const periodKey = "monthly" as const;
   const changeLabelKey = "vsPreviousMonth" as const;
@@ -72,7 +73,7 @@ export default async function DashboardPage({
 
   const session = await auth.api.getSession({ headers: await headers() });
   const user = session?.user;
-  if (!user) redirect("/login");
+  if (!user) redirect(quickLaunchAuthUrl("login", quickLaunchAction(launch)));
 
   const cardBalance = await getCardBalance();
   let totalIncome = 0;

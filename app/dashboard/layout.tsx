@@ -15,6 +15,7 @@ import { FirstRunTour } from "@/components/dashboard/first-run-tour";
 import { ConnectionNotice, PushEntry } from "@/components/dashboard/connection-notice";
 import { AccountSync } from "@/components/dashboard/account-sync";
 import { OfflineTransactions } from "@/components/dashboard/offline-transactions";
+import { QuickLaunch } from "@/components/dashboard/quick-launch";
 
 export default function DashboardLayout({
   children,
@@ -48,6 +49,7 @@ export default function DashboardLayout({
       </div>
       <MobileReceiptScanner />
       <AddExpenseModal hideTrigger />
+      <Suspense fallback={null}><QuickLaunch /></Suspense>
       <PushEntry />
     </div>
   );

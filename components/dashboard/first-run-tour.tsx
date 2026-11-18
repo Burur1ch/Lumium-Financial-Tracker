@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { authClient } from "@/utils/auth/client";
 import type { TranslationKey } from "@/store/translations";
+import { quickLaunchAction } from "@/utils/quick-launch";
 
 interface TourStep {
   target: string;
@@ -266,6 +267,7 @@ export function FirstRunTour() {
   const [geometry, setGeometry] = useState(initialGeometry);
   const dialog = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<Element | null>(null);
+  const shortcutUser = useRef<string | null>(null);
   const userId = session?.user.id;
   const steps = mobile ? MOBILE_STEPS : DESKTOP_STEPS;
   const step = steps[Math.min(stepIndex, steps.length - 1)];
@@ -302,6 +304,12 @@ export function FirstRunTour() {
   useEffect(() => {
     if (isOpen || pathname !== "/dashboard" || sessionPending || !userId)
       return;
+    // Keep an explicit shortcut ahead of onboarding for this visit, even after
+    // its URL is consumed and a resize switches the mobile/desktop step list.
+    if (!manualStart && (shortcutUser.current === userId || quickLaunchAction(new URLSearchParams(window.location.search).get("launch")))) {
+      shortcutUser.current = userId;
+      return;
+    }
     let wanted = manualStart;
     try {
       wanted ||=

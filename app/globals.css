@@ -847,10 +847,10 @@ html.dark body::before {
     display: none;
   }
 
-  .mobile-add-layer,
-  .mobile-scan-screen,
-  .mobile-processing-screen,
-  .mobile-review-screen { display: none; }
+  .mobile-add-layer:not([data-shortcut-launch="true"]),
+  .mobile-scan-screen:not([data-shortcut-launch="true"]),
+  .mobile-processing-screen:not([data-shortcut-launch="true"]),
+  .mobile-review-screen:not([data-shortcut-launch="true"]) { display: none; }
 
   .dashboard-main { padding-bottom: 0; }
 }
