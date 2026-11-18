@@ -57,7 +57,7 @@ export function AuthExperience({
   };
 
   return (
-    <main className="auth-shell">
+    <main className={`auth-shell auth-shell--${mode}`}>
       <div className="auth-theme-toggle">
         <ThemeToggle compact />
       </div>
