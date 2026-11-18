@@ -1,7 +1,8 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { usePrefs } from "@/store/prefs";
 
 const AUTO_KEY = "lumium_auto_theme";
 
@@ -30,10 +31,22 @@ function msUntilNextTransition(): number {
 
 export function ScheduledTheme() {
   const { setTheme } = useTheme();
+  const mode = usePrefs((state) => state.themeMode);
+  const hydrated = useSyncExternalStore(
+    (changed) => usePrefs.persist.onFinishHydration(changed),
+    () => usePrefs.persist.hasHydrated(),
+    () => false,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(AUTO_KEY) !== "true") return;
+    if (!hydrated) return;
+    if (mode !== "auto") {
+      localStorage.removeItem(AUTO_KEY);
+      setTheme(mode);
+      return;
+    }
+    localStorage.setItem(AUTO_KEY, "true");
 
     const apply = () => setTheme(getTimeBasedTheme());
     apply();
@@ -49,13 +62,14 @@ export function ScheduledTheme() {
     schedule();
 
     return () => clearTimeout(timeout);
-  }, [setTheme]);
+  }, [setTheme, mode, hydrated]);
 
   return null;
 }
 
 /** Call when user selects Auto */
 export function enableAutoTheme(setTheme: (t: string) => void) {
+  usePrefs.getState().setThemeMode("auto");
   localStorage.setItem(AUTO_KEY, "true");
   setTheme(getTimeBasedTheme());
 }

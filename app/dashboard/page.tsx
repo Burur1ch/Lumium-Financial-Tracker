@@ -1,3 +1,4 @@
+import { ReminderControls } from "@/components/dashboard/reminder-controls";
 import React from "react";
 import {
   allocateTransactions,
@@ -386,6 +387,7 @@ export default async function DashboardPage({
           trend={mobileTrend}
           budget={mobileBudget}
         />
+        <ReminderControls />
         <QuickActions presets={quickPresets} categories={quickCategories} />
         <TransactionsTable
           transactions={recentTransactions}
@@ -407,6 +409,7 @@ export default async function DashboardPage({
           </div>
         </div>
 
+        <ReminderControls />
         <div data-tour="overview" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
           <MetricCard
             amount={totalIncome - totalExpenses}

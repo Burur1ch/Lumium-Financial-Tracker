@@ -100,6 +100,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const originalAmount = useRef("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   };
 
   const openEdit = (preset: QuickPreset) => {
+    originalAmount.current = String(Number((preset.amount * (exchangeRates[currency] ?? 1)).toFixed(2)));
     setEditingPreset(preset);
     setSelectedType(preset.type);
     setSelectedIcon(preset.icon);
@@ -220,6 +222,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
     setError(null);
     const formData = new FormData(event.currentTarget);
     formData.set("currency", currency);
+    formData.set("amount_changed", String(!editingPreset || Number(amount) !== Number(originalAmount.current)));
     formData.set("type", selectedType);
     formData.set("icon", selectedIcon);
     formData.set("category_id", selectedCategoryId);

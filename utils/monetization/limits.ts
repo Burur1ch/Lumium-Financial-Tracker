@@ -4,7 +4,7 @@ import { MONETIZATION_PLANS } from "@/utils/monetization/plans";
 export type PeriodValue = "7d" | "30d" | "3m" | "1y" | "all";
 
 const PERIODS_BY_PLAN: Record<PlanKey, PeriodValue[]> = {
-  free: ["7d", "30d"],
+  free: ["7d", "30d", "3m", "1y", "all"],
   pro: ["7d", "30d", "3m", "1y", "all"],
   family: ["7d", "30d", "3m", "1y", "all"],
 };

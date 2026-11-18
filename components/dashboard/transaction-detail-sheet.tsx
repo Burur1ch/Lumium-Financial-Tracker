@@ -64,6 +64,11 @@ export function TransactionDetailSheet({
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState(transaction.type);
   const localAmount = Number((transaction.amount * rate).toFixed(2));
+  const [editAmount, setEditAmount] = useState(localAmount);
+  const startEdit = () => {
+    setEditAmount(localAmount);
+    setMode("edit");
+  };
   const initialSplits = useMemo<SplitDraft[]>(() => {
     if (transaction.splits && transaction.splits.length >= 2) {
       return transaction.splits.map((split) => ({
@@ -126,6 +131,8 @@ export function TransactionDetailSheet({
   const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const amountInput = event.currentTarget.elements.namedItem("amount") as HTMLInputElement;
+    formData.set("amount_changed", String(Number(amountInput.value) !== Number(amountInput.defaultValue)));
     formData.set("currency", currency);
     formData.set("type", selectedType);
     setPending(true);
@@ -291,7 +298,7 @@ export function TransactionDetailSheet({
                   <MobileAction
                     icon={Pencil}
                     label={t("edit")}
-                    onClick={() => setMode("edit")}
+                    onClick={startEdit}
                   />
                   <MobileAction
                     icon={Copy}
@@ -412,7 +419,7 @@ export function TransactionDetailSheet({
               <div className="hidden grid-cols-2 gap-2 sm:grid">
                 <button
                   type="button"
-                  onClick={() => setMode("edit")}
+                  onClick={startEdit}
                   className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200"
                 >
                   <Pencil className="h-4 w-4" /> {t("edit")}
@@ -497,10 +504,10 @@ export function TransactionDetailSheet({
               <input
                 name="amount"
                 type="number"
-                min="0.01"
+                min={editAmount === 0 ? "0" : "0.01"}
                 step="0.01"
                 required
-                defaultValue={localAmount}
+                defaultValue={editAmount}
                 className={inputClass}
                 aria-label={t("amount")}
               />

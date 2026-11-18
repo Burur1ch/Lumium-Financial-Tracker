@@ -1,5 +1,9 @@
 export const REMINDER_HOURS = [14, 21] as const;
 
+export function localDate(now: Date, timezone: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
 export function reminderSlot(now: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
@@ -31,14 +35,15 @@ export function validTimezone(value: unknown): value is string {
   }
 }
 
-export function nextRecurringDate(value: string, frequency: string) {
+export function nextRecurringDate(value: string, frequency: string, anchorDate = value) {
   const [year, month, day] = value.split("-").map(Number);
+  const [, anchorMonth, anchorDay] = anchorDate.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day, 12));
   if (frequency === "weekly") date.setUTCDate(date.getUTCDate() + 7);
   else {
-    const targetMonth = month - 1 + (frequency === "yearly" ? 12 : 1);
+    const targetMonth = frequency === "yearly" ? anchorMonth - 1 + 12 : month;
     const lastDay = new Date(Date.UTC(year, targetMonth + 1, 0)).getUTCDate();
-    date.setUTCFullYear(year, targetMonth, Math.min(day, lastDay));
+    date.setUTCFullYear(year, targetMonth, Math.min(anchorDay, lastDay));
   }
   return date.toISOString().slice(0, 10);
 }

@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ScheduledTheme } from "@/components/scheduled-theme";
 import { Agentation } from "agentation";
+import { StoreHydration } from "@/components/store-hydration";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ru"
       className={`${geistSans.variable} h-full`}
       suppressHydrationWarning
     >
@@ -40,6 +41,7 @@ export default function RootLayout({
           enableSystem={false}
         >
           <ScheduledTheme />
+          <StoreHydration />
           {children}
         </ThemeProvider>
         {process.env.NODE_ENV === "development" && (

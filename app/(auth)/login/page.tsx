@@ -35,6 +35,7 @@ export default function LoginPage() {
       setFocusStage("error");
       setLoading(false);
     } else {
+      try { localStorage.removeItem("lumium_offline_account"); } catch {}
       router.push("/dashboard");
       router.refresh();
     }

@@ -9,6 +9,7 @@ import {
   testPush,
 } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
+import { ReminderControls } from "@/components/dashboard/reminder-controls";
 
 function applicationKey(value: string): Uint8Array<ArrayBuffer> {
   const binary = atob(
@@ -244,6 +245,8 @@ export function PushSettings() {
           {t("pushTestSent")}
         </p>
       )}
+      <ReminderControls enabled={status === "on"} />
+      {status === "on" && <p className="mt-3 text-xs leading-5 text-slate-500">{t("reminderSmartHint")}</p>}
     </section>
   );
 }

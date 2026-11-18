@@ -8,14 +8,12 @@ import {
   Bell,
   BookOpen,
   CalendarClock,
-  CreditCard,
   Grid2X2,
   HelpCircle,
   Home,
   MoreHorizontal,
   Plus,
   Settings,
-  Users,
   Wallet,
   X,
   ArrowLeftRight,
@@ -34,11 +32,9 @@ import {
 } from "@/components/dashboard/month-selector";
 
 const moreItems = [
+  { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid2X2 },
-  { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
   { key: "planning" as const, href: "/dashboard/planning", icon: CalendarClock },
-  { key: "users" as const, href: "/dashboard/users", icon: Users },
-  { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
 ] as const;
@@ -147,10 +143,10 @@ export function MobileAppChrome() {
       active: pathname.startsWith("/dashboard/transactions"),
     },
     {
-      label: t("reports"),
-      href: "/dashboard/reports",
-      icon: BarChart3,
-      active: pathname.startsWith("/dashboard/reports"),
+      label: t("budget"),
+      href: "/dashboard/budget",
+      icon: Wallet,
+      active: pathname.startsWith("/dashboard/budget"),
     },
   ];
 
@@ -272,7 +268,7 @@ export function MobileAppChrome() {
           <span>{t("addNew")}</span>
         </button>
         <Link className={`mobile-nav-item ${primaryItems[2].active ? "is-active" : ""}`} href={primaryItems[2].href} aria-current={primaryItems[2].active ? "page" : undefined}>
-          <BarChart3 className="h-5 w-5" strokeWidth={1.8} />
+          <Wallet className="h-5 w-5" strokeWidth={1.8} />
           <span>{primaryItems[2].label}</span>
         </Link>
         <button

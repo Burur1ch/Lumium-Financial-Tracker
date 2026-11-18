@@ -25,6 +25,8 @@ import {
   transactionRules,
   transactionSplits,
   transactions,
+  userPreferences,
+  reminderDays,
 } from "@/db/schema";
 import { auth } from "@/utils/auth/server";
 import * as XLSX from "xlsx";
@@ -66,8 +68,9 @@ import type Stripe from "stripe";
 import { BILLING_ENABLED } from "@/utils/features";
 import { materializeRecurring, processRecurring } from "@/utils/recurring";
 import { pushConfiguration, sendDevicePush, validPushSubscription, type DevicePush } from "@/utils/push";
-import { validTimezone } from "@/utils/reminders";
+import { localDate, validTimezone } from "@/utils/reminders";
 import { takeRequestLimit } from "@/utils/request-limits";
+import { DEFAULT_PREFERENCES, validPreferencePatch, type AccountPreferences } from "@/utils/preferences";
 
 type StripeSubscriptionStatus =
   | "incomplete"
@@ -128,6 +131,7 @@ function slugifyFilePart(value: string) {
 }
 
 async function getCurrentPlanForUser(user: { id: string }): Promise<PlanKey> {
+  if (!BILLING_ENABLED) return "free";
   const [data] = await db
     .select({
       plan: subscriptions.plan,
@@ -747,6 +751,8 @@ export async function createPaymentElementSession(input: {
 
 export async function createTransaction(formData: FormData) {
   const user = await getCurrentUser();
+  const expectedUserId = formData.get("expected_user_id");
+  if (expectedUserId && expectedUserId !== user?.id) return { success: false, error: "UNAUTHORIZED" };
   if (!user) {
     return { success: false, error: "Неавторизован" };
   }
@@ -758,6 +764,10 @@ export async function createTransaction(formData: FormData) {
   const amount = typeof amountInput === "string" ? Number(amountInput) : NaN;
   const type = formData.get("type");
   const status = formData.get("status") ?? "completed";
+  const idempotencyInput = formData.get("idempotency_key");
+  const idempotencyKey = typeof idempotencyInput === "string" ? idempotencyInput : null;
+  if (idempotencyKey && !IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey))
+    return { success: false, error: "INVALID_TRANSACTION" };
   const transactionDate = parseTransactionDate(formData.get("date"));
 
   // В реальном приложении здесь будет ID выбранной категории.
@@ -819,12 +829,17 @@ export async function createTransaction(formData: FormData) {
           ? "needs_review"
           : "reviewed",
       date: transactionDate,
+      idempotency_key: idempotencyKey,
     })
+    .onConflictDoNothing({ target: [transactions.user_id, transactions.idempotency_key] })
     .returning({ id: transactions.id });
+
+  const existing = !created && idempotencyKey ? await db.select({ id: transactions.id }).from(transactions)
+    .where(and(eq(transactions.user_id, user.id), eq(transactions.idempotency_key, idempotencyKey))).limit(1) : [];
 
   // 4. Сбрасываем кэш страницы дашборда, чтобы графики и таблицы сразу обновились
   revalidateFinancialViews();
-  return { success: true, transactionId: created.id };
+  return { success: true, transactionId: created?.id ?? existing[0]?.id };
 }
 
 export async function scanReceiptWithGemini(formData: FormData) {
@@ -869,6 +884,8 @@ export async function scanReceiptWithGemini(formData: FormData) {
 }
 
 export async function createScannedTransaction(input: {
+  expectedUserId?: string;
+  idempotencyKey?: string;
   description: string;
   amount: number;
   currency: string;
@@ -879,6 +896,11 @@ export async function createScannedTransaction(input: {
 }) {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "UNAUTHORIZED" };
+
+  if (input.idempotencyKey && !IDEMPOTENCY_KEY_PATTERN.test(input.idempotencyKey))
+    return { success: false, error: "INVALID_RECEIPT" };
+  if (input.expectedUserId && input.expectedUserId !== user.id)
+    return { success: false, error: "UNAUTHORIZED" };
 
   const description = input.description.trim();
   const transactionDate = parseTransactionDate(input.date ?? null);
@@ -957,8 +979,16 @@ export async function createScannedTransaction(input: {
         note: input.note?.trim().slice(0, 1000) || null,
         review_status: "reviewed",
         date: transactionDate,
+        idempotency_key: input.idempotencyKey ?? null,
       })
+      .onConflictDoNothing({ target: [transactions.user_id, transactions.idempotency_key] })
       .returning({ id: transactions.id });
+
+    if (!created) {
+      const [existing] = await tx.select({ id: transactions.id }).from(transactions)
+        .where(and(eq(transactions.user_id, user.id), eq(transactions.idempotency_key, input.idempotencyKey!))).limit(1);
+      return existing.id;
+    }
 
     if (normalizedSplits.length >= 2) {
       await tx.insert(transactionSplits).values(
@@ -1040,7 +1070,7 @@ export async function updateQuickPreset(id: string, formData: FormData) {
     .set({
       category_id: input.categoryId,
       name: input.name,
-      amount: formatBaseStorageAmount(input.amountInBase),
+      amount: formData.get("amount_changed") === "false" ? quickTransactionPresets.amount : formatBaseStorageAmount(input.amountInBase),
       type: input.type,
       icon: input.icon,
       updated_at: new Date(),
@@ -1204,10 +1234,11 @@ export async function updateTransaction(id: string, formData: FormData) {
     typeof categoryInput === "string" && categoryInput ? categoryInput : null;
   const note = typeof noteInput === "string" ? noteInput.trim() : "";
 
+  const amountChanged = formData.get("amount_changed") !== "false";
   if (
     !description ||
     !Number.isFinite(amount) ||
-    amount <= 0 ||
+    (amountChanged && amount <= 0) ||
     !type ||
     !transactionDate ||
     typeof currencyInput !== "string" ||
@@ -1233,7 +1264,7 @@ export async function updateTransaction(id: string, formData: FormData) {
     return { success: false, error: "INVALID_CATEGORY" };
   }
 
-  const currencyRate = await getCurrencyRate(currencyInput);
+  const currencyRate = amountChanged ? await getCurrencyRate(currencyInput) : 1;
   const updated = await db.transaction(async (tx) => {
     const [locked] = await tx
       .select()
@@ -1246,7 +1277,7 @@ export async function updateTransaction(id: string, formData: FormData) {
       .set({
         category_id: categoryId,
         description,
-        amount: formatBaseStorageAmount(amount / currencyRate),
+        amount: amountChanged ? formatBaseStorageAmount(amount / currencyRate) : locked.amount,
         type,
         note: note || null,
         review_status: "reviewed",
@@ -1624,6 +1655,7 @@ export async function createRecurringTransaction(formData: FormData) {
     type,
     frequency,
     next_date: nextDate,
+    anchor_date: nextDate,
     auto_create: formData.get("auto_create") === "on",
   });
   revalidateFinancialViews();
@@ -2349,6 +2381,7 @@ export async function getBudgetsWithProgress(month?: string) {
 export async function upsertBudget(formData: {
   categoryId: string;
   limitAmount: number;
+  amountChanged?: boolean;
   currency: string;
   month?: string;
   rolloverEnabled?: boolean;
@@ -2363,19 +2396,19 @@ export async function upsertBudget(formData: {
   if (
     !UUID_PATTERN.test(formData.categoryId) ||
     !Number.isFinite(formData.limitAmount) ||
-    formData.limitAmount <= 0 ||
+    (formData.amountChanged !== false && formData.limitAmount <= 0) ||
     !isCurrency(formData.currency) ||
     !Number.isInteger(alertThreshold) ||
     alertThreshold < 50 ||
     alertThreshold > 100
   )
     return { success: false as const, error: "INVALID_BUDGET" };
-  const limitInBase =
+  const limitInBase = formData.amountChanged === false ? null :
     formData.limitAmount / (await getCurrencyRate(formData.currency));
   if (
-    !Number.isFinite(limitInBase) ||
+    limitInBase !== null && (!Number.isFinite(limitInBase) ||
     limitInBase < 0.00000001 ||
-    limitInBase >= 1e12
+    limitInBase >= 1e12)
   )
     return { success: false as const, error: "INVALID_BUDGET" };
   const plan = await getCurrentPlanForUser(user);
@@ -2392,24 +2425,29 @@ export async function upsertBudget(formData: {
       (item) => item.id === formData.categoryId && item.type === "expense",
     );
     const current = await tx
-      .select({ id: budgets.id, categoryId: budgets.category_id })
+      .select({ id: budgets.id, categoryId: budgets.category_id, amount: budgets.monthly_limit })
       .from(budgets)
       .where(
         and(eq(budgets.user_id, user.id), eq(budgets.month_year, monthYear)),
       );
-    const existing = current.some(
+    const existing = current.find(
       (item) => item.categoryId === formData.categoryId,
     );
     if (!category || (!existing && isCategoryArchived(category, all)))
       return { success: false as const, error: "INVALID_CATEGORY" };
     if (!existing && isLimitReached(getPlanBudgetLimit(plan), current.length))
       return { success: false as const, error: "PLAN_LIMIT" };
+    if (!existing && limitInBase === null)
+      return { success: false as const, error: "INVALID_BUDGET" };
+    const storedAmount = existing && formData.amountChanged === false
+      ? existing.amount
+      : formatBaseStorageAmount(limitInBase!);
     await tx
       .insert(budgets)
       .values({
         user_id: user.id,
         category_id: category.id,
-        monthly_limit: formatBaseStorageAmount(limitInBase),
+        monthly_limit: storedAmount,
         rollover_enabled: Boolean(formData.rolloverEnabled),
         alert_threshold: alertThreshold,
         month_year: monthYear,
@@ -2417,7 +2455,7 @@ export async function upsertBudget(formData: {
       .onConflictDoUpdate({
         target: [budgets.user_id, budgets.category_id, budgets.month_year],
         set: {
-          monthly_limit: formatBaseStorageAmount(limitInBase),
+          monthly_limit: storedAmount,
           rollover_enabled: Boolean(formData.rolloverEnabled),
           alert_threshold: alertThreshold,
         },
@@ -2429,6 +2467,26 @@ export async function upsertBudget(formData: {
 }
 
 // Получить профиль текущего пользователя
+export async function getAccountPreferences() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const [saved] = await db.select().from(userPreferences).where(eq(userPreferences.user_id, user.id)).limit(1);
+  return { userId: user.id, preferences: saved ? { ...DEFAULT_PREFERENCES, ...saved.data } : null };
+}
+
+export async function saveAccountPreferences(patch: Partial<AccountPreferences>, initialize = false) {
+  const user = await getCurrentUser();
+  if (!user || !validPreferencePatch(patch)) return { success: false as const };
+  const [saved] = await db.insert(userPreferences).values({
+    user_id: user.id,
+    data: { ...DEFAULT_PREFERENCES, ...patch },
+  }).onConflictDoUpdate({
+    target: userPreferences.user_id,
+    set: { data: initialize ? userPreferences.data : sql`${userPreferences.data} || ${JSON.stringify(patch)}::jsonb`, updated_at: new Date() },
+  }).returning({ data: userPreferences.data });
+  return { success: true as const, preferences: saved.data };
+}
+
 export async function getProfile() {
   const user = await getCurrentUser();
   if (!user) return null;
@@ -2521,6 +2579,29 @@ export async function exportAccountData() {
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
   return { success: true as const, data };
+}
+
+export async function getReminderDay(timezone: string) {
+  const user = await getCurrentUser();
+  if (!user || !validTimezone(timezone)) return null;
+  const [day] = await db.select().from(reminderDays).where(and(
+    eq(reminderDays.user_id, user.id), eq(reminderDays.local_date, localDate(new Date(), timezone)),
+  )).limit(1);
+  return { completed: day?.completed ?? false, snoozedUntil: day?.snoozed_until?.toISOString() ?? null };
+}
+
+export async function updateReminderDay(action: "done" | "snooze", timezone: string) {
+  const user = await getCurrentUser();
+  if (!user || !validTimezone(timezone) || !["done", "snooze"].includes(action)) return { success: false };
+  const now = new Date();
+  const values = {
+    completed: action === "done",
+    snoozed_until: action === "snooze" ? new Date(now.getTime() + 3600000) : null,
+    timezone,
+  };
+  await db.insert(reminderDays).values({ user_id: user.id, local_date: localDate(now, timezone), ...values })
+    .onConflictDoUpdate({ target: [reminderDays.user_id, reminderDays.local_date], set: values });
+  return { success: true };
 }
 
 export async function getPushSettings(endpoint?: string) {
@@ -2640,6 +2721,7 @@ export async function testPush(endpoint: string) {
       },
       device.language,
       "lumium-test",
+      device.timezone,
     );
     return { success: true };
   } catch {

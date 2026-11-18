@@ -274,8 +274,9 @@ test("release controls preserve BYN, export private data, run jobs and manage op
     // The test's init script resets preferences on full loads; SPA navigation preserves the selection.
     await page
       .getByRole("navigation", { name: translations.en.mobileNavigation })
-      .getByRole("link", { name: translations.en.reports, exact: true })
+      .getByRole("button", { name: translations.en.more, exact: true })
       .click();
+    await page.getByRole("link", { name: translations.en.reports, exact: true }).click();
     await expect(page.getByTestId("report-summary")).toContainText("$25.00");
     expect(
       Number(
@@ -381,11 +382,8 @@ test("release controls preserve BYN, export private data, run jobs and manage op
       (await page.request.get("/sw.js")).headers()["content-type"],
     ).toMatch(/javascript/);
     await page.goto("/dashboard/pricing");
-    await expect(
-      page.getByRole("heading", {
-        name: translations.en.billingComingSoonTitle,
-      }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/dashboard\/settings/);
+    await expect(page.getByText(translations.en.upgradeToPro, { exact: true })).toHaveCount(0);
     await expect(page.locator("iframe")).toHaveCount(0);
     await page.goto("/dashboard/help");
     await page
@@ -407,7 +405,7 @@ test("release controls preserve BYN, export private data, run jobs and manage op
       }),
     ).toBeVisible();
   } finally {
-    await page.goto("about:blank");
+    await page.goto("about:blank").catch(() => {});
     if (userId) await db.query('delete from "user" where id=$1', [userId]);
     await db.query('delete from "user" where id=$1', [other]);
     await db.end();

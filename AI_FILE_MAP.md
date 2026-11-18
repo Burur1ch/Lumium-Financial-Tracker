@@ -1,6 +1,10 @@
 # Lumium File Map For AI Agents
 
 ## Root
+- db/migrations/0009_product_usability.sql: account preferences, reminder day state, recurring date anchors and transaction creation timestamps.
+- utils/preferences.ts and components/dashboard/account-sync.tsx: validated account preferences and field-level synchronization with local pending changes.
+- utils/offline-transactions.ts, components/dashboard/offline-transactions.tsx and app/offline/page.tsx: per-account drafts, idempotent sending queue and offline entry shell.
+- components/dashboard/reminder-controls.tsx and app/api/reminders/route.ts: authenticated daily completion/snooze controls in the app and notifications.
 - utils/currency.ts and utils/currency-server.ts: BYN base currency, display conversions and NBRB snapshots.
 - scripts/migrate.mjs and db/migrations/0006_byn_and_push.sql: transactional USD-to-BYN migration with a verified rate and split balancing. Run migrations through npm run db:migrate.
 - scripts/start.mjs and app/api/internal/jobs/route.ts: production background scheduler and protected job endpoint.

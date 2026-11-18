@@ -107,6 +107,7 @@ function BudgetLimitForm({
   const [rolloverEnabled, setRolloverEnabled] = useState(
     initialBudget?.rolloverEnabled ?? false,
   );
+  const [originalLimit, setOriginalLimit] = useState(limitAmount);
   const [alertThreshold, setAlertThreshold] = useState(
     String(initialBudget?.alertThreshold ?? 75),
   );
@@ -163,6 +164,7 @@ function BudgetLimitForm({
   const chooseCategory = (value: string) => {
     setCategoryId(value);
     const saved = existingBudgets.find((budget) => budget.categoryId === value);
+    setOriginalLimit(saved ? String(Number((saved.limitAmountBase * currencyRate).toFixed(2))) : "");
     setLimitAmount(
       saved
         ? String(Number((saved.limitAmountBase * currencyRate).toFixed(2)))
@@ -180,6 +182,7 @@ function BudgetLimitForm({
         const result = await upsertBudget({
           categoryId,
           limitAmount: Number(limitAmount),
+          amountChanged: !existing || Number(limitAmount) !== Number(originalLimit),
           currency,
           month,
           rolloverEnabled,
@@ -286,7 +289,7 @@ function BudgetLimitForm({
               id={`${id}-amount`}
               name="amount"
               type="number"
-              min="0.01"
+              min={existing && Number(originalLimit) === 0 ? "0" : "0.01"}
               step="0.01"
               required
               value={limitAmount}

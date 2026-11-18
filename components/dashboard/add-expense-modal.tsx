@@ -15,7 +15,8 @@ import {
   Banknote,
   CalendarDays,
 } from "lucide-react";
-import { createTransaction, createCategory } from "@/app/dashboard/actions";
+import { createCategory } from "@/app/dashboard/actions";
+import { cachedOfflineAccount, readTransactionDraft, writeTransactionDraft, submitManualTransaction } from "@/utils/offline-transactions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { CURRENCY_SYMBOLS, isCurrency } from "@/utils/currency";
@@ -34,11 +35,14 @@ interface AddExpenseModalProps {
 }
 
 interface TransactionDraft {
-  amount?: number;
+  amount?: number | string;
   description?: string;
   note?: string;
   currency?: string;
   date?: string;
+  type?: "expense" | "income";
+  category_id?: string;
+  idempotency_key?: string;
 }
 
 const PRESET_COLORS = [
@@ -88,6 +92,7 @@ export default function AddExpenseModal({
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"expense" | "income">(
     "expense",
@@ -102,6 +107,9 @@ export default function AddExpenseModal({
     : draftCurrency;
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const amountRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const saved = useRef(false);
+  const [entryKey, setEntryKey] = useState("");
   const categoryRequest = useRef(0);
   const fieldId = useId();
 
@@ -119,13 +127,21 @@ export default function AddExpenseModal({
 
   const openModal = useCallback(
     (nextDraft: TransactionDraft = {}) => {
-      setDraft(nextDraft);
-      setDate(nextDraft.date ?? today);
+      const restored = Object.keys(nextDraft).length ? nextDraft : readTransactionDraft() ?? {};
+      setDraft(restored);
+      setDate(restored.date ?? today);
+      setSelectedType(restored.type === "income" ? "income" : "expense");
+      setSelectedCategoryId(restored.category_id ?? "");
+      setEntryKey(restored.idempotency_key ?? crypto.randomUUID());
+      saved.current = false;
+      setQueued(false);
+      const cached = cachedOfflineAccount();
+      if (cached) setCategories(cached.categories);
       setIsOpen(true);
       setSuccess(false);
       setError(null);
       const request = ++categoryRequest.current;
-      void import("@/app/dashboard/actions").then(async ({ getCategories }) => {
+      if (navigator.onLine) void import("@/app/dashboard/actions").then(async ({ getCategories }) => {
         try {
           const fresh = await getCategories();
           if (request === categoryRequest.current)
@@ -141,7 +157,16 @@ export default function AddExpenseModal({
     [t, today],
   );
 
-  const closeModal = () => {
+  const persistDraft = useCallback((overrides: Record<string, string> = {}) => {
+    if (!formRef.current || saved.current) return;
+    try {
+      const fields = Object.fromEntries(Array.from(new FormData(formRef.current).entries(), ([key, value]) => [key, String(value)]));
+      writeTransactionDraft({ ...fields, ...overrides });
+    } catch { setError(t("draftSaveFailed")); }
+  }, [t]);
+
+  const closeModal = useCallback(() => {
+    persistDraft();
     setVisible(false);
     setTimeout(() => {
       setIsOpen(false);
@@ -149,7 +174,7 @@ export default function AddExpenseModal({
       setNewCatName("");
       setSelectedCategoryId("");
     }, 220);
-  };
+  }, [persistDraft]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -158,7 +183,7 @@ export default function AddExpenseModal({
     };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  }, [isOpen]);
+  }, [isOpen, closeModal]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -213,7 +238,10 @@ export default function AddExpenseModal({
     const created = (fresh as Category[]).find(
       (c) => c.name === newCatName.trim() && c.type === selectedType,
     );
-    if (created) setSelectedCategoryId(created.id);
+    if (created) {
+      setSelectedCategoryId(created.id);
+      persistDraft({ category_id: created.id });
+    }
     setNewCatName("");
     setShowNewCat(false);
   };
@@ -224,8 +252,11 @@ export default function AddExpenseModal({
     setError(null);
     const formData = new FormData(e.currentTarget);
     try {
-      const result = await createTransaction(formData);
+      const result = await submitManualTransaction(formData);
       if (result.success) {
+        saved.current = true;
+        writeTransactionDraft(null);
+        setQueued(result.queued);
         setSuccess(true);
         setTimeout(() => closeModal(), 900);
       } else {
@@ -312,14 +343,15 @@ export default function AddExpenseModal({
                     />
                   </div>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                    {t("transactionSaved")}
+                    {t(queued ? "offlineQueued" : "transactionSaved")}
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
                     {t("closingEllipsis")}
                   </p>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form ref={formRef} onInput={() => persistDraft()} onSubmit={handleSubmit} className="space-y-4">
+                  <input type="hidden" name="idempotency_key" value={entryKey} />
                   <input type="hidden" name="currency" value={draftCurrency} />
                   {error && (
                     <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-2 text-xs font-semibold text-red-500">
@@ -337,6 +369,7 @@ export default function AddExpenseModal({
                         onClick={() => {
                           setSelectedType(txType);
                           setSelectedCategoryId("");
+                          persistDraft({ type: txType, category_id: "" });
                           setShowNewCat(false);
                         }}
                         className={`flex min-h-11 items-center justify-center gap-2 rounded-lg text-xs font-bold transition-[color,background-color,transform] duration-150 ${
@@ -372,14 +405,14 @@ export default function AddExpenseModal({
                       <input
                         ref={amountRef}
                         id={`${fieldId}-amount`}
-                        key={`amount-${draft.amount ?? "empty"}`}
                         type="number"
                         name="amount"
                         step="0.01"
                         min="0.01"
                         required
                         placeholder="0.00"
-                        defaultValue={draft.amount?.toFixed(2)}
+                        value={draft.amount ?? ""}
+                        onChange={(event) => setDraft((current) => ({ ...current, amount: event.target.value }))}
                         className={
                           inputCls + " pl-7 text-lg font-bold tabular-nums"
                         }
@@ -395,13 +428,13 @@ export default function AddExpenseModal({
                       htmlFor={`${fieldId}-description`}
                     />
                     <input
-                      key={`description-${draft.description ?? "empty"}`}
                       type="text"
                       name="description"
                       id={`${fieldId}-description`}
                       required
                       placeholder={t("transactionDescriptionPlaceholder")}
-                      defaultValue={draft.description}
+                      value={draft.description ?? ""}
+                      onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
                       className={inputCls}
                     />
                   </div>
@@ -413,11 +446,11 @@ export default function AddExpenseModal({
                       htmlFor={`${fieldId}-note`}
                     />
                     <textarea
-                      key={`note-${draft.note ?? "empty"}`}
                       name="note"
                       id={`${fieldId}-note`}
                       placeholder={t("transactionNotePlaceholder")}
-                      defaultValue={draft.note}
+                      value={draft.note ?? ""}
+                      onChange={(event) => setDraft((current) => ({ ...current, note: event.target.value }))}
                       className={inputCls + " min-h-20 py-3"}
                     />
                   </div>
@@ -516,9 +549,10 @@ export default function AddExpenseModal({
                     <CategoryPicker
                       categories={filteredCategories}
                       value={selectedCategoryId}
-                      onChange={(event) =>
-                        setSelectedCategoryId(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setSelectedCategoryId(event.target.value);
+                        persistDraft({ category_id: event.target.value });
+                      }}
                       name="category_id"
                       id={`${fieldId}-category`}
                       aria-label={t("category")}
@@ -537,7 +571,10 @@ export default function AddExpenseModal({
                       name="date"
                       id={`${fieldId}-date`}
                       value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        persistDraft({ date: event.target.value });
+                      }}
                       className={inputCls}
                     />
                   </div>

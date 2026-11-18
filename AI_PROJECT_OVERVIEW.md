@@ -41,6 +41,8 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 - Create income/expense transactions with an optional note.
 - Open a transaction detail sheet to edit, duplicate, delete, split, or change its review status.
 - Split a transaction into 2-100 category allocations whose converted total must equal the original amount. Converted shares are balanced in the database's eight-decimal units.
+- Description-only edits preserve the exact stored BYN amount. Budget warning edits and preset name/icon edits also preserve unchanged amounts.
+- Manual entry drafts and unsent manual/recognized-receipt transactions persist per account on the device. A public cached offline shell supports reloads without caching financial routes or API responses. Replay validates the expected account and uses database idempotency keys.
 - Save one-tap presets for common transactions and create entries with idempotency protection.
 - Filter by text, type, category, and review status.
 - View recent transactions in dashboard and full list in transactions page.
@@ -65,13 +67,14 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 5. Planning and automation
 
 - Define weekly, monthly, or yearly recurring income/expense templates.
+- Recurring schedules preserve an anchor date through shorter months and leap years. Migration 0009 backfills anchors from available occurrence history.
 - Materialize recurring entries manually or automatically through a minute-based production scheduler. Dashboard visits also catch up due entries. Both paths share row locks, atomic date advancement and occurrence idempotency keys.
 - Apply description-matching rules to assign categories and review status to new or existing transactions.
 - Track savings goals with targets, progress, optional deadlines, color, and completion state.
 
 6. Reports
 
-- Basic reports are available on Free for 7d and 30d. Pro/Family also allow 3m, 1y, all and XLSX export. The server resolves allowed periods and passes the authoritative plan to report controls.
+- All report periods, existing XLSX exports, full transaction history and unlimited category budgets are available to every account. Pricing navigation and upgrade cards are removed. The legacy pricing URL redirects to settings.
 - Aggregate completed transactions through the current UTC calendar day; exclude future and pending entries. Short periods contain 7/30 full calendar days, including days without transactions. Net balance charts accumulate income minus expenses within the selected period.
 - Category breakdowns expand into subcategories and direct main-category spending, including archived categories with history. Largest transactions show actual descriptions and localized category paths.
 - XLSX exports share report date boundaries and contain separate main/subcategory columns, allocation amounts and explicit BYN currency columns, avoiding duplicate transaction totals. On-screen values use the selected display currency.
@@ -80,10 +83,11 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 - Edit profile name.
 - Theme control (light/dark/auto schedule).
-- Local preferences: currency, language, date format, avatar style.
+- Currency, language, date format, avatar style and light/dark/auto theme sync through authenticated account preferences. Local pending field changes persist and merge on reconnect. New defaults are BYN, Russian and DD.MM.YYYY.
 - Sign out and delete account flows.
 - Free full-account JSON export includes all financial history and local display preferences, excluding password hashes, sessions and push secrets.
 - Device-specific Web Push reminders are opt-in, at 14:00 and 21:00 in the detected IANA time zone. Subscriptions, delivery leases/retries and per-slot deduplication are stored in PostgreSQL; expired endpoints are removed. iOS requires a Home Screen installation.
+- Recent manually entered expenses suppress the next reminder. Account-wide daily controls finish reminders for today or snooze them for one hour, including notification actions and midnight-crossing snoozes.
 - Gemini recognition is limited per authenticated user to 5 requests/minute and 100/day by atomic PostgreSQL counters. Local OCR remains available when a quota is reached. The scheduled job cleans expired counters.
 
 8. Help and support
@@ -93,7 +97,7 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 9. Shared finances placeholder
 
-- The users page previews future budget-by-ID and family-wallet concepts.
+- The users page previews future budget-by-ID and family-wallet concepts. It is hidden from navigation. Mobile navigation gives budgets a direct tab and puts reports in More.
 - No shared workspace, invitation, membership, or cross-user database access exists yet.
 - Knowing a profile ID never bypasses the existing `user_id` ownership checks.
 

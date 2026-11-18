@@ -346,7 +346,7 @@ test("category icons preserve choices and resolve legacy defaults and subcategor
   expect(resolveCategoryIcon(null, "Питомцы")?.key).toBe("pawPrint");
 });
 
-test("budget rollover, overspend, archived editing and plan quota stay consistent", async ({
+test("budget rollover, overspend and unlimited archived editing stay consistent", async ({
   page,
 }) => {
   const db = new Client({
@@ -504,16 +504,14 @@ test("budget rollover, overspend, archived editing and plan quota stay consisten
     await modal
       .getByRole("button", { name: translations.en.saveLimit, exact: true })
       .click();
-    await expect(
-      page.getByRole("dialog").getByText(translations.en.billingComingSoonDesc, { exact: true }),
-    ).toBeVisible();
+    await expect(modal).toBeHidden();
     const saved = (
       await db.query(
         "select category_id,monthly_limit::float8 as amount,alert_threshold from budgets where user_id=$1 and month_year=$2",
         [userId, `${month}-01`],
       )
     ).rows;
-    expect(saved).toHaveLength(5);
+    expect(saved).toHaveLength(6);
     expect(
       saved.find((budget) => budget.category_id === id("transport")),
     ).toMatchObject({ amount: 200, alert_threshold: 50 });

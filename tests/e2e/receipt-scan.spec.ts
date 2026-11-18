@@ -33,6 +33,7 @@ async function createReceiptPng(currency = "BYN") {
 }
 
 test("receipt OCR creates categorized transaction splits", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lumium_prefs", JSON.stringify({ state: { currency: "BYN", language: "en" }, version: 0 })));
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {

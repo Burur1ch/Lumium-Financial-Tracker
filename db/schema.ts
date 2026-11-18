@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -16,6 +17,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { AccountPreferences } from "@/utils/preferences";
 
 export const currencyMigrationAudit = pgTable("currency_migration_audit", {
   id: text("id").primaryKey(),
@@ -113,6 +115,20 @@ export const users = pgTable("user", {
     .notNull()
     .defaultNow(),
 });
+
+export const userPreferences = pgTable("user_preferences", {
+  user_id: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<AccountPreferences>().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const reminderDays = pgTable("reminder_days", {
+  user_id: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  local_date: date("local_date", { mode: "string" }).notNull(),
+  completed: boolean("completed").notNull().default(false),
+  snoozed_until: timestamp("snoozed_until", { withTimezone: true }),
+  timezone: varchar("timezone", { length: 80 }).notNull(),
+}, (table) => [unique("reminder_days_user_date_unique").on(table.user_id, table.local_date)]);
 
 export const sessions = pgTable(
   "session",
@@ -263,9 +279,11 @@ export const transactions = pgTable(
     recurring_transaction_id: uuid("recurring_transaction_id"),
     date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
     idempotency_key: varchar("idempotency_key", { length: 64 }),
+    created_at: createdAt(),
   },
   (table) => [
     index("transactions_user_date_idx").on(table.user_id, table.date),
+    index("transactions_user_created_idx").on(table.user_id, table.created_at),
     index("transactions_user_category_idx").on(
       table.user_id,
       table.category_id,
@@ -332,6 +350,7 @@ export const recurringTransactions = pgTable(
     type: varchar("type", { length: 16 }).notNull().default("expense"),
     frequency: varchar("frequency", { length: 16 }).notNull(),
     next_date: date("next_date", { mode: "string" }).notNull(),
+    anchor_date: date("anchor_date", { mode: "string" }).notNull(),
     auto_create: boolean("auto_create").notNull().default(false),
     active: boolean("active").notNull().default(true),
     last_created_at: timestamp("last_created_at", { withTimezone: true }),

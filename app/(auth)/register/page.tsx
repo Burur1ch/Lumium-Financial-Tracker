@@ -39,6 +39,7 @@ export default function RegisterPage() {
       setLoading(false);
     } else {
       // Перенаправляем на дашборд после успешной регистрации
+      try { localStorage.removeItem("lumium_offline_account"); } catch {}
       router.push("/dashboard");
       router.refresh();
     }

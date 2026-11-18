@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (pathname === "/offline") return NextResponse.next();
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/register");
   const hasSessionCookie = Boolean(getSessionCookie(request));

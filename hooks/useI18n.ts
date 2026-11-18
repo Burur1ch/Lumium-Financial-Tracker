@@ -42,15 +42,16 @@ export function useI18n() {
 
   const fmt = (
     amount: number,
-    opts?: { decimals?: boolean; noConvert?: boolean },
+    opts?: { decimals?: boolean; noConvert?: boolean; currency?: Currency },
   ): string => {
+    const displayCurrency = opts?.currency ?? currency;
     const converted = opts?.noConvert
       ? amount
-      : amount * (exchangeRates[currency] ?? 1);
+      : amount * (exchangeRates[displayCurrency] ?? 1);
     const decimals = opts?.decimals ?? true;
-    return new Intl.NumberFormat(CURRENCY_LOCALES[currency] ?? "en-US", {
+    return new Intl.NumberFormat(CURRENCY_LOCALES[displayCurrency] ?? "en-US", {
       style: "currency",
-      currency,
+      currency: displayCurrency,
       minimumFractionDigits: decimals ? 2 : 0,
       maximumFractionDigits: decimals ? 2 : 0,
     }).format(converted);

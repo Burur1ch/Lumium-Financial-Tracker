@@ -90,10 +90,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
     await db.query("update categories set is_archived=true where id=$1", [
       id("groceries"),
     ]);
-    await page
-      .getByRole("navigation", { name: translations.en.mobileNavigation })
-      .getByRole("link", { name: translations.en.reports, exact: true })
-      .click();
+    await page.goto("/dashboard/reports");
     const summary = page.getByTestId("report-summary");
     await expect(summary).toContainText("BYN 1,000.00");
     await expect(summary).toContainText("BYN 155.30");
@@ -138,13 +135,9 @@ test("reports are available on Free and preserve period boundaries, ownership an
       path: testInfo.outputPath("reports-categories.png"),
     });
     await page.goto("/dashboard/reports?period=all");
-    await expect(page).toHaveURL(/period=30d/);
-    await expect(summary).toContainText("BYN 155.30");
+    await expect(page).toHaveURL(/period=all/);
+    await expect(summary).toContainText("BYN 243.30");
 
-    await db.query(
-      "insert into subscriptions(user_id,plan,status) values($1,'pro','active')",
-      [userId],
-    );
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/dashboard/reports?period=all");
     await expect(

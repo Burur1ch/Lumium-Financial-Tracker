@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import {
@@ -16,8 +15,6 @@ import {
   Moon,
   Clock,
   Check,
-  CreditCard,
-  ArrowUpRight,
   X,
 } from "lucide-react";
 import {
@@ -43,13 +40,12 @@ import { useI18n } from "@/hooks/useI18n";
 import {
   enableAutoTheme,
   disableAutoTheme,
-  isAutoThemeEnabled,
 } from "@/components/scheduled-theme";
-import { getPlan, PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import { CURRENCIES, CURRENCY_SYMBOLS } from "@/utils/currency";
 import { PushSettings } from "@/components/dashboard/push-settings";
 import { AccountExport } from "@/components/dashboard/account-export";
 import { stopDeviceReminders } from "@/utils/push-client";
+import { clearOfflineAccountData } from "@/utils/offline-transactions";
 
 interface Profile {
   id: string;
@@ -126,8 +122,6 @@ export default function SettingsPage() {
   const router = useRouter();
   const { t } = useI18n();
   const {
-    plan,
-    setPlan,
     setCurrency,
     setLanguage,
     setDateFormat,
@@ -137,7 +131,7 @@ export default function SettingsPage() {
   } = usePrefs();
 
   const [mounted, setMounted] = useState(false);
-  const [isAuto, setIsAuto] = useState(false);
+  const isAuto = usePrefs((state) => state.themeMode === "auto");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [name, setName] = useState("");
   const setStoreAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
@@ -168,7 +162,15 @@ export default function SettingsPage() {
   const [pendingAvatarPreset, setPendingAvatarPreset] = useState(
     () => usePrefs.getState().avatarPreset,
   );
-  const activePlan = getPlan(plan);
+
+  useEffect(() => usePrefs.subscribe((next, previous) => {
+    if (next.currency !== previous.currency) setPendingCurrency((value) => value === previous.currency ? next.currency : value);
+    if (next.language !== previous.language) setPendingLanguage((value) => value === previous.language ? next.language : value);
+    if (next.dateFormat !== previous.dateFormat) setPendingDateFormat((value) => value === previous.dateFormat ? next.dateFormat : value);
+    if (next.avatarColor !== previous.avatarColor) setPendingColor((value) => value === previous.avatarColor ? next.avatarColor : value);
+    if (next.avatarIcon !== previous.avatarIcon) setPendingIcon((value) => value === previous.avatarIcon ? next.avatarIcon : value);
+    if (next.avatarPreset !== previous.avatarPreset) setPendingAvatarPreset((value) => value === previous.avatarPreset ? next.avatarPreset : value);
+  }), []);
 
   useEffect(() => {
     const syncPendingPrefs = () => {
@@ -191,13 +193,11 @@ export default function SettingsPage() {
       if (p) {
         setProfile(p as Profile);
         setName(p.name ?? "");
-        setPlan(p.plan ?? "free");
         setStoreAvatarUrl(null);
       }
       setMounted(true);
-      setIsAuto(isAutoThemeEnabled());
     });
-  }, [setPlan, setStoreAvatarUrl]);
+  }, [setStoreAvatarUrl]);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,7 +234,9 @@ export default function SettingsPage() {
   const handleDeleteAccount = () => {
     if (deleteInput !== "DELETE") return;
     startTransition(async () => {
-      await deleteAccount();
+      const result = await deleteAccount();
+      if (!result.success) return;
+      if (profile?.id) clearOfflineAccountData(profile.id);
       router.push("/login");
     });
   };
@@ -254,38 +256,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Section
-        icon={CreditCard}
-        title={t("pricing")}
-        description={t("pricingSubtitle")}
-      >
-        <div className="rounded-2xl bg-red-50 p-5 dark:bg-red-950/20">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold text-red-600 dark:text-red-400">
-                {t("currentPlan")}
-              </p>
-              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
-                {t(PLAN_TRANSLATION_KEYS[activePlan.key].name)}
-              </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {t(PLAN_TRANSLATION_KEYS[activePlan.key].tagline)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/dashboard/pricing"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-xs font-bold text-white transition-colors"
-              >
-                {plan === "free" ? t("upgradeToPro") : t("managePlan")}
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── Profile ── */}
+{/* ── Profile ── */}
       <Section icon={User} title={t("profile")} description={t("personalInfo")}>
         <div className="space-y-5">
           {/* Avatar picker */}
@@ -528,6 +499,7 @@ export default function SettingsPage() {
             <select
               className={selectCls}
               value={pendingLanguage}
+              aria-label={t("language")}
               onChange={(e) => setPendingLanguage(e.target.value as Language)}
             >
               {LANGUAGES.map((l) => (
@@ -541,6 +513,7 @@ export default function SettingsPage() {
             <select
               className={selectCls}
               value={pendingDateFormat}
+              aria-label={t("dateFormat")}
               onChange={(e) =>
                 setPendingDateFormat(e.target.value as DateFormat)
               }
@@ -582,15 +555,15 @@ export default function SettingsPage() {
                 [
                   { value: "light", label: t("light"), icon: Sun },
                   { value: "dark", label: t("dark"), icon: Moon },
-                ] as { value: string; label: string; icon: React.ElementType }[]
+                ] as { value: "light" | "dark"; label: string; icon: React.ElementType }[]
               ).map(({ value, label, icon: Icon }) => {
                 const isActive = !isAuto && theme === value;
                 return (
                   <button
                     key={value}
                     onClick={() => {
-                      setIsAuto(false);
                       disableAutoTheme();
+                      usePrefs.getState().setThemeMode(value);
                       setTheme(value);
                     }}
                     className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-[color,background-color,border-color,transform] duration-150 text-xs font-semibold ${
@@ -625,11 +598,10 @@ export default function SettingsPage() {
               }`}
               onClick={() => {
                 if (isAuto) {
-                  setIsAuto(false);
                   disableAutoTheme();
+                  usePrefs.getState().setThemeMode("light");
                   setTheme("light");
                 } else {
-                  setIsAuto(true);
                   enableAutoTheme(setTheme);
                 }
               }}

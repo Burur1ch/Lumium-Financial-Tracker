@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { usePrefs } from "@/store/prefs";
 import { Sun, Moon } from "lucide-react";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/hooks/useI18n";
@@ -17,6 +18,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
 
   const toggleTheme = async () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
+    usePrefs.getState().setThemeMode(nextTheme);
 
     const hasVT = "startViewTransition" in document;
     const reduceMotion = window.matchMedia(

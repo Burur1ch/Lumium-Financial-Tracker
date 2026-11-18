@@ -7,12 +7,10 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Grid,
-  Users,
   BarChart3,
   Wallet,
   Settings,
   HelpCircle,
-  CreditCard,
   Bell,
   CalendarClock,
   LogOut,
@@ -28,7 +26,6 @@ import {
 } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
 import { stopDeviceReminders } from "@/utils/push-client";
-import { PLAN_TRANSLATION_KEYS } from "@/utils/monetization/plans";
 import {
   useProfileStore,
   useNotifStore,
@@ -79,7 +76,6 @@ const menuItemDefs = [
     icon: ArrowLeftRight,
   },
   { key: "categories" as const, href: "/dashboard/categories", icon: Grid },
-  { key: "users" as const, href: "/dashboard/users", icon: Users },
   { key: "reports" as const, href: "/dashboard/reports", icon: BarChart3 },
   { key: "budget" as const, href: "/dashboard/budget", icon: Wallet },
   {
@@ -87,7 +83,6 @@ const menuItemDefs = [
     href: "/dashboard/planning",
     icon: CalendarClock,
   },
-  { key: "pricing" as const, href: "/dashboard/pricing", icon: CreditCard },
   { key: "settings" as const, href: "/dashboard/settings", icon: Settings },
   { key: "help" as const, href: "/dashboard/help", icon: HelpCircle },
 ] as const;
@@ -226,7 +221,7 @@ function buildDynamicNotifications(
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { t, categoryName } = useI18n();
-  const { avatarColor, avatarIcon, avatarPreset, plan, setPlan } = usePrefs();
+  const { avatarColor, avatarIcon, avatarPreset } = usePrefs();
   const [profile, setProfile] = useState<{
     name: string | null;
     email: string;
@@ -243,11 +238,10 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
     getProfile().then((p) => {
       if (p) {
         setProfile({ name: p.name, email: p.email });
-        setPlan(p.plan);
         setStoreAvatarUrl(null);
       }
     });
-  }, [setPlan, setStoreAvatarUrl]);
+  }, [setStoreAvatarUrl]);
 
   useEffect(() => {
     getBudgetsWithProgress().then((budgets) => {
@@ -319,30 +313,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
       {/* Bottom */}
       <div className="flex flex-col gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
-        <Link
-          href="/dashboard/pricing"
-          onClick={onNavigate}
-          className="rounded-2xl bg-red-50 p-4 dark:bg-red-950/20"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-red-600 dark:text-red-400">
-                {t("currentPlan")}
-              </p>
-              <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100 capitalize">
-                {t(PLAN_TRANSLATION_KEYS[plan].name)}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                {plan === "free" ? t("upgradeToPro") : t("managePlan")}
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0">
-              <CreditCard className="w-4 h-4 text-red-500" />
-            </div>
-          </div>
-        </Link>
-
-        {/* Notifications button + popover */}
+{/* Notifications button + popover */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifs((p) => !p)}

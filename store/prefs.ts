@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { DEFAULT_PREFERENCES, type AccountPreferences } from "@/utils/preferences";
 import type { PlanKey } from "@/utils/monetization/plans";
 import {
   isCurrency,
@@ -90,7 +91,12 @@ export type DateFormat =
   | "MM/DD/YYYY"
   | "YYYY-MM-DD";
 
-interface PrefsState {
+interface PrefsState extends AccountPreferences {
+  ownerId: string | null;
+  pendingPreferences: Partial<AccountPreferences>;
+  setThemeMode: (value: AccountPreferences["themeMode"]) => void;
+  applyAccountPreferences: (ownerId: string, values: AccountPreferences) => void;
+  acknowledgePreferences: (values: Partial<AccountPreferences>) => void;
   plan: PlanKey;
   currency: Currency;
   language: Language;
@@ -119,35 +125,47 @@ interface PrefsState {
 
 export const usePrefs = create<PrefsState>()(
   persist(
-    (set) => ({
-      plan: "free",
-      currency: "BYN",
-      language: "en",
-      dateFormat: "MMM D, YYYY",
-      avatarColor: "#D92D3A",
-      avatarIcon: "User",
-      avatarPreset: null,
-      balanceHidden: false,
-      exchangeRates: { ...RATES },
-      exchangeRateSource: "fallback",
-      exchangeRateDate: null,
-      setPlan: (plan) => set({ plan }),
-      setCurrency: (currency) =>
-        set({ currency: isCurrency(currency) ? currency : "BYN" }),
-      setLanguage: (language) => set({ language }),
-      setDateFormat: (dateFormat) => set({ dateFormat }),
-      setAvatarColor: (avatarColor) => set({ avatarColor }),
-      setAvatarIcon: (avatarIcon) => set({ avatarIcon }),
-      setAvatarPreset: (avatarPreset) => set({ avatarPreset }),
-      toggleBalanceHidden: () =>
-        set((state) => ({ balanceHidden: !state.balanceHidden })),
-      setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>
-        set({
-          exchangeRates: normalizeExchangeRates(rates),
-          exchangeRateSource,
-          exchangeRateDate,
+    (set) => {
+      const change = (patch: Partial<AccountPreferences>) => set((state) => ({
+        ...patch,
+        pendingPreferences: { ...state.pendingPreferences, ...patch },
+      }));
+      return {
+        plan: "free",
+        ...DEFAULT_PREFERENCES,
+        ownerId: null,
+        pendingPreferences: {},
+        balanceHidden: false,
+        exchangeRates: { ...RATES },
+        exchangeRateSource: "fallback",
+        exchangeRateDate: null,
+        setPlan: (plan) => set({ plan }),
+        setCurrency: (currency) =>
+          change({ currency: isCurrency(currency) ? currency : "BYN" }),
+        setLanguage: (language) => change({ language }),
+        setDateFormat: (dateFormat) => change({ dateFormat }),
+        setAvatarColor: (avatarColor) => change({ avatarColor }),
+        setAvatarIcon: (avatarIcon) => change({ avatarIcon }),
+        setAvatarPreset: (avatarPreset) => change({ avatarPreset }),
+        setThemeMode: (themeMode) => change({ themeMode }),
+        applyAccountPreferences: (ownerId, values) => set((state) => {
+          const pending = !state.ownerId || state.ownerId === ownerId ? state.pendingPreferences : {};
+          return { ...values, ...pending, ownerId, pendingPreferences: pending };
         }),
-    }),
+        acknowledgePreferences: (values) => set((state) => ({
+          pendingPreferences: Object.fromEntries(Object.entries(state.pendingPreferences)
+            .filter(([key, value]) => values[key as keyof AccountPreferences] !== value)),
+        })),
+        toggleBalanceHidden: () =>
+          set((state) => ({ balanceHidden: !state.balanceHidden })),
+        setExchangeRates: (rates, exchangeRateSource, exchangeRateDate) =>
+          set({
+            exchangeRates: normalizeExchangeRates(rates),
+            exchangeRateSource,
+            exchangeRateDate,
+          }),
+      };
+    },
     {
       name: "lumium_prefs",
       merge: (persistedState, currentState) => {
@@ -158,6 +176,7 @@ export const usePrefs = create<PrefsState>()(
           currency: isCurrency(stored?.currency)
             ? stored.currency
             : currentState.currency,
+          themeMode: stored?.themeMode ?? (localStorage.getItem("lumium_auto_theme") === "true" ? "auto" : localStorage.getItem("theme") === "dark" ? "dark" : "light"),
           // Old persisted rates used a USD base. Fetch a fresh BYN snapshot.
           exchangeRates: { ...RATES },
           exchangeRateSource: "fallback",

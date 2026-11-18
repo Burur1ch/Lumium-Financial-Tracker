@@ -54,7 +54,7 @@ export async function materializeRecurring(
         createdCount++;
         transactionId = created.id;
       }
-      date = nextRecurringDate(date, item.frequency);
+      date = nextRecurringDate(date, item.frequency, item.anchor_date);
     }
     if (date !== item.next_date)
       await tx

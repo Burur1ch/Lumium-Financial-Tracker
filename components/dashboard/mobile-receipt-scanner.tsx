@@ -25,11 +25,11 @@ import type { CSSProperties, ElementType } from "react";
 import type { IScannerControls } from "@zxing/browser";
 import { useRouter } from "next/navigation";
 import {
-  createScannedTransaction,
   getCategories,
   scanReceiptWithGemini,
 } from "@/app/dashboard/actions";
 import { useI18n } from "@/hooks/useI18n";
+import { submitScannedTransaction } from "@/utils/offline-transactions";
 import { usePrefs } from "@/store/prefs";
 import { isCurrency } from "@/utils/currency";
 import {
@@ -107,6 +107,7 @@ export function MobileReceiptScanner() {
   const qrControlsRef = useRef<IScannerControls | null>(null);
   const workerRef = useRef<{ terminate: () => Promise<unknown> } | null>(null);
   const runIdRef = useRef(0);
+  const receiptSaveKey = useRef<string | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,6 +127,7 @@ export function MobileReceiptScanner() {
   }, []);
 
   const closeFlow = useCallback(() => {
+    receiptSaveKey.current = null;
     runIdRef.current += 1;
     void workerRef.current?.terminate();
     workerRef.current = null;
@@ -562,7 +564,9 @@ export function MobileReceiptScanner() {
     setSaving(true);
     setScanError(null);
     try {
-      const response = await createScannedTransaction({
+      receiptSaveKey.current ??= crypto.randomUUID();
+      const response = await submitScannedTransaction({
+        idempotencyKey: receiptSaveKey.current,
         amount: result.amount,
         description: result.merchant || t("scannedReceipt"),
         note: [t("receiptDraftNote"), sourceSummary].filter(Boolean).join(" ").slice(0, 1000),
@@ -576,7 +580,7 @@ export function MobileReceiptScanner() {
         return;
       }
       closeFlow();
-      router.refresh();
+      if (!response.queued) router.refresh();
     } catch {
       setScanError(t("scanFailed"));
     } finally {

@@ -1,9 +1,9 @@
 import "server-only";
 import * as webpush from "web-push";
-import { and, eq, isNull, lt, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { pushSubscriptions, pushDeliveries } from "@/db/schema";
-import { reminderSlot } from "@/utils/reminders";
+import { pushSubscriptions, pushDeliveries, reminderDays, transactions } from "@/db/schema";
+import { localDate, reminderSlot } from "@/utils/reminders";
 import { translations } from "@/store/translations";
 
 export type DevicePush = {
@@ -59,6 +59,7 @@ export async function sendDevicePush(
   device: DevicePush,
   language: string,
   tag: string,
+  timezone = "Europe/Minsk",
 ) {
   const config = pushConfiguration();
   if (!config) throw new Error("PUSH_NOT_CONFIGURED");
@@ -73,6 +74,11 @@ export async function sendDevicePush(
       body: translations[locale].pushReminderBody,
       tag,
       url: "/dashboard?add=expense",
+      timezone,
+      actions: [
+        { action: "done", title: translations[locale].reminderDone },
+        { action: "snooze", title: translations[locale].reminderSnooze },
+      ],
     }),
     { vapidDetails: config, TTL: 900, urgency: "normal", timeout: 8000 },
   );
@@ -84,8 +90,27 @@ export async function deliverReminders(now = new Date()) {
   let sent = 0,
     failed = 0;
   for (const device of devices) {
-    const slot = reminderSlot(now, device.timezone);
+    const date = localDate(now, device.timezone);
+    const [day] = await db.select().from(reminderDays).where(and(
+      eq(reminderDays.user_id, device.user_id), eq(reminderDays.local_date, date),
+    )).limit(1);
+    if (day?.completed) continue;
+    const [postponed] = await db.select({ until: reminderDays.snoozed_until }).from(reminderDays).where(and(
+      eq(reminderDays.user_id, device.user_id), eq(reminderDays.completed, false),
+      gte(reminderDays.snoozed_until, new Date(now.getTime() - 900000)),
+    )).orderBy(desc(reminderDays.snoozed_until)).limit(1);
+    const snooze = postponed?.until;
+    if (snooze && snooze > now) continue;
+    const dueSnooze = snooze && now.getTime() - snooze.getTime() < 900000;
+    const slot = dueSnooze ? { date, hour: Math.floor(snooze.getTime() / 60000) } : reminderSlot(now, device.timezone);
     if (!slot) continue;
+    const [recent] = await db.select({ id: transactions.id }).from(transactions).where(and(
+      eq(transactions.user_id, device.user_id), eq(transactions.type, "expense"),
+      isNull(transactions.recurring_transaction_id),
+      eq(transactions.status, "completed"), gte(transactions.created_at, new Date(now.getTime() - 3600000)),
+      lte(transactions.created_at, now),
+    )).limit(1);
+    if (recent && !dueSnooze) continue;
     await db
       .insert(pushDeliveries)
       .values({
@@ -122,6 +147,7 @@ export async function deliverReminders(now = new Date()) {
         },
         device.language,
         `lumium-${slot.date}-${slot.hour}`,
+        device.timezone,
       );
       await db
         .update(pushDeliveries)
@@ -148,5 +174,6 @@ export async function deliverReminders(now = new Date()) {
         new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10),
       ),
     );
+  await db.delete(reminderDays).where(lt(reminderDays.local_date, new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10)));
   return { sent, failed };
 }
