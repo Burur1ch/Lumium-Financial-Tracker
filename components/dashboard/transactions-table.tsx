@@ -69,7 +69,7 @@ export default function TransactionsTable({
   clearFiltersHref = "/dashboard/transactions",
   categories = [],
 }: TransactionsTableProps) {
-  const { fmt, fmtDate, t, language, categoryName } = useI18n();
+  const { fmt, fmtDate, fmtTime, calendarDateKey, t, categoryName } = useI18n();
   const { plan } = usePrefs();
   const [transactionOverrides, setTransactionOverrides] = React.useState<
     Record<string, Transaction>
@@ -96,7 +96,6 @@ export default function TransactionsTable({
   const visible = limitedTransactions.slice(0, visibleCount);
   const hasMore = visibleCount < limitedTransactions.length;
   const mobileVisible = showViewAll ? visible.slice(0, 3) : visible;
-  const locale = { en: "en-US", ru: "ru-RU", de: "de-DE", fr: "fr-FR" }[language];
   const openAddTransaction = () => {
     const event =
       window.matchMedia("(max-width: 1023px)").matches
@@ -128,16 +127,16 @@ export default function TransactionsTable({
       )}
     </div>
   );
-  const todayKey = new Date().toDateString();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = yesterday.toDateString();
+  const todayKey = calendarDateKey(new Date());
+  const yesterday = new Date(`${todayKey}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
   const groupedMobileTransactions = mobileVisible.reduce<Array<{ key: string; label: string; items: Transaction[] }>>((groups, tx) => {
     const date = new Date(tx.date);
-    const key = date.toDateString();
+    const key = calendarDateKey(date);
     let group = groups.find((item) => item.key === key);
     if (!group) {
-      const calendarDate = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(date);
+      const calendarDate = fmtDate(tx.date, { day: "numeric", month: "long" });
       const label = key === todayKey
         ? `${t("today")}, ${calendarDate}`
         : key === yesterdayKey
@@ -155,11 +154,11 @@ export default function TransactionsTable({
       {items.map((tx) => {
         const isExpense = tx.type === "expense";
         const cat = Array.isArray(tx.categories) ? tx.categories[0] : tx.categories;
-        const date = new Date(tx.date);
-        const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
-        const relativeDate = date.toDateString() === todayKey
+        const dateKey = calendarDateKey(new Date(tx.date));
+        const time = fmtTime(tx.date);
+        const relativeDate = dateKey === todayKey
           ? t("today")
-          : date.toDateString() === yesterdayKey
+          : dateKey === yesterdayKey
             ? t("yesterday")
             : fmtDate(tx.date);
         const meta = showViewAll

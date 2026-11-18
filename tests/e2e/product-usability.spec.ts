@@ -6,13 +6,14 @@ import { translations } from "@/store/translations";
 
 const databaseUrl = process.env.E2E_DATABASE_URL ?? "postgres://lumium:lumium@127.0.0.1:55432/lumium";
 
-async function signUp(page: Page, db: Client, suffix: string) {
+async function signUp(page: Page, db: Client, suffix: "money" | "settings" | "offline" | "timezone") {
+  const clientIp = { money: "192.0.2.41", settings: "192.0.2.42", offline: "192.0.2.43", timezone: "192.0.2.44" }[suffix];
   const email = `usability-${suffix}-${Date.now()}@example.test`;
   const response = await page.request.post("/api/auth/sign-up/email", {
-    headers: { "x-real-ip": "192.0.2.93" },
+    headers: { "x-real-ip": clientIp },
     data: { name: "Product check", email, password: "ProductCheck123!" },
   });
-  expect(response.ok()).toBe(true);
+  expect(response.ok(), `Sign-up returned HTTP ${response.status()}`).toBe(true);
   const userId: string = (await response.json()).user.id;
   await db.query("insert into user_preferences(user_id,data) values($1,$2)", [userId, JSON.stringify({ ...DEFAULT_PREFERENCES, language: "en" })]);
   await page.addInitScript((id) => {
@@ -30,6 +31,34 @@ test("monthly and yearly schedules retain the original calendar date", () => {
   date = "2028-02-29";
   for (let year = 2029; year <= 2032; year++) date = nextRecurringDate(date, "yearly", "2028-02-29");
   expect(date).toBe("2032-02-29");
+});
+
+test("transaction times hydrate correctly in a different device time zone", async ({ browser }) => {
+  const db = new Client({ connectionString: databaseUrl });
+  await db.connect();
+  const context = await browser.newContext({ viewport: { width: 393, height: 851 }, timezoneId: "America/New_York" });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  let userId: string | undefined;
+  try {
+    userId = await signUp(page, db, "timezone");
+    const date = new Date();
+    date.setUTCHours(12, 0, 0, 0);
+    await db.query("insert into transactions(user_id,description,amount,type,date) values($1,'Time zone check',1,'expense',$2)", [userId, date.toISOString()]);
+    const expectedTime = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour: "2-digit", minute: "2-digit",
+    }).format(date).replace(/\u202f/g, " ");
+    await page.goto("/dashboard/transactions");
+    await expect(page.getByRole("button", { name: /Time zone check/ })).toContainText(expectedTime);
+    await page.reload();
+    await expect(page.getByRole("button", { name: /Time zone check/ })).toContainText(expectedTime);
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+    if (userId) await db.query('delete from "user" where id=$1', [userId]);
+    await db.end();
+  }
 });
 
 test("editing a description or a budget warning in USD preserves exact BYN amounts", async ({ page }) => {
