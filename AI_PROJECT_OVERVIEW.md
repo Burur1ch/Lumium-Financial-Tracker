@@ -66,6 +66,10 @@ It supports authentication, transaction lifecycle management, quick-entry preset
 
 5. Planning and automation
 
+- One shared card per user has a manually confirmed current balance at `/dashboard/card`. `card_balances` stores the amount and exact ledger totals at reconciliation; the current balance adds subsequent ledger changes. Existing history is not deducted twice. Pending and future calendar-day transactions do not change the current balance. Every input and display currency follows the amount (BYN, USD, EUR).
+- Planning opens a URL-driven monthly payment calendar with one-time and recurring payments, editable schedules, pause/resume, manual recording, and an optional automatic recording date. One-time payments deactivate after recording, under the same row lock/idempotency protection as recurring entries.
+- Forecasts start from the current card balance, include scheduled income/expenses and known future/pending transactions, and show the minimum projected balance. Overdue outstanding items are forecast today. Actual paid items are not counted again. Spending outside the plan is explicitly excluded; reconciliation is not an income transaction.
+
 - Define weekly, monthly, or yearly recurring income/expense templates.
 - Recurring schedules preserve an anchor date through shorter months and leap years. Migration 0009 backfills anchors from available occurrence history.
 - Materialize recurring entries manually or automatically through a minute-based production scheduler. Dashboard visits also catch up due entries. Both paths share row locks, atomic date advancement and occurrence idempotency keys.

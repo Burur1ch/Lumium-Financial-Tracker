@@ -21,7 +21,8 @@ export async function materializeRecurring(
         ),
       )
       .for("update");
-    if (!item || (automatic && (!item.active || !item.auto_create)))
+    if (!item || !item.active || (automatic && !item.auto_create)
+      || (item.frequency === "once" && item.last_created_at))
       return { found: false, createdCount: 0, transactionId: null };
     const today = now.toISOString().slice(0, 10);
     let date = item.next_date;
@@ -54,12 +55,15 @@ export async function materializeRecurring(
         createdCount++;
         transactionId = created.id;
       }
+      if (item.frequency === "once") break;
       date = nextRecurringDate(date, item.frequency, item.anchor_date);
     }
-    if (date !== item.next_date)
+    if (date !== item.next_date || item.frequency === "once")
       await tx
         .update(recurringTransactions)
-        .set({ next_date: date, last_created_at: now, updated_at: now })
+        .set({ next_date: date, last_created_at: now, updated_at: now,
+          ...(item.frequency === "once" ? { active: false } : {}),
+        })
         .where(eq(recurringTransactions.id, item.id));
     return { found: true, createdCount, transactionId };
   });

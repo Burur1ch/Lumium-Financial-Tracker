@@ -15,6 +15,7 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import {
   budgets,
+  cardBalances,
   categories,
   profiles,
   pushSubscriptions,
@@ -71,6 +72,7 @@ import { pushConfiguration, sendDevicePush, validPushSubscription, type DevicePu
 import { localDate, validTimezone } from "@/utils/reminders";
 import { takeRequestLimit } from "@/utils/request-limits";
 import { DEFAULT_PREFERENCES, validPreferencePatch, type AccountPreferences } from "@/utils/preferences";
+import { buildCashflowPlan, planningMonth, shiftPlanningMonth, type CalendarPayment } from "@/utils/planning";
 
 type StripeSubscriptionStatus =
   | "incomplete"
@@ -1548,6 +1550,8 @@ export async function getPlanningData() {
         type: recurringTransactions.type,
         frequency: recurringTransactions.frequency,
         nextDate: recurringTransactions.next_date,
+        anchorDate: recurringTransactions.anchor_date,
+        lastCreatedAt: recurringTransactions.last_created_at,
         autoCreate: recurringTransactions.auto_create,
         active: recurringTransactions.active,
         categoryId: recurringTransactions.category_id,
@@ -1588,8 +1592,9 @@ export async function getPlanningData() {
     recurring: recurring.map((item) => ({
       ...item,
       amount: Number(item.amount),
+      lastCreatedAt: item.lastCreatedAt?.toISOString() ?? null,
       type: item.type as "expense" | "income",
-      frequency: item.frequency as "weekly" | "monthly" | "yearly",
+      frequency: item.frequency as "once" | "weekly" | "monthly" | "yearly",
     })),
     rules: rules.map((item) => ({
       ...item,
@@ -1622,6 +1627,7 @@ export async function createRecurringTransaction(formData: FormData) {
   const type =
     typeInput === "expense" || typeInput === "income" ? typeInput : null;
   const frequency =
+    frequencyInput === "once" ||
     frequencyInput === "weekly" ||
     frequencyInput === "monthly" ||
     frequencyInput === "yearly"
@@ -1631,9 +1637,9 @@ export async function createRecurringTransaction(formData: FormData) {
     typeof categoryInput === "string" && categoryInput ? categoryInput : null;
 
   if (
-    !name ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
+    !name || name.length > 120 ||
+    !Number.isFinite(amount) || amount > 1e10 ||
+    amount < 0 || (amount === 0 && !(formData.get("id") && formData.get("amount_changed") === "false")) ||
     !type ||
     !frequency ||
     !nextDate ||
@@ -1647,7 +1653,9 @@ export async function createRecurringTransaction(formData: FormData) {
   }
 
   const currencyRate = await getCurrencyRate(currencyInput);
-  await db.insert(recurringTransactions).values({
+  const id = formData.get("id");
+  if (id && (typeof id !== "string" || !UUID_PATTERN.test(id))) return { success: false, error: "INVALID_RECURRING" };
+  const values = {
     user_id: user.id,
     category_id: categoryId,
     name,
@@ -1657,7 +1665,23 @@ export async function createRecurringTransaction(formData: FormData) {
     next_date: nextDate,
     anchor_date: nextDate,
     auto_create: formData.get("auto_create") === "on",
-  });
+  };
+  if (typeof id === "string" && id) {
+    const updated = await db.transaction(async (tx) => {
+      const [original] = await tx.select().from(recurringTransactions)
+        .where(and(eq(recurringTransactions.id, id), eq(recurringTransactions.user_id, user.id))).for("update");
+      if (!original || (original.frequency === "once" && original.last_created_at)) return false;
+      await tx.update(recurringTransactions).set({ ...values,
+        amount: formData.get("amount_changed") === "false" ? original.amount : values.amount,
+        anchor_date: original.next_date === nextDate && original.frequency === frequency ? original.anchor_date : nextDate,
+        updated_at: new Date(),
+      }).where(eq(recurringTransactions.id, id));
+      return true;
+    });
+    if (!updated) return { success: false, error: "RECURRING_NOT_FOUND" };
+  } else {
+    await db.insert(recurringTransactions).values(values);
+  }
   revalidateFinancialViews();
   return { success: true };
 }
@@ -1697,6 +1721,95 @@ export async function deleteRecurringTransaction(id: string) {
     );
   revalidateFinancialViews();
   return { success: true };
+}
+
+export async function setScheduledPaymentActive(id: string, active: boolean) {
+  const user = await getCurrentUser();
+  if (!user || !UUID_PATTERN.test(id) || typeof active !== "boolean") return { success: false };
+  const [item] = await db.update(recurringTransactions).set({ active, updated_at: new Date() })
+    .where(and(eq(recurringTransactions.id, id), eq(recurringTransactions.user_id, user.id),
+      sql`not (${recurringTransactions.frequency} = 'once' and ${recurringTransactions.last_created_at} is not null)`))
+    .returning({ id: recurringTransactions.id });
+  revalidateFinancialViews();
+  return { success: Boolean(item) };
+}
+
+export async function getCardBalance() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  // A single statement gives the checkpoint and ledger the same database snapshot.
+  const result = await db.execute<{
+    current: string; confirmed_amount: string; confirmed_at: Date;
+    income_change: string; expense_change: string;
+  }>(sql`
+    select c.confirmed_amount, c.confirmed_at,
+      (c.confirmed_amount + l.income - c.ledger_income - l.expense + c.ledger_expense)::numeric(20,8) as current,
+      (l.income - c.ledger_income)::numeric(20,8) as income_change,
+      (l.expense - c.ledger_expense)::numeric(20,8) as expense_change
+    from card_balances c cross join lateral (
+      select coalesce(sum(amount) filter (where type = 'income'), 0) as income,
+             coalesce(sum(amount) filter (where type = 'expense'), 0) as expense
+      from transactions where user_id = ${user.id} and status = 'completed'
+        and date < (date_trunc('day', now() at time zone 'UTC') + interval '1 day') at time zone 'UTC'
+    ) l where c.user_id = ${user.id}
+  `);
+  const row = result.rows[0];
+  return row ? {
+    current: Number(row.current), confirmedAmount: Number(row.confirmed_amount),
+    confirmedAt: new Date(row.confirmed_at).toISOString(),
+    incomeChange: Number(row.income_change), expenseChange: Number(row.expense_change),
+  } : null;
+}
+
+export async function confirmCardBalance(formData: FormData) {
+  const user = await getCurrentUser();
+  const raw = formData.get("amount");
+  const currency = formData.get("currency");
+  if (!user || typeof raw !== "string" || !raw.trim() || !isCurrency(currency)) return { success: false };
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || Math.abs(amount) > 1e10) return { success: false };
+  const baseAmount = formatBaseStorageAmount(amount / await getCurrencyRate(currency));
+  // Record the supplied current balance and existing ledger totals atomically.
+  // Existing transactions are included in the checkpoint, never charged twice.
+  await db.execute(sql`
+    insert into card_balances (user_id, confirmed_amount, ledger_income, ledger_expense, confirmed_at)
+    select ${user.id}, ${baseAmount}::numeric,
+      coalesce(sum(amount) filter (where type = 'income'), 0),
+      coalesce(sum(amount) filter (where type = 'expense'), 0), now()
+    from transactions where user_id = ${user.id} and status = 'completed'
+      and date < (date_trunc('day', now() at time zone 'UTC') + interval '1 day') at time zone 'UTC'
+    on conflict (user_id) do update set confirmed_amount = excluded.confirmed_amount,
+      ledger_income = excluded.ledger_income, ledger_expense = excluded.ledger_expense,
+      confirmed_at = excluded.confirmed_at
+  `);
+  revalidateFinancialViews();
+  return { success: true };
+}
+
+export async function getPlanningPageData(rawMonth?: string) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const month = planningMonth(rawMonth, today);
+  const end = `${shiftPlanningMonth(month, 1)}-01`;
+  const [planning, balance, rows] = await Promise.all([
+    getPlanningData(), getCardBalance(),
+    db.select({ id: transactions.id, name: transactions.description, amount: transactions.amount,
+      type: transactions.type, date: transactions.date, status: transactions.status,
+      recurringId: transactions.recurring_transaction_id })
+      .from(transactions).where(and(eq(transactions.user_id, user.id),
+        lt(transactions.date, new Date(`${end}T00:00:00Z`)),
+        sql`(${transactions.recurring_transaction_id} is not null or ${transactions.idempotency_key} like 'recurring-%' or ${transactions.status} = 'pending' or ${transactions.date} >= (${today}::date + interval '1 day') at time zone 'UTC')`)),
+  ]);
+  const recorded: CalendarPayment[] = rows.map((row) => {
+    const date = row.date.toISOString().slice(0, 10);
+    return { key: row.id, templateId: null, name: row.name, amount: Number(row.amount),
+      type: row.type as "income" | "expense", date,
+      status: row.status === "completed" && date <= today ? "paid" : date < today ? "overdue" : "planned",
+      autoCreate: false };
+  });
+  return { ...planning, balance, cashflow: buildCashflowPlan({ month, today,
+    balance: balance?.current ?? null, recurring: planning.recurring, recorded }) };
 }
 
 export async function createTransactionRule(formData: FormData) {
@@ -2575,6 +2688,7 @@ export async function exportAccountData() {
         .select()
         .from(savingsGoals)
         .where(eq(savingsGoals.user_id, user.id)),
+      cardBalance: await tx.select().from(cardBalances).where(eq(cardBalances.user_id, user.id)),
     }),
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );

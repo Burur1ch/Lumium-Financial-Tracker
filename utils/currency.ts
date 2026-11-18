@@ -3,6 +3,15 @@ export const CURRENCIES = ["BYN", "USD", "EUR"] as const;
 export type Currency = (typeof CURRENCIES)[number];
 export const BASE_CURRENCY = "BYN" as const;
 
+/** Explicit suffix avoids platform-specific ICU currency placement/symbols. */
+export function formatMoney(amount: number, currency: Currency, locale = "en-US", decimals = true) {
+  const number = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals ? 2 : 0,
+    maximumFractionDigits: decimals ? 2 : 0,
+  }).format(Object.is(amount, -0) ? 0 : amount).replace(/\u202f/g, "\u00a0");
+  return `${number}\u00a0${currency}`;
+}
+
 export const RATES: Record<Currency, number> = {
   BYN: 1,
   USD: 1 / 3.01,

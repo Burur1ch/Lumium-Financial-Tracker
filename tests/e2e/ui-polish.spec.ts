@@ -437,7 +437,7 @@ test("budget rollover, overspend and unlimited archived editing stay consistent"
     });
     await expect(groceries).toContainText("Limit reached");
     await expect(groceries).toContainText("100% used");
-    await expect(groceries).toContainText("BYN 150.00");
+    await expect(groceries).toContainText("150.00 BYN");
     await expect(transport).toContainText("125% used");
     await expect(transport).toContainText("Over limit");
     await expect(

@@ -71,6 +71,13 @@
       "when": 1794927000000,
       "tag": "0009_product_usability",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794988800000,
+      "tag": "0010_card_balance_and_calendar",
+      "breakpoints": true
     }
   ]
 }

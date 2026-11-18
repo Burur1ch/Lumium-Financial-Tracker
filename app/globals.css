@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+.cashflow-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--app-border, #e2e8f0);
+}
+.cashflow-slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 12px;
+  width: 12px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #d92d3a;
+}
+.cashflow-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--app-border, #e2e8f0);
+}
+.cashflow-slider::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: #d92d3a;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── View Transition: circular reveal ───────────────── */

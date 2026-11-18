@@ -262,7 +262,7 @@ test("release controls preserve BYN, export private data, run jobs and manage op
       [userId, other],
     );
     await page.goto("/dashboard/reports");
-    await expect(page.getByTestId("report-summary")).toContainText("BYN 50.00");
+    await expect(page.getByTestId("report-summary")).toContainText("50.00 BYN");
     await page.goto("/dashboard/settings");
     await page
       .getByRole("combobox", { name: translations.en.currency, exact: true })
@@ -277,7 +277,7 @@ test("release controls preserve BYN, export private data, run jobs and manage op
       .getByRole("button", { name: translations.en.more, exact: true })
       .click();
     await page.getByRole("link", { name: translations.en.reports, exact: true }).click();
-    await expect(page.getByTestId("report-summary")).toContainText("$25.00");
+    await expect(page.getByTestId("report-summary")).toContainText("25.00 USD");
     expect(
       Number(
         (

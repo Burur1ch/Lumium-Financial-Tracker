@@ -122,6 +122,15 @@ export const userPreferences = pgTable("user_preferences", {
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// One shared card balance per user. Authentication provider accounts are separate.
+export const cardBalances = pgTable("card_balances", {
+  user_id: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  confirmed_amount: numeric("confirmed_amount", { precision: 20, scale: 8 }).notNull(),
+  ledger_income: numeric("ledger_income", { precision: 20, scale: 8 }).notNull(),
+  ledger_expense: numeric("ledger_expense", { precision: 20, scale: 8 }).notNull(),
+  confirmed_at: timestamp("confirmed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const reminderDays = pgTable("reminder_days", {
   user_id: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   local_date: date("local_date", { mode: "string" }).notNull(),
@@ -368,7 +377,7 @@ export const recurringTransactions = pgTable(
     ),
     check(
       "recurring_transactions_frequency_check",
-      sql`${table.frequency} in ('weekly', 'monthly', 'yearly')`,
+      sql`${table.frequency} in ('once', 'weekly', 'monthly', 'yearly')`,
     ),
     check("recurring_transactions_amount_check", sql`${table.amount} > 0`),
   ],

@@ -1,127 +1,27 @@
 "use client";
-
 import Link from "next/link";
-import { Eye, EyeOff, Wallet, TrendingDown, TrendingUp } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
+import { CardBalanceSummary, type CardBalanceData } from "./card-balance-summary";
 
 interface BudgetCategory {
-  system_key?: string | null;
-  name: string;
-  color: string;
-  icon?: string | null;
-  limit: number;
+  system_key?: string | null; name: string; color: string; icon?: string | null; limit: number;
 }
-
 interface MobileDashboardOverviewProps {
-  month: string;
-  balance: number;
-  balanceDelta: number;
-  income: number;
-  expense: number;
-  incomeChange: number | null;
-  expenseChange: number | null;
-  trend: number[];
-  budget: {
-    spent: number;
-    limit: number;
-    categories: BudgetCategory[];
-  };
+  month: string; balance: CardBalanceData | null; income: number; expense: number;
+  incomeChange: number | null; expenseChange: number | null;
+  budget: { spent: number; limit: number; categories: BudgetCategory[] };
 }
-
-const LOCALES = {
-  en: "en-US",
-  ru: "ru-RU",
-  de: "de-DE",
-  fr: "fr-FR",
-} as const;
-
-function getChartPoints(values: number[], width: number, height: number) {
-  const normalized = values.length > 1 ? values : [0, 0];
-  const min = Math.min(...normalized);
-  const max = Math.max(...normalized);
-  const range = max - min || 1;
-
-  return normalized.map((value, index) => ({
-    value,
-    x: (index / (normalized.length - 1)) * width,
-    y: height - ((value - min) / range) * (height - 12) - 6,
-  }));
-}
-
-function TrendChart({ values, hidden, hasActivity }: { values: number[]; hidden: boolean; hasActivity: boolean }) {
-  const normalized = hasActivity && values.length > 1 ? values : [0, 0];
-  const points = getChartPoints(normalized, 148, 62);
-
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 148 62"
-      className={`h-[4.25rem] w-full overflow-visible transition-opacity ${hidden ? "opacity-20" : "opacity-100"}`}
-      preserveAspectRatio="none"
-    >
-      <path d="M 0 52 H 148" stroke="currentColor" className="text-slate-200 dark:text-neutral-800" />
-      {!hidden && hasActivity && (
-        <>
-          {points.slice(1).map((point, index) => {
-            const previous = points[index];
-            const growing = point.value >= previous.value;
-            return (
-              <line
-                key={`${point.x}-${point.y}`}
-                x1={previous.x}
-                y1={previous.y}
-                x2={point.x}
-                y2={point.y}
-                stroke={growing ? "#20c982" : "#D92D3A"}
-                strokeWidth="2.7"
-                strokeLinecap="round"
-              />
-            );
-          })}
-          <circle
-            cx={points.at(-1)?.x}
-            cy={points.at(-1)?.y}
-            r="2.8"
-            fill={normalized.at(-1)! >= normalized.at(-2)! ? "#20c982" : "#D92D3A"}
-          />
-        </>
-      )}
-      {!hidden && !hasActivity && (
-        <path d="M 0 38 H 148" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-slate-300 dark:text-neutral-700" />
-      )}
-    </svg>
-  );
-}
-
-export function MobileDashboardOverview({
-  month,
-  balance,
-  balanceDelta,
-  income,
-  expense,
-  incomeChange,
-  expenseChange,
-  trend,
-  budget,
-}: MobileDashboardOverviewProps) {
-  const { fmt, t, language, currencyRate, categoryName } = useI18n();
-  const { balanceHidden, toggleBalanceHidden } = usePrefs();
-  const locale = LOCALES[language];
+export function MobileDashboardOverview({ month, balance, income, expense, incomeChange, expenseChange, budget }: MobileDashboardOverviewProps) {
+  const { fmt, t, fmtMonth, categoryName } = useI18n();
+  const { balanceHidden } = usePrefs();
   const [monthYear, monthNumber] = month.split("-").map(Number);
-  const monthLabel = new Intl.DateTimeFormat(locale, {
-    month: "long",
-    year: monthYear === new Date().getFullYear() ? undefined : "numeric",
-  }).format(new Date(monthYear, monthNumber - 1, 1, 12));
+  const monthLabel = fmtMonth(month);
   const budgetPercent = budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
   const greenWidth = Math.min(budgetPercent, 55);
   const amberWidth = Math.min(Math.max(budgetPercent - greenWidth, 0), 45);
-  const convertedTrend = (trend.length > 1 ? trend : [0, balance]).map((value) => value * currencyRate);
-  const compactFormatter = new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 0 });
-  const compactMax = compactFormatter.format(Math.max(...convertedTrend, 0));
-  const compactMin = compactFormatter.format(Math.min(...convertedTrend, 0));
-  const hasActivity = trend.length > 1 && trend.some((value) => value !== 0);
   const remainingBudget = budget.limit - budget.spent;
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
   const now = new Date();
@@ -129,58 +29,15 @@ export function MobileDashboardOverview({
   const isFutureMonth = new Date(monthYear, monthNumber - 1, 1).getTime() > new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const remainingDays = isCurrentMonth ? Math.max(daysInMonth - now.getDate() + 1, 1) : isFutureMonth ? daysInMonth : 0;
   const dailyAvailable = remainingDays > 0 ? remainingBudget / remainingDays : null;
-
   return (
     <section className="space-y-3" aria-label={t("dashboard")}>
-      <div className="finance-panel px-4 py-4" data-tour="overview">
-        <div className="grid grid-cols-[minmax(0,1.12fr)_minmax(7.5rem,0.88fr)] items-center gap-3">
-          <div className="min-w-0">
-            <div className="flex min-h-11 min-w-0 items-center gap-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <span className="min-w-0 truncate">{t("availableThisMonth")}</span>
-              <button
-                type="button"
-                onClick={toggleBalanceHidden}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:scale-95 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
-                aria-label={balanceHidden ? t("showBalance") : t("hideBalance")}
-                aria-pressed={balanceHidden}
-              >
-                {balanceHidden ? <EyeOff className="h-4 w-4" strokeWidth={1.8} /> : <Eye className="h-4 w-4" strokeWidth={1.8} />}
-              </button>
-            </div>
-            <p className={`mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.4rem,6.6vw,2.15rem)] font-extrabold leading-none tracking-[-0.045em] ${balance < 0 ? "text-red-600 dark:text-red-400" : "text-slate-950 dark:text-white"}`}>
-              {balanceHidden ? "••••••" : fmt(balance)}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-              <span className="font-medium text-slate-500 dark:text-neutral-400">{t("currentBalance")}</span>
-              <strong className="tabular-nums text-slate-800 dark:text-neutral-100">{balanceHidden ? "••••" : fmt(balance)}</strong>
-              {hasActivity && (
-                <span className={`inline-flex items-center gap-1 font-semibold ${balanceDelta >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                  {balanceDelta >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                  <span className="whitespace-nowrap">{balanceHidden ? "••••" : `${balanceDelta >= 0 ? "+" : ""}${fmt(balanceDelta)}`}</span>
-                </span>
-              )}
-            </div>
-          </div>
-          <div className={`relative min-w-0 ${hasActivity ? "pr-8" : ""}`}>
-            {hasActivity && (
-              <>
-                <span className="absolute right-0 top-0 text-[11px] font-medium tabular-nums text-slate-500 dark:text-neutral-400">{balanceHidden ? "••" : compactMax}</span>
-                <span className="absolute bottom-1 right-0 text-[11px] font-medium tabular-nums text-slate-500 dark:text-neutral-400">{balanceHidden ? "••" : compactMin}</span>
-              </>
-            )}
-            <TrendChart values={trend} hidden={balanceHidden} hasActivity={hasActivity} />
-            {!hasActivity && !balanceHidden && (
-              <span className="absolute inset-x-0 bottom-0 truncate text-center text-[11px] text-slate-500 dark:text-neutral-400">{t("noActivityThisMonth")}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="summary-strip mt-4 grid grid-cols-2 overflow-hidden rounded-xl bg-slate-100 dark:bg-neutral-800">
+      <div data-tour="overview">
+        <CardBalanceSummary balance={balance} />
+        <div className="summary-strip mt-3 grid grid-cols-2 overflow-hidden rounded-xl bg-slate-100 dark:bg-neutral-800">
           <SummaryTile type="income" amount={income} change={incomeChange} />
           <SummaryTile type="expense" amount={expense} change={expenseChange} />
         </div>
       </div>
-
       <Link
         href={`/dashboard/budget?month=${month}`}
         className="finance-panel block px-4 py-3 transition-[border-color,background-color,transform] duration-150 hover:border-slate-300 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:hover:border-neutral-700"

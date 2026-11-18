@@ -23,7 +23,6 @@ import {
 import { Money } from "@/components/money";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
-import { CURRENCY_SYMBOLS } from "@/utils/currency";
 import type { TranslationKey } from "@/store/translations";
 import { CategoryArtwork } from "@/components/dashboard/category-artwork";
 
@@ -326,7 +325,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
   const visiblePresets = presets
     .filter((preset) => !deletedPresetIds.has(preset.id))
     .map((preset) => presetOverrides[preset.id] ?? preset);
-  const currencySymbol = CURRENCY_SYMBOLS[currency];
+  const currencySymbol = currency;
   const renderPreset = (preset: QuickPreset, mobile = false) => {
     const pending = pendingPresetId === preset.id;
     return (
@@ -681,7 +680,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                     {t("amount")}
                   </span>
                   <span className="relative block">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
+                      <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
                       {currencySymbol}
                     </span>
                     <input
@@ -693,7 +692,7 @@ export function QuickActions({ presets, categories }: QuickActionsProps) {
                       min="0.01"
                       required
                       placeholder="0.00"
-                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3.5 text-sm font-bold tabular-nums text-slate-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3.5 pr-16 text-sm font-bold tabular-nums text-slate-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
                     />
                   </span>
                 </label>

@@ -92,9 +92,9 @@ test("reports are available on Free and preserve period boundaries, ownership an
     ]);
     await page.goto("/dashboard/reports");
     const summary = page.getByTestId("report-summary");
-    await expect(summary).toContainText("BYN 1,000.00");
-    await expect(summary).toContainText("BYN 155.30");
-    await expect(summary).toContainText("+BYN 844.70");
+    await expect(summary).toContainText("1,000.00 BYN");
+    await expect(summary).toContainText("155.30 BYN");
+    await expect(summary).toContainText("+844.70 BYN");
     await expect(page.getByText("Future expense", { exact: true })).toHaveCount(
       0,
     );
@@ -116,7 +116,7 @@ test("reports are available on Free and preserve period boundaries, ownership an
     ).toBe(true);
     await page.getByRole("button", { name: "7d", exact: true }).click();
     await expect(page).toHaveURL(/period=7d/);
-    await expect(summary).toContainText("BYN 115.30");
+    await expect(summary).toContainText("115.30 BYN");
     const expenseBreakdown = page.getByRole("region", {
       name: translations.en.expensesByCategory,
       exact: true,
@@ -124,10 +124,10 @@ test("reports are available on Free and preserve period boundaries, ownership an
     const groceries = expenseBreakdown
       .locator("details")
       .filter({ has: page.locator("summary", { hasText: "Groceries" }) });
-    await expect(groceries.locator("summary")).toContainText("BYN 50.30");
+    await expect(groceries.locator("summary")).toContainText("50.30 BYN");
     await groceries.locator("summary").click();
-    await expect(groceries.getByText("BYN 30.00", { exact: true })).toBeVisible();
-    await expect(groceries.getByText("BYN 20.30", { exact: true })).toBeVisible();
+    await expect(groceries.getByText("30.00 BYN", { exact: true })).toBeVisible();
+    await expect(groceries.getByText("20.30 BYN", { exact: true })).toBeVisible();
     await expect(
       expenseBreakdown.getByText("Shopping", { exact: true }),
     ).toHaveCount(0);
@@ -136,14 +136,14 @@ test("reports are available on Free and preserve period boundaries, ownership an
     });
     await page.goto("/dashboard/reports?period=all");
     await expect(page).toHaveURL(/period=all/);
-    await expect(summary).toContainText("BYN 243.30");
+    await expect(summary).toContainText("243.30 BYN");
 
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/dashboard/reports?period=all");
     await expect(
       page.getByRole("button", { name: translations.en.all, exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(summary).toContainText("BYN 243.30");
+    await expect(summary).toContainText("243.30 BYN");
     await expect(
       page.getByRole("link", { name: translations.en.reports, exact: true }),
     ).toBeVisible();
@@ -246,6 +246,7 @@ test("new accounts see a report empty state and can reach every main page", asyn
       .click();
     for (const route of [
       "/dashboard",
+      "/dashboard/card",
       "/dashboard/transactions",
       "/dashboard/categories",
       "/dashboard/budget",

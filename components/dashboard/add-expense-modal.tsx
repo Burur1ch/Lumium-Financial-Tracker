@@ -19,7 +19,7 @@ import { createCategory } from "@/app/dashboard/actions";
 import { cachedOfflineAccount, readTransactionDraft, writeTransactionDraft, submitManualTransaction } from "@/utils/offline-transactions";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/store/prefs";
-import { CURRENCY_SYMBOLS, isCurrency } from "@/utils/currency";
+import { isCurrency } from "@/utils/currency";
 
 interface Category {
   id: string;
@@ -103,7 +103,7 @@ export default function AddExpenseModal({
   const { currency } = usePrefs();
   const draftCurrency = draft.currency ?? currency;
   const currencySymbol = isCurrency(draftCurrency)
-    ? CURRENCY_SYMBOLS[draftCurrency]
+    ? draftCurrency
     : draftCurrency;
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const amountRef = useRef<HTMLInputElement>(null);
@@ -399,7 +399,7 @@ export default function AddExpenseModal({
                       htmlFor={`${fieldId}-amount`}
                     />
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-bold pointer-events-none">
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-bold pointer-events-none">
                         {currencySymbol}
                       </span>
                       <input
@@ -414,7 +414,7 @@ export default function AddExpenseModal({
                         value={draft.amount ?? ""}
                         onChange={(event) => setDraft((current) => ({ ...current, amount: event.target.value }))}
                         className={
-                          inputCls + " pl-7 text-lg font-bold tabular-nums"
+                          inputCls + " pr-16 text-lg font-bold tabular-nums"
                         }
                       />
                     </div>

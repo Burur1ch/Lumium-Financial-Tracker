@@ -1,14 +1,15 @@
 "use client";
+import { PaymentCalendar } from "./payment-calendar";
+import { ScheduledPaymentForm } from "./scheduled-payment-form";
+import type { CashflowPlan, ScheduledPayment } from "@/utils/planning";
 import { CategoryPicker } from "@/components/dashboard/category-picker";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CalendarClock,
-  Check,
   Loader2,
   Plus,
-  Repeat2,
+  CalendarDays,
   Sparkles,
   Target,
   Trash2,
@@ -16,13 +17,10 @@ import {
 } from "lucide-react";
 import {
   applyTransactionRule,
-  createRecurringTransaction,
   createSavingsGoal,
   createTransactionRule,
-  deleteRecurringTransaction,
   deleteSavingsGoal,
   deleteTransactionRule,
-  materializeRecurringTransaction,
   setSavingsGoalProgress,
 } from "@/app/dashboard/actions";
 import { Money } from "@/components/money";
@@ -36,19 +34,7 @@ interface CategoryOption {
   type: "expense" | "income";
 }
 
-interface RecurringItem {
-  id: string;
-  name: string;
-  amount: number;
-  type: "expense" | "income";
-  frequency: "weekly" | "monthly" | "yearly";
-  nextDate: string;
-  autoCreate: boolean;
-  active: boolean;
-  categoryId: string | null;
-  categoryName: string | null;
-  categoryColor: string | null;
-}
+type RecurringItem = ScheduledPayment;
 
 interface RuleItem {
   id: string;
@@ -77,11 +63,13 @@ export function PlanningContent({
   recurring,
   rules,
   goals,
+  cashflow,
 }: {
   categories: CategoryOption[];
   recurring: RecurringItem[];
   rules: RuleItem[];
   goals: GoalItem[];
+  cashflow: CashflowPlan;
 }) {
   const router = useRouter();
   const { t, fmtDate, categoryName } = useI18n();
@@ -89,11 +77,12 @@ export function PlanningContent({
   const rate = exchangeRates[currency] ?? 1;
   const [tab, setTab] = useState<"recurring" | "rules" | "goals">("recurring");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<ScheduledPayment | undefined>();
+  const [paymentDate, setPaymentDate] = useState(cashflow.today);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ruleType, setRuleType] = useState<"expense" | "income">("expense");
-  const [recurringType, setRecurringType] = useState<"expense" | "income">("expense");
   const [goalProgress, setGoalProgress] = useState<Record<string, string>>({});
 
   const refresh = () => {
@@ -148,7 +137,7 @@ export function PlanningContent({
   const inputClass =
     "min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100";
   const tabs = [
-    { key: "recurring" as const, label: t("recurringTransactions"), icon: Repeat2, count: recurring.length },
+    { key: "recurring" as const, label: t("paymentCalendar"), icon: CalendarDays, count: recurring.length },
     { key: "rules" as const, label: t("automationRules"), icon: WandSparkles, count: rules.length },
     { key: "goals" as const, label: t("savingsGoals"), icon: Target, count: goals.length },
   ];
@@ -160,8 +149,8 @@ export function PlanningContent({
           <h1 className="text-2xl font-bold tracking-[-0.025em] text-slate-950 dark:text-slate-50 md:text-3xl">{t("planning")}</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("planningSubtitle")}</p>
         </div>
-        <button type="button" onClick={() => setShowForm((value) => !value)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-600">
-          <Plus className="h-4 w-4" /> {t("addNew")}
+        <button type="button" onClick={() => { setEditing(undefined); setPaymentDate(cashflow.today); setShowForm((value) => !value); }} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white hover:bg-red-600">
+          <Plus className="h-4 w-4" /> {tab === "recurring" ? t("addScheduledPayment") : t("addNew")}
         </button>
       </header>
 
@@ -175,18 +164,7 @@ export function PlanningContent({
 
       {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-400">{error}</p>}
 
-      {showForm && tab === "recurring" && (
-        <form onSubmit={(event) => void submitForm(event, createRecurringTransaction)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
-          <input name="name" required placeholder={t("recurringNamePlaceholder")} className={inputClass} />
-          <input name="amount" type="number" min="0.01" step="0.01" required placeholder={t("amount")} className={inputClass} />
-          <select name="type" value={recurringType} onChange={(event) => setRecurringType(event.target.value as "expense" | "income")} className={inputClass}><option value="expense">{t("expense")}</option><option value="income">{t("income")}</option></select>
-          <CategoryPicker name="category_id" className={inputClass} categories={categories.filter(category => category.type === recurringType)} />
-          <select name="frequency" className={inputClass}><option value="weekly">{t("weekly")}</option><option value="monthly">{t("monthly")}</option><option value="yearly">{t("yearly")}</option></select>
-          <input name="next_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputClass} />
-          <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300"><input name="auto_create" type="checkbox" className="h-4 w-4 accent-red-500" />{t("autoCreateTransaction")}</label>
-          <button type="submit" disabled={saving} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-bold text-white disabled:opacity-50 sm:col-span-2 lg:col-span-1">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{t("save")}</button>
-        </form>
-      )}
+      {showForm && tab === "recurring" && <ScheduledPaymentForm key={(editing?.id ?? "new") + currency + paymentDate} categories={categories} item={editing} date={paymentDate} onClose={refresh} />}
 
       {showForm && tab === "rules" && (
         <form onSubmit={(event) => void submitForm(event, createTransactionRule)} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-3">
@@ -210,18 +188,7 @@ export function PlanningContent({
         </form>
       )}
 
-      {tab === "recurring" && (
-        <section className="space-y-3">
-          {recurring.length === 0 ? <EmptyState icon={CalendarClock} title={t("noRecurringTransactions")} description={t("noRecurringTransactionsHint")} /> : recurring.map((item) => (
-            <article key={item.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: item.categoryColor ?? "#D92D3A" }}><Repeat2 className="h-5 w-5" /></span>
-              <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{item.name}</h3><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{categories.find(c => c.id === item.categoryId) ? categoryName(categories.find(c => c.id === item.categoryId)!) : t("uncategorized")} · {t(item.frequency)} · {t("nextPayment")}: {fmtDate(item.nextDate)}</p></div>
-              <strong className={item.type === "income" ? "text-emerald-500" : "text-slate-900 dark:text-slate-100"}>{item.type === "income" ? "+" : "-"}<Money amount={item.amount} decimals /></strong>
-              <div className="flex gap-1"><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => materializeRecurringTransaction(item.id))} className="min-h-11 rounded-xl bg-red-500 px-3 text-xs font-bold text-white disabled:opacity-50">{pendingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t("createNow")}</button><button type="button" disabled={pendingId === item.id} onClick={() => void run(item.id, () => deleteRecurringTransaction(item.id))} className="flex h-11 w-11 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30" aria-label={t("deleteButton")}><Trash2 className="h-4 w-4" /></button></div>
-            </article>
-          ))}
-        </section>
-      )}
+      {tab === "recurring" && <PaymentCalendar key={cashflow.month} cashflow={cashflow} recurring={recurring} onEdit={(item) => { setEditing(item); setShowForm(true); document.querySelector("main")?.scrollTo({ top: 0 }); }} onAdd={(date) => { setEditing(undefined); setPaymentDate(date); setShowForm(true); document.querySelector("main")?.scrollTo({ top: 0 }); }} />}
 
       {tab === "rules" && (
         <section className="space-y-3">
