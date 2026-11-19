@@ -54,14 +54,14 @@ test("manual shortcut resumes the draft once and quick actions do not create tra
     await page.waitForFunction((userId) => JSON.parse(localStorage.getItem("lumium_offline_account") ?? "null")?.userId === userId, id);
     await page.evaluate(() => window.dispatchEvent(new Event("lumium:open-add-transaction")));
     let dialog = page.getByRole("dialog", { name: translations.en.newTransaction, exact: true });
-    await dialog.getByRole("textbox", { name: translations.en.description, exact: true }).fill("Draft from launcher");
+    await dialog.getByRole("textbox", { name: translations.en.transactionNote, exact: true }).fill("Draft from launcher");
     await dialog.getByRole("spinbutton", { name: translations.en.amount, exact: true }).fill("12.34");
     await dialog.getByRole("button", { name: translations.en.close, exact: true }).click();
     await expect(dialog).toBeHidden();
     await page.goto("/dashboard?launch=add&month=2026-10");
     dialog = page.getByRole("dialog", { name: translations.en.newTransaction, exact: true });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("textbox", { name: translations.en.description, exact: true })).toHaveValue("Draft from launcher");
+    await expect(dialog.getByRole("textbox", { name: translations.en.transactionNote, exact: true })).toHaveValue("Draft from launcher");
     await expect(dialog.getByRole("spinbutton", { name: translations.en.amount, exact: true })).toHaveValue("12.34");
     await expect(page).toHaveURL(/\/dashboard\?month=2026-10$/);
     await expect(page.locator(".tour-dialog")).toHaveCount(0);

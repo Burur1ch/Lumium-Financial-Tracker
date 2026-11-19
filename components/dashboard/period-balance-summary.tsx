@@ -8,12 +8,13 @@ import { usePrefs } from "@/store/prefs";
 export function PeriodBalanceSummary({ net, change, trend, hasActivity }: {
   net: number;
   change: number;
-  trend: { date: string; net: number }[];
+  trend: { date: string; net: number; transactions: { id: string; description: string; amount: number; type: "expense" | "income" }[] }[];
   hasActivity: boolean;
 }) {
   const { t, fmt, fmtDate } = useI18n();
   const { balanceHidden, toggleBalanceHidden } = usePrefs();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const index = Math.min(selectedIndex ?? trend.length - 1, trend.length - 1);
   const selected = trend[index];
   const min = Math.min(0, ...trend.map((day) => day.net));
@@ -52,8 +53,9 @@ export function PeriodBalanceSummary({ net, change, trend, hasActivity }: {
         <p className="text-right text-xs text-slate-500" aria-live="polite" data-testid="period-chart-selection">{dateLabel(selected.date)} · <strong className="tabular-nums text-slate-800 dark:text-white">{signed(selected.net)}</strong></p>
       </div>
       <div className="mt-2 flex items-stretch gap-2">
-        <div className="relative w-4 shrink-0 text-[10px] text-slate-400" aria-hidden="true"><span className="absolute right-0 -translate-y-1/2" style={{ top: `${y(0)}%` }}>0</span></div>
+        <div className="relative w-[4.75rem] shrink-0 text-right text-[10px] tabular-nums text-slate-400" aria-hidden="true">{(max === min ? [0] : [max, (max + min) / 2, min]).map((value, i) => <span key={i} className="absolute right-0 -translate-y-1/2 whitespace-nowrap" style={{ top: `${y(value)}%` }}>{fmt(value, { decimals: max - min < 3 })}</span>)}</div>
         <svg viewBox="0 0 320 100" role="img" aria-label={t("periodNetDynamics")} className="h-24 min-w-0 flex-1 overflow-visible" preserveAspectRatio="none">
+          <path d="M8 10H312 M8 50H312 M8 90H312 M8 10V90" fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" className="text-slate-100 dark:text-slate-800" />
           <path d={`M8 ${y(0)}H312`} fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" className="text-slate-300 dark:text-slate-600" />
           <path d={path} fill="none" stroke={color} strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={points[index].x} cy={points[index].y} r="4" fill={color} stroke="white" strokeWidth="2" vectorEffect="non-scaling-stroke" />
@@ -61,6 +63,8 @@ export function PeriodBalanceSummary({ net, change, trend, hasActivity }: {
       </div>
       {trend.length > 1 && <input type="range" aria-label={t("selectResultDay")} aria-valuetext={`${dateLabel(selected.date)}, ${signed(selected.net)}`} min={0} max={trend.length - 1} value={index} onChange={(event) => setSelectedIndex(Number(event.target.value))} className="cashflow-slider mt-1 h-6 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-red-500" />}
       <div className="flex justify-between text-[11px] text-slate-400"><span>{dateLabel(trend[0].date)}</span><span>{dateLabel(trend[trend.length - 1].date)}</span></div>
+      <button type="button" onClick={() => setDetailsOpen(!detailsOpen)} aria-expanded={detailsOpen} className="mt-3 min-h-11 w-full rounded-xl bg-slate-100 px-3 text-left text-xs font-semibold text-slate-700 dark:bg-white/5 dark:text-slate-200">{t("dayTransactions")} · {selected.transactions.length} <span className="float-right">{detailsOpen ? "−" : "+"}</span></button>
+      {detailsOpen && <div className="mt-2 divide-y divide-slate-100 dark:divide-white/10" data-testid="period-day-transactions">{selected.transactions.length === 0 ? <p className="py-3 text-xs text-slate-500">{t("noTransactionsForDay")}</p> : selected.transactions.map((transaction) => <div key={transaction.id} className="flex items-center justify-between gap-3 py-2.5 text-xs"><span className="min-w-0 break-words text-slate-700 dark:text-slate-200">{transaction.description}</span><strong className={`shrink-0 tabular-nums ${transaction.type === "income" ? "text-emerald-600" : "text-red-600"}`}>{transaction.type === "income" ? "+" : "−"}{fmt(transaction.amount)}</strong></div>)}</div>}
     </div> : !balanceHidden && !hasActivity ? <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-white/10">{t("noActivityThisMonth")}</p> : null}
   </section>;
 }

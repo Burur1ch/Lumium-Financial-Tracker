@@ -159,12 +159,12 @@ test("offline drafts survive reload and queued entries sync exactly once", async
     await page.evaluate(() => window.dispatchEvent(new Event("lumium:open-add-transaction")));
     let dialog = page.getByRole("dialog", { name: translations.en.newTransaction, exact: true });
     await dialog.getByRole("spinbutton", { name: translations.en.amount, exact: true }).fill("12.34");
-    await dialog.getByRole("textbox", { name: translations.en.description, exact: true }).fill("Offline purchase");
+    await dialog.getByRole("textbox", { name: translations.en.transactionNote, exact: true }).fill("Offline purchase");
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith("lumium_draft_")))).toBe(true);
     await context.setOffline(true);
     await page.reload();
     dialog = page.getByRole("dialog", { name: translations.en.newTransaction, exact: true });
-    await expect(dialog.getByRole("textbox", { name: translations.en.description, exact: true })).toHaveValue("Offline purchase");
+    await expect(dialog.getByRole("textbox", { name: translations.en.transactionNote, exact: true })).toHaveValue("Offline purchase");
     await expect(dialog.getByRole("spinbutton", { name: translations.en.amount, exact: true })).toHaveValue("12.34");
     await dialog.locator('button[type="submit"]').click();
     await expect(page.getByText(translations.en.offlineQueued, { exact: true })).toBeVisible();
@@ -176,7 +176,7 @@ test("offline drafts survive reload and queued entries sync exactly once", async
     expect((await db.query("select count(*)::int as count from transactions where user_id=$1", [userId])).rows[0].count).toBe(0);
     await context.setOffline(false);
     await page.goto("/dashboard");
-    await expect.poll(async () => (await db.query("select count(*)::int as count from transactions where user_id=$1 and description='Offline purchase'", [userId])).rows[0].count).toBe(1);
+    await expect.poll(async () => (await db.query("select count(*)::int as count from transactions where user_id=$1 and note='Offline purchase'", [userId])).rows[0].count).toBe(1);
     await page.evaluate((retry) => {
       localStorage.setItem(retry.key, retry.value);
       window.dispatchEvent(new Event("online"));

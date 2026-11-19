@@ -592,9 +592,7 @@ test("budget rollover, overspend and unlimited archived editing stay consistent"
     await manual
       .getByRole("spinbutton", { name: translations.en.amount, exact: true })
       .fill("3");
-    await manual
-      .getByRole("textbox", { name: translations.en.description, exact: true })
-      .fill("Milk icon check");
+    await expect(manual.getByRole("textbox", { name: translations.en.description, exact: true })).toHaveCount(0);
     await manual
       .getByRole("button", { name: translations.en.saveChanges, exact: true })
       .click();
@@ -602,7 +600,7 @@ test("budget rollover, overspend and unlimited archived editing stay consistent"
     expect(
       (
         await db.query(
-          "select c.icon from transactions t join categories c on c.id=t.category_id where t.user_id=$1 and t.description='Milk icon check'",
+          "select c.icon from transactions t join categories c on c.id=t.category_id where t.user_id=$1 and t.description='My milk'",
           [userId],
         )
       ).rows,

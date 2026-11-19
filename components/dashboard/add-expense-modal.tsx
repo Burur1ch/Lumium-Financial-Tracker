@@ -10,7 +10,6 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Tag,
-  AlignLeft,
   StickyNote,
   Banknote,
   CalendarDays,
@@ -99,7 +98,7 @@ export default function AddExpenseModal({
   );
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [draft, setDraft] = useState<TransactionDraft>({});
-  const { t } = useI18n();
+  const { t, categoryName } = useI18n();
   const { currency } = usePrefs();
   const draftCurrency = draft.currency ?? currency;
   const currencySymbol = isCurrency(draftCurrency)
@@ -251,6 +250,9 @@ export default function AddExpenseModal({
     setLoading(true);
     setError(null);
     const formData = new FormData(e.currentTarget);
+    const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+    if (!String(formData.get("description") ?? "").trim())
+      formData.set("description", selectedCategory ? categoryName(selectedCategory) : t(selectedType));
     try {
       const result = await submitManualTransaction(formData);
       if (result.success) {
@@ -420,24 +422,7 @@ export default function AddExpenseModal({
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div>
-                    <FieldLabel
-                      icon={AlignLeft}
-                      label={t("description")}
-                      htmlFor={`${fieldId}-description`}
-                    />
-                    <input
-                      type="text"
-                      name="description"
-                      id={`${fieldId}-description`}
-                      required
-                      placeholder={t("transactionDescriptionPlaceholder")}
-                      value={draft.description ?? ""}
-                      onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                      className={inputCls}
-                    />
-                  </div>
+                  <input type="hidden" name="description" value={draft.description ?? ""} />
 
                   <div>
                     <FieldLabel

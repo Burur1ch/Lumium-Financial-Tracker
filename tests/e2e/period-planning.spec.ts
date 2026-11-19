@@ -83,6 +83,12 @@ test("dashboard shows the signed selected-month result and has no card managemen
     const daySlider = summary.getByRole("slider", { name: "Select a day to see the result" });
     await daySlider.fill("0");
     await expect(summary.getByTestId("period-chart-selection")).toContainText("+50.00 BYN");
+    await summary.getByRole("button", { name: /Transactions on this day/ }).click();
+    await expect(summary.getByTestId("period-day-transactions")).toContainText("Old income");
+    await expect(summary.getByTestId("period-day-transactions")).toContainText("+50.00 BYN");
+    await daySlider.fill("1");
+    await expect(summary.getByTestId("period-day-transactions")).toContainText("Old expense");
+    await daySlider.fill("0");
     await summary.getByRole("button", { name: "Hide balance" }).click();
     await expect(summary.getByTestId("period-chart-selection")).toHaveCount(0);
     await expect(summary.getByRole("slider")).toHaveCount(0);
@@ -97,6 +103,14 @@ test("dashboard shows the signed selected-month result and has no card managemen
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.goto("/dashboard/card"); await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByTestId("period-net-value")).toHaveText("-100.00 BYN");
+    await page.goto(`/dashboard/transactions?month=${month}&search=600%2C00`);
+    await expect(page.getByText("Expense", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Income", { exact: true })).toHaveCount(0);
+    const category = (await db.query("insert into categories(user_id,name,type,color,icon) values($1,'Custom search category','expense','#112233','tag') returning id", [id])).rows[0].id;
+    await db.query("update transactions set category_id=$2 where user_id=$1 and description='Expense'", [id, category]);
+    await page.goto(`/dashboard/transactions?month=${month}&search=Custom%20search`);
+    await expect(page.getByText("Expense", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Income", { exact: true })).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally { await page.goto("about:blank"); if (id) await db.query('delete from "user" where id=$1', [id]); await db.end(); }
 });

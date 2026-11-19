@@ -2091,9 +2091,32 @@ export async function getFilteredTransactions(filters: {
     );
   }
 
-  // Фильтр по поисковому слову (регистронезависимый поиск)
-  if (filters.search) {
-    conditions.push(ilike(transactions.description, `%${filters.search}%`));
+  const search = filters.search?.trim();
+  if (search) {
+    const escaped = search.replace(/[\\%_]/g, "\\$&");
+    const pattern = `%${escaped}%`;
+    const matches = [sql`${transactions.description} ilike ${pattern} escape '\\'`, sql`${transactions.note} ilike ${pattern} escape '\\'`];
+    const categoryRows = await userCategoryRows(user.id);
+    const needle = search.toLocaleLowerCase();
+    const matchingCategories = categoryRows.filter((category) => {
+      const key = category.system_key ? categoryTranslationKey(category.system_key) : null;
+      return category.name.toLocaleLowerCase().includes(needle) || (key && Object.values(translations).some((locale) => ((locale as Record<string, string>)[key] ?? "").toLocaleLowerCase().includes(needle)));
+    });
+    const matchingIds = new Set(matchingCategories.flatMap((category) => [...categorySelectionIds(category.id, categoryRows)]));
+    if (matchingIds.size) {
+      const ids = sql.join([...matchingIds].map((id) => sql`${id}::uuid`), sql`, `);
+      matches.push(sql`((not exists (select 1 from transaction_splits s where s.transaction_id = ${transactions.id} and s.user_id = ${user.id}) and ${transactions.category_id} in (${ids})) or exists (select 1 from transaction_splits s where s.transaction_id = ${transactions.id} and s.user_id = ${user.id} and s.category_id in (${ids})))`);
+    }
+    const normalizedAmount = search.replace(/\s/g, "").replace(",", ".").replace(/^[+−-]/, "");
+    if (/^\d+(?:\.\d{1,2})?$/.test(normalizedAmount)) {
+      const [saved] = await db.select({ data: userPreferences.data }).from(userPreferences).where(eq(userPreferences.user_id, user.id)).limit(1);
+      const preferences = saved?.data as Partial<AccountPreferences> | undefined;
+      const currency = isCurrency(preferences?.currency) ? preferences.currency : "BYN";
+      const rate = await getCurrencyRate(currency);
+      const amount = Number(normalizedAmount);
+      matches.push(sql`(${transactions.amount} * ${rate} >= ${amount - 0.005} and ${transactions.amount} * ${rate} < ${amount + 0.005})`);
+    }
+    conditions.push(sql`(${sql.join(matches, sql` or `)})`);
   }
 
   // Фильтр по типу (expense / income)

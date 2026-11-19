@@ -53,10 +53,9 @@ export default function TransactionsFilters({
   };
 
   useEffect(() => {
-    const currentSearch = searchParams.get("search") || "";
-    if (search === currentSearch) return;
     const timer = window.setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
+      if (search.trim() === (params.get("search") || "")) return;
       if (search.trim()) params.set("search", search.trim());
       else params.delete("search");
       startTransition(() => {
@@ -66,7 +65,13 @@ export default function TransactionsFilters({
       });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [router, search, searchParams]);
+  }, [router, search]);
+
+  useEffect(() => {
+    const syncSearch = () => setSearch(new URLSearchParams(window.location.search).get("search") || "");
+    window.addEventListener("popstate", syncSearch);
+    return () => window.removeEventListener("popstate", syncSearch);
+  }, []);
 
   return (
     <>

@@ -112,6 +112,7 @@ export default async function DashboardPage({
       system_key: string | null;
     };
   } = {};
+  const dailyTransactions: Record<string, Array<{ id: string; description: string; amount: number; type: "expense" | "income" }>> = {};
 
   const COLORS = [
     "#D92D3A",
@@ -135,6 +136,7 @@ export default async function DashboardPage({
       db
         .select({
           id: transactions.id,
+          description: transactions.description,
           category_id: transactions.category_id,
           amount: transactions.amount,
           type: transactions.type,
@@ -291,6 +293,9 @@ export default async function DashboardPage({
       txAll.forEach((tx) => {
         const amount = Number(tx.amount);
         const groupKey = tx.date.toISOString().slice(0, 10);
+        if (tx.type === "income" || tx.type === "expense") {
+          (dailyTransactions[groupKey] ??= []).push({ id: tx.id, description: tx.description, amount, type: tx.type });
+        }
 
         if (!chartDataMap[groupKey])
           chartDataMap[groupKey] = { income: 0, expense: 0 };
@@ -348,13 +353,13 @@ export default async function DashboardPage({
     ([id, obj]) => ({ id, ...obj }),
   );
 
-  const monthlyTrend: { date: string; net: number }[] = [];
+  const monthlyTrend: { date: string; net: number; transactions: Array<{ id: string; description: string; amount: number; type: "expense" | "income" }> }[] = [];
   let runningNet = 0;
   for (let date = new Date(monthRange.start); date < monthRange.end && date < completedThrough; date.setUTCDate(date.getUTCDate() + 1)) {
     const dateKey = date.toISOString().slice(0, 10);
     const daily = chartDataMap[dateKey];
     runningNet += (daily?.income ?? 0) - (daily?.expense ?? 0);
-    monthlyTrend.push({ date: dateKey, net: runningNet });
+    monthlyTrend.push({ date: dateKey, net: runningNet, transactions: dailyTransactions[dateKey] ?? [] });
   }
 
   const mobileBudget = {
@@ -375,6 +380,7 @@ export default async function DashboardPage({
         color: budget.categories?.color ?? "#64748b",
         icon: budget.categories?.icon ?? null,
         limit: budget.monthly_limit,
+        spent: budget.current_spent,
       })),
   };
 

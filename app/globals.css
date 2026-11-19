@@ -237,7 +237,7 @@ html.dark body::before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 0.28rem;
   border-radius: 0.75rem;
   color: var(--app-muted);
   font-size: 0.6875rem;
@@ -247,13 +247,13 @@ html.dark body::before {
 
 .mobile-add-button-circle {
   display: flex;
-  width: 4rem;
-  height: 4rem;
-  margin-top: -1.65rem;
-  margin-bottom: 0.15rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-top: -1.5rem;
+  margin-bottom: 0;
   align-items: center;
   justify-content: center;
-  border: 5px solid var(--app-surface);
+  border: 3px solid var(--app-surface);
   border-radius: 999px;
   background: var(--app-accent);
   color: white;

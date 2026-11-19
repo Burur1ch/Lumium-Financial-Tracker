@@ -121,10 +121,6 @@ export default function BudgetContent({
         />
       </div>
 
-      <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-        {t("limitNotBalance")} {t("categoryBudgetHelp")}
-      </p>
-
       {/* Summary row */}
       {b.length > 0 && (
         <div
